@@ -2228,9 +2228,9 @@ func (s *imageSuite) TestSetupSeedWithBaseAndLocalLegacyCoreOrdering(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
+		"core18":    constants.AccountId,
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	coreFn := snaptest.MakeTestSnapWithFiles(c, packageCore, [][]string{{"local", ""}})
