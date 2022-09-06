@@ -1296,10 +1296,10 @@ func (s *imageSuite) TestSetupSeedWithBaseLegacySnap(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
-		"snapd":     "canonical",
+		"core18":    constants.AccountId,
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
+		"snapd":     constants.AccountId,
 	}, "")
 
 	opts := &image.Options{
