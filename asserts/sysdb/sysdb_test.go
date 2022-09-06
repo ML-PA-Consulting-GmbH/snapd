@@ -20,6 +20,7 @@
 package sysdb_test
 
 import (
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -141,13 +142,13 @@ func (sdbs *sysDBSuite) TestOpenSysDatabase(c *C) {
 
 	// check trusted
 	_, err = db.Find(asserts.AccountKeyType, map[string]string{
-		"account-id":          "canonical",
-		"public-key-sha3-384": "-CvQKAwRQ5h3Ffn10FILJoEZUXOv6km9FwA80-Rcj-f-6jadQ89VRswHNiEB9Lxk",
+		"account-id":          constants.EncodedCanonicalAccountId,
+		"public-key-sha3-384": constants.EncodedCanonicalAccountSignKeySha3, // "-CvQKAwRQ5h3Ffn10FILJoEZUXOv6km9FwA80-Rcj-f-6jadQ89VRswHNiEB9Lxk",
 	})
 	c.Assert(err, IsNil)
 
 	trustedAcc, err := db.Find(asserts.AccountType, map[string]string{
-		"account-id": "canonical",
+		"account-id": constants.EncodedCanonicalAccountId, // "canonical",
 	})
 	c.Assert(err, IsNil)
 
