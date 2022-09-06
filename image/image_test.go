@@ -2536,11 +2536,11 @@ func (s *imageSuite) TestSetupSeedSnapReqBaseFromLocal(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":                "canonical",
-		"pc":                  "canonical",
-		"pc-kernel":           "canonical",
-		"snap-req-other-base": "canonical",
-		"other-base":          "canonical",
+		"core":                constants.AccountId,
+		"pc":                  constants.AccountId,
+		"pc-kernel":           constants.AccountId,
+		"snap-req-other-base": constants.AccountId,
+		"other-base":          constants.AccountId,
 	}, "")
 	bfn := s.AssertedSnap("other-base")
 	opts := &image.Options{
@@ -2564,11 +2564,11 @@ func (s *imageSuite) TestSetupSeedSnapReqBaseFromExtraFails(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":                "canonical",
-		"pc":                  "canonical",
-		"pc-kernel":           "canonical",
-		"snap-req-other-base": "canonical",
-		"other-base":          "canonical",
+		"core":                constants.AccountId,
+		"pc":                  constants.AccountId,
+		"pc-kernel":           constants.AccountId,
+		"snap-req-other-base": constants.AccountId,
+		"other-base":          constants.AccountId,
 	}, "")
 	bfn := s.AssertedSnap("other-base")
 	opts := &image.Options{
