@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -99,7 +100,7 @@ func (s *imageSuite) SetUpTest(c *C) {
 	s.tsto = tooling.MockToolingStore(s)
 
 	s.SeedSnaps = &seedtest.SeedSnaps{}
-	s.SetupAssertSigning("canonical")
+	s.SetupAssertSigning(constants.AccountId /*"canonical"*/)
 	s.Brands.Register("my-brand", brandPrivKey, map[string]interface{}{
 		"verification": "verified",
 	})
@@ -562,10 +563,10 @@ func (s *imageSuite) setupSnaps(c *C, publishers map[string]string, defaultsYaml
 		s.MakeAssertedSnap(c, packageKernel, nil, snap.R(2), publishers["pc-kernel"])
 	}
 
-	s.MakeAssertedSnap(c, packageCore, nil, snap.R(3), "canonical")
+	s.MakeAssertedSnap(c, packageCore, nil, snap.R(3), constants.AccountId /*"canonical"*/)
 
-	s.MakeAssertedSnap(c, packageCore18, nil, snap.R(18), "canonical")
-	s.MakeAssertedSnap(c, snapdSnap, nil, snap.R(18), "canonical")
+	s.MakeAssertedSnap(c, packageCore18, nil, snap.R(18), constants.AccountId /*"canonical"*/)
+	s.MakeAssertedSnap(c, snapdSnap, nil, snap.R(18), constants.AccountId /*"canonical"*/)
 
 	s.MakeAssertedSnap(c, otherBase, nil, snap.R(18), "other")
 
@@ -630,8 +631,8 @@ func (s *imageSuite) TestSetupSeed(c *C) {
 	rootdir := filepath.Join(preparedir, "image")
 	blobdir := filepath.Join(rootdir, "var/lib/snapd/snaps")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	gadgetWriteResolvedContentCalled := 0
