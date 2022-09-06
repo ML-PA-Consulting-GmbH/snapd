@@ -2438,10 +2438,10 @@ func (s *imageSuite) TestSetupSeedSnapCoreSatisfiesCore16(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":                "canonical",
-		"pc":                  "canonical",
-		"pc-kernel":           "canonical",
-		"snap-req-other-base": "canonical",
+		"core":                constants.AccountId,
+		"pc":                  constants.AccountId,
+		"pc-kernel":           constants.AccountId,
+		"snap-req-other-base": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -2463,9 +2463,9 @@ func (s *imageSuite) TestSetupSeedStoreAssertionMissing(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -2482,7 +2482,7 @@ func (s *imageSuite) TestSetupSeedStoreAssertionFetched(c *C) {
 	// add store assertion
 	storeAs, err := s.StoreSigning.Sign(asserts.StoreType, map[string]interface{}{
 		"store":       "my-store",
-		"operator-id": "canonical",
+		"operator-id": constants.AccountId,
 		"timestamp":   time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
 	c.Assert(err, IsNil)
@@ -2498,9 +2498,9 @@ func (s *imageSuite) TestSetupSeedStoreAssertionFetched(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
