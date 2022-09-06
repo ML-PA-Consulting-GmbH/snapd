@@ -1144,16 +1144,16 @@ func (s *imageSuite) TestSetupSeedWithBaseWithCloudConf(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"pc-kernel": "canonical",
-		"snapd":     "canonical",
+		"core18":    constants.AccountId,
+		"pc-kernel": constants.AccountId,
+		"snapd":     constants.AccountId,
 	}, "")
 	s.MakeAssertedSnap(c, packageGadgetWithBase, [][]string{
 		{"grub.conf", ""},
 		{"grub.cfg", "I'm a grub.cfg"},
 		{"cloud.conf", "# cloud config"},
 		{"meta/gadget.yaml", pcGadgetYaml},
-	}, snap.R(5), "canonical")
+	}, snap.R(5), constants.AccountId)
 
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
