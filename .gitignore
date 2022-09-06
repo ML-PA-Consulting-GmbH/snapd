@@ -92,3 +92,7 @@ cmd/test-driver
 
 # Image files
 *.img
+/bin/
+/_build/
+/data/
+/packaging/ubuntu-16.04/.debhelper/bucket/
