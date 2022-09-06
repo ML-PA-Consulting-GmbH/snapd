@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/url"
@@ -41,7 +42,6 @@ import (
 
 	"github.com/snapcore/snapd/arch"
 	"github.com/snapcore/snapd/client"
-	"github.com/snapcore/snapd/constants"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/httputil"
 	"github.com/snapcore/snapd/jsonutil"
@@ -227,9 +227,9 @@ func endpointURL(base *url.URL, path string, query url.Values) *url.URL {
 
 // apiURL returns the system default base API URL.
 func apiURL() *url.URL {
-	s := "https://api.snapcraft.io/"
+	s := constants.BaseUrlSnapcraftApi
 	if snapdenv.UseStagingStore() {
-		s = "https://api.staging.snapcraft.io/"
+		s = constants.BaseUrlSnapcraftStagingApi
 	}
 	u, _ := url.Parse(s)
 	return u
@@ -276,9 +276,9 @@ func assertsURL() (*url.URL, error) {
 
 func authLocation() string {
 	if snapdenv.UseStagingStore() {
-		return "login.staging.ubuntu.com"
+		return constants.AuthLocationStaging
 	}
-	return "login.ubuntu.com"
+	return constants.AuthLocation
 }
 
 func authURL() string {
@@ -288,11 +288,11 @@ func authURL() string {
 	return "https://" + authLocation() + "/api/v2"
 }
 
-var defaultStoreDeveloperURL = "https://dashboard.snapcraft.io/"
+var defaultStoreDeveloperURL = constants.BaseUrlSnapcraftDashboard
 
 func storeDeveloperURL() string {
 	if snapdenv.UseStagingStore() {
-		return "https://dashboard.staging.snapcraft.io/"
+		return constants.BaseUrlSnapcraftDashboardStaging
 	}
 	return defaultStoreDeveloperURL
 }
@@ -419,6 +419,32 @@ func New(cfg *Config, dauthCtx DeviceAndAuthContext) *Store {
 
 	return store
 }
+
+// API endpoint paths
+const (
+	// see https://dashboard.snapcraft.io/docs/
+	// XXX: Repeating "api/" here is cumbersome, but the next generation
+	// of store APIs will probably drop that prefix (since it now
+	// duplicates the hostname), and we may want to switch to v2 APIs
+	// one at a time; so it's better to consider that as part of
+	// individual endpoint paths.
+	searchEndpPath      = "api/v1/snaps/search"
+	ordersEndpPath      = "api/v1/snaps/purchases/orders"
+	buyEndpPath         = "api/v1/snaps/purchases/buy"
+	customersMeEndpPath = "api/v1/snaps/purchases/customers/me"
+	sectionsEndpPath    = "api/v1/snaps/sections"
+	commandsEndpPath    = "api/v1/snaps/names"
+	// v2
+	snapActionEndpPath = "v2/snaps/refresh"
+	snapInfoEndpPath   = "v2/snaps/info"
+	cohortsEndpPath    = "v2/cohorts"
+	findEndpPath       = "v2/snaps/find"
+
+	deviceNonceEndpPath   = "api/v1/snaps/auth/nonces"
+	deviceSessionEndpPath = "api/v1/snaps/auth/sessions"
+
+	assertionsPath = "v2/assertions"
+)
 
 func (s *Store) newHTTPClient(opts *httputil.ClientOptions) *http.Client {
 	if opts == nil {
@@ -831,7 +857,7 @@ func (s *Store) decorateOrders(snaps []*snap.Info, user *auth.UserState) error {
 
 	reqOptions := &requestOptions{
 		Method: "GET",
-		URL:    s.endpointURL(constants.OrdersEndpPath, nil),
+		URL:    s.endpointURL(ordersEndpPath, nil),
 		Accept: jsonContentType,
 	}
 	var result ordersResult
@@ -905,7 +931,7 @@ func (s *Store) snapInfo(ctx context.Context, snapName string, fields string, us
 	query.Set("fields", fields)
 	query.Set("architecture", s.architecture)
 
-	u := s.endpointURL(path.Join(constants.SnapInfoEndpPath, snapName), query)
+	u := s.endpointURL(path.Join(snapInfoEndpPath, snapName), query)
 	reqOptions := &requestOptions{
 		Method:   "GET",
 		URL:      u,
@@ -1015,7 +1041,7 @@ func (s *Store) Find(ctx context.Context, search *Search, user *auth.UserState) 
 		q.Set("confinement", "strict")
 	}
 
-	u := s.endpointURL(constants.FindEndpPath, q)
+	u := s.endpointURL(findEndpPath, q)
 	reqOptions := &requestOptions{
 		Method:   "GET",
 		URL:      u,
@@ -1121,7 +1147,7 @@ func (s *Store) findV1(ctx context.Context, search *Search, user *auth.UserState
 		q.Set("confinement", "strict")
 	}
 
-	u := s.endpointURL(constants.SearchEndpPath, q)
+	u := s.endpointURL(searchEndpPath, q)
 	reqOptions := &requestOptions{
 		Method: "GET",
 		URL:    u,
@@ -1161,7 +1187,7 @@ func (s *Store) findV1(ctx context.Context, search *Search, user *auth.UserState
 func (s *Store) Sections(ctx context.Context, user *auth.UserState) ([]string, error) {
 	reqOptions := &requestOptions{
 		Method:         "GET",
-		URL:            s.endpointURL(constants.SectionsEndpPath, nil),
+		URL:            s.endpointURL(sectionsEndpPath, nil),
 		Accept:         halJsonContentType,
 		DeviceAuthNeed: deviceAuthCustomStoreOnly,
 	}
@@ -1191,7 +1217,7 @@ func (s *Store) Sections(ctx context.Context, user *auth.UserState) ([]string, e
 // WriteCatalogs queries the "commands" endpoint and writes the
 // command names into the given io.Writer.
 func (s *Store) WriteCatalogs(ctx context.Context, names io.Writer, adder SnapAdder) error {
-	u := *s.endpointURL(constants.CommandsEndpPath, nil)
+	u := *s.endpointURL(commandsEndpPath, nil)
 
 	q := u.Query()
 	if release.OnClassic {
@@ -1309,7 +1335,7 @@ func (s *Store) Buy(options *client.BuyOptions, user *auth.UserState) (*client.B
 
 	reqOptions := &requestOptions{
 		Method:      "POST",
-		URL:         s.endpointURL(constants.BuyEndpPath, nil),
+		URL:         s.endpointURL(buyEndpPath, nil),
 		Accept:      jsonContentType,
 		ContentType: jsonContentType,
 		Data:        jsonData,
@@ -1373,7 +1399,7 @@ func (s *Store) ReadyToBuy(user *auth.UserState) error {
 
 	reqOptions := &requestOptions{
 		Method: "GET",
-		URL:    s.endpointURL(constants.CustomersMeEndpPath, nil),
+		URL:    s.endpointURL(customersMeEndpPath, nil),
 		Accept: jsonContentType,
 	}
 
@@ -1422,7 +1448,7 @@ func (s *Store) snapConnCheck() ([]string, error) {
 	var hosts []string
 	// NOTE: "core" is possibly the only snap that's sure to be in all stores
 	//       when we drop "core" in the move to snapd/core18/etc, change this
-	infoURL := s.endpointURL(path.Join(constants.SnapInfoEndpPath, "core"), url.Values{
+	infoURL := s.endpointURL(path.Join(snapInfoEndpPath, "core"), url.Values{
 		// we only want the download URL
 		"fields": {"download"},
 		// we only need *one* (but can't filter by channel ... yet)
@@ -1507,7 +1533,7 @@ func (s *Store) CreateCohorts(ctx context.Context, snaps []string) (map[string]s
 		return nil, err
 	}
 
-	u := s.endpointURL(constants.CohortsEndpPath, nil)
+	u := s.endpointURL(cohortsEndpPath, nil)
 	reqOptions := &requestOptions{
 		Method:   "POST",
 		URL:      u,

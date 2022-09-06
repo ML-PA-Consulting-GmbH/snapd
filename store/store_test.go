@@ -24,6 +24,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -79,7 +80,7 @@ var (
 func (suite *configTestSuite) TestSetBaseURL(c *C) {
 	// Validity check to prove at least one URI changes.
 	cfg := store.DefaultConfig()
-	c.Assert(cfg.StoreBaseURL.String(), Equals, "https://api.snapcraft.io/")
+	c.Assert(cfg.StoreBaseURL.String(), Equals, constants.BaseUrlSnapcraftApi)
 
 	u, err := url.Parse("http://example.com/path/prefix/")
 	c.Assert(err, IsNil)
@@ -1069,7 +1070,8 @@ const mockSingleOrderJSON = `{
   ]
 }`
 
-/* acquired via
+/*
+	acquired via
 
 http --pretty=format --print b https://api.snapcraft.io/v2/snaps/info/hello-world architecture==amd64 fields==architectures,base,confinement,contact,created-at,description,download,epoch,license,name,prices,private,publisher,revision,snap-id,snap-yaml,summary,title,type,version,media,common-ids Snap-Device-Series:16 | xsel -b
 
@@ -1078,24 +1080,28 @@ on 2018-06-13 (note snap-yaml is currently excluded from that list). Then, by ha
 - set base in first channel-map entry to "bogus-base",
 - set snap-yaml in first channel-map entry to the one from the 'edge', plus the following pastiche:
 apps:
-  content-plug:
-    command: bin/content-plug
-    plugs: [shared-content-plug]
+
+	content-plug:
+	  command: bin/content-plug
+	  plugs: [shared-content-plug]
+
 plugs:
-  shared-content-plug:
-    interface: content
-    target: import
-    content: mylib
-    default-provider: test-snapd-content-slot
+
+	shared-content-plug:
+	  interface: content
+	  target: import
+	  content: mylib
+	  default-provider: test-snapd-content-slot
+
 slots:
-  shared-content-slot:
-    interface: content
-    content: mylib
-    read:
-      - /
+
+	shared-content-slot:
+	  interface: content
+	  content: mylib
+	  read:
+	    - /
 
 - add "released-at" to something randomish
-
 */
 const mockInfoJSON = `{
     "channel-map": [
@@ -1935,7 +1941,6 @@ acquired via
 http --pretty=format --print b https://api.snapcraft.io/v2/snaps/info/no:such:package architecture==amd64 fields==architectures,base,confinement,contact,created-at,description,download,epoch,license,name,prices,private,publisher,revision,snap-id,snap-yaml,summary,title,type,version,media,common-ids Snap-Device-Series:16 | xsel -b
 
 on 2018-06-14
-
 */
 const MockNoDetailsJSON = `{
     "error-list": [
@@ -1973,7 +1978,9 @@ func (s *storeTestSuite) TestNoInfo(c *C) {
 	c.Assert(result, IsNil)
 }
 
-/* acquired via looking at the query snapd does for "snap find 'hello-world of snaps' --narrow" (on core) and adding size=1:
+/*
+	acquired via looking at the query snapd does for "snap find 'hello-world of snaps' --narrow" (on core) and adding size=1:
+
 curl -s -H "accept: application/hal+json" -H "X-Ubuntu-Release: 16" -H "X-Ubuntu-Wire-Protocol: 1" -H "X-Ubuntu-Architecture: amd64" 'https://api.snapcraft.io/api/v1/snaps/search?confinement=strict&fields=anon_download_url%2Carchitecture%2Cchannel%2Cdownload_sha3_384%2Csummary%2Cdescription%2Cbinary_filesize%2Cdownload_url%2Clast_updated%2Cpackage_name%2Cprices%2Cpublisher%2Cratings_average%2Crevision%2Csnap_id%2Clicense%2Cbase%2Cmedia%2Csupport_url%2Ccontact%2Ctitle%2Ccontent%2Cversion%2Corigin%2Cdeveloper_id%2Cdeveloper_name%2Cdeveloper_validation%2Cprivate%2Cconfinement%2Ccommon_ids&q=hello-world+of+snaps&size=1' | python -m json.tool | xsel -b
 
 And then add base and prices, increase title's length, and remove the _links dict
@@ -2162,7 +2169,9 @@ func (s *storeTestSuite) TestFindV1Queries(c *C) {
 	c.Check(v1Fallback, Equals, true)
 }
 
-/* acquired via:
+/*
+	acquired via:
+
 curl -s -H "accept: application/hal+json" -H "X-Ubuntu-Release: 16" -H "X-Ubuntu-Device-Channel: edge" -H "X-Ubuntu-Wire-Protocol: 1" -H "X-Ubuntu-Architecture: amd64"  'https://api.snapcraft.io/api/v1/snaps/sections'
 */
 const MockSectionsJSON = `{

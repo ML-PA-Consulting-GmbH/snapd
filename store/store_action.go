@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/snapcore/snapd/asserts"
-	"github.com/snapcore/snapd/constants"
 	"github.com/snapcore/snapd/jsonutil"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/overlord/auth"
@@ -514,7 +513,7 @@ func (s *Store) snapAction(ctx context.Context, currentSnaps []*CurrentSnap, act
 
 	reqOptions := &requestOptions{
 		Method:      "POST",
-		URL:         s.endpointURL(constants.SnapActionEndpPath, nil),
+		URL:         s.endpointURL("v2/snaps/refresh", nil),
 		Accept:      jsonContentType,
 		ContentType: jsonContentType,
 		Data:        jsonData,

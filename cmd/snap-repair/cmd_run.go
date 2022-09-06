@@ -21,6 +21,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -49,9 +50,9 @@ var baseURL *url.URL
 func init() {
 	var baseurl string
 	if snapdenv.UseStagingStore() {
-		baseurl = "https://api.staging.snapcraft.io/v2/"
+		baseurl = constants.BaseUrlSnapcraftStagingApiV2
 	} else {
-		baseurl = "https://api.snapcraft.io/v2/"
+		baseurl = constants.BaseUrlSnapcraftApiV2
 	}
 
 	// allow redirecting assertion requests under a different base url

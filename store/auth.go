@@ -29,7 +29,6 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/snapcore/snapd/constants"
 	"github.com/snapcore/snapd/httputil"
 	"github.com/snapcore/snapd/overlord/auth"
 	"github.com/snapcore/snapd/snapdenv"
@@ -147,7 +146,7 @@ func (a *deviceAuthorizer) refreshDeviceSession(device *auth.DeviceState, dauthC
 		return nil
 	}
 
-	nonce, err := requestStoreDeviceNonce(client, a.endpointURL(constants.DeviceNonceEndpPath, nil).String())
+	nonce, err := requestStoreDeviceNonce(client, a.endpointURL("api/v1/snaps/auth/nonces", nil).String())
 	if err != nil {
 		return err
 	}
@@ -157,7 +156,7 @@ func (a *deviceAuthorizer) refreshDeviceSession(device *auth.DeviceState, dauthC
 		return err
 	}
 
-	session, err := requestDeviceSession(client, a.endpointURL(constants.DeviceSessionEndpPath, nil).String(), devSessReqParams, device1.SessionMacaroon)
+	session, err := requestDeviceSession(client, a.endpointURL("api/v1/snaps/auth/sessions", nil).String(), devSessReqParams, device1.SessionMacaroon)
 	if err != nil {
 		return err
 	}

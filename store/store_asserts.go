@@ -31,7 +31,6 @@ import (
 	"strconv"
 
 	"github.com/snapcore/snapd/asserts"
-	"github.com/snapcore/snapd/constants"
 	"github.com/snapcore/snapd/httputil"
 	"github.com/snapcore/snapd/overlord/auth"
 )
@@ -42,7 +41,7 @@ func (s *Store) assertionsEndpointURL(p string, query url.Values) *url.URL {
 	if s.cfg.AssertionsBaseURL != nil {
 		defBaseURL = s.cfg.AssertionsBaseURL
 	}
-	return endpointURL(s.baseURL(defBaseURL), path.Join(constants.AssertionsPath, p), query)
+	return endpointURL(s.baseURL(defBaseURL), path.Join("v2/assertions", p), query)
 }
 
 type assertionSvcError struct {

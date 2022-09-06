@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/url"
@@ -49,9 +50,9 @@ import (
 
 func baseURL() *url.URL {
 	if snapdenv.UseStagingStore() {
-		return mustParse("https://api.staging.snapcraft.io/")
+		return mustParse(constants.BaseUrlSnapcraftStagingApi)
 	}
-	return mustParse("https://api.snapcraft.io/")
+	return mustParse(constants.BaseUrlSnapcraftApi)
 }
 
 func mustParse(s string) *url.URL {
