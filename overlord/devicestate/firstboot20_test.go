@@ -20,6 +20,7 @@
 package devicestate_test
 
 import (
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,7 +118,7 @@ volumes:
 		if yamlKey == "pc=20" {
 			files = append(files, []string{"meta/gadget.yaml", gadgetYaml})
 		}
-		s.MakeAssertedSnap(c, s.snapYaml(yamlKey), files, snap.R(1), "canonical", s.StoreSigning.Database)
+		s.MakeAssertedSnap(c, s.snapYaml(yamlKey), files, snap.R(1), constants.AccountId /*"canonical"*/, s.StoreSigning.Database)
 	}
 
 	makeSnap("snapd")

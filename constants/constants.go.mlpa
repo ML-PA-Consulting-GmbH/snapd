@@ -31,6 +31,7 @@ curl -X POST -H 'Content-Type: application/json' 'https://app-assertion-sign-ser
     "name": "repair-root",
     "since": "2019-06-20T00:00:00.0Z"
 }, "key": signin_key}'
+..this call doesn't work for some of the json files in store_info_input
 */
 
 package constants

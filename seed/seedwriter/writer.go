@@ -23,6 +23,7 @@ package seedwriter
 import (
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"strings"
 
 	"github.com/snapcore/snapd/asserts"
@@ -100,7 +101,8 @@ func (sn *SeedSnap) modes() []string {
 
 var _ naming.SnapRef = (*SeedSnap)(nil)
 
-/* Writer writes Core 16/18 and Core 20 seeds.
+/*
+	Writer writes Core 16/18 and Core 20 seeds.
 
 Its methods need to be called in sequences that match prescribed
 flows.
@@ -119,42 +121,41 @@ Optionally a similar but simpler mechanism covers local snaps, where
 LocalSnaps returns SeedSnaps that can be filled with information
 derived from the snap at SeedSnap.Path, then InfoDerived is called.
 
-                      V-------->\
-                      |         |
-               SetOptionsSnaps  |
-                      |         v
-                      | ________/
-                      v
-         /          Start       \
-         |            |         |
-         |            v         |
-         |   /    LocalSnaps    |
-   no    |   |        |         |
-   local |   |        v         | no option
-   snaps |   |     SetInfo*     | snaps
-         |   |        |         |
-         |   |        v         |
-         |   |    InfoDerived   |
-         |   |        |         |
-         \   \        |         /
-          >   > SnapsToDownload<
-                      |     ^
-                      v     |
-                   SetInfo* |
-                      |     | complete = false
-                      v     /
-                  Downloaded
-                      |
-                      | complete = true
-                      |
-                      v
-                  SeedSnaps (copy files)
-                      |
-                      v
-                  WriteMeta
+	                    V-------->\
+	                    |         |
+	             SetOptionsSnaps  |
+	                    |         v
+	                    | ________/
+	                    v
+	       /          Start       \
+	       |            |         |
+	       |            v         |
+	       |   /    LocalSnaps    |
+	 no    |   |        |         |
+	 local |   |        v         | no option
+	 snaps |   |     SetInfo*     | snaps
+	       |   |        |         |
+	       |   |        v         |
+	       |   |    InfoDerived   |
+	       |   |        |         |
+	       \   \        |         /
+	        >   > SnapsToDownload<
+	                    |     ^
+	                    v     |
+	                 SetInfo* |
+	                    |     | complete = false
+	                    v     /
+	                Downloaded
+	                    |
+	                    | complete = true
+	                    |
+	                    v
+	                SeedSnaps (copy files)
+	                    |
+	                    v
+	                WriteMeta
 
-  * = 0 or many calls (as needed)
-
+	* = 0 or many calls (as needed)
 */
 type Writer struct {
 	model  *asserts.Model
@@ -1026,7 +1027,7 @@ func (w *Writer) checkPublisher(sn *SeedSnap) error {
 		return err
 	}
 	publisher := snapDecl.PublisherID()
-	if publisher != w.model.BrandID() && publisher != "canonical" {
+	if publisher != w.model.BrandID() && publisher != constants.AccountId /*"canonical"*/ {
 		return fmt.Errorf("cannot use %s %q published by %q for model by %q", kind, info.SnapName(), publisher, w.model.BrandID())
 	}
 	return nil

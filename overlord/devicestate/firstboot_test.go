@@ -21,6 +21,7 @@ package devicestate_test
 
 import (
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -103,7 +104,7 @@ func (t *firstBootBaseTest) setupBaseTest(c *C, s *seedtest.SeedSnaps) {
 	t.systemctl = testutil.MockCommand(c, "systemctl", "")
 	t.AddCleanup(t.systemctl.Restore)
 
-	s.SetupAssertSigning("canonical")
+	s.SetupAssertSigning(constants.AccountId /*"canonical"*/)
 	s.Brands.Register("my-brand", brandPrivKey, map[string]interface{}{
 		"verification": "verified",
 	})
