@@ -981,8 +981,8 @@ func (s *imageSuite) TestSetupSeedWithClassicSnapFails(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	s.MakeAssertedSnap(c, classicSnap, nil, snap.R(1), "other")
@@ -1014,10 +1014,10 @@ func (s *imageSuite) TestSetupSeedWithBase(c *C) {
 	rootdir := filepath.Join(c.MkDir(), "image")
 	blobdir := filepath.Join(rootdir, "/var/lib/snapd/snaps")
 	s.setupSnaps(c, map[string]string{
-		"core18":     "canonical",
-		"pc18":       "canonical",
-		"pc-kernel":  "canonical",
-		"snapd":      "canonical",
+		"core18":     constants.AccountId,
+		"pc18":       constants.AccountId,
+		"pc-kernel":  constants.AccountId,
+		"snapd":      constants.AccountId,
 		"other-base": "other",
 	}, "")
 
