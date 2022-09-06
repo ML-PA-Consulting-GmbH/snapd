@@ -1553,7 +1553,7 @@ func (s *imageSuite) TestSetupSeedLocalSnapsWithStoreAsserts(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
