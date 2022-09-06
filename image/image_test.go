@@ -2276,10 +2276,10 @@ func (s *imageSuite) TestSetupSeedWithBaseAndLegacyCoreOrdering(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"core":      "canonical",
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
+		"core18":    constants.AccountId,
+		"core":      constants.AccountId,
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	opts := &image.Options{
@@ -2344,10 +2344,10 @@ func (s *imageSuite) TestSetupSeedSnapReqBase(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":                "canonical",
-		"pc":                  "canonical",
-		"pc-kernel":           "canonical",
-		"snap-req-other-base": "canonical",
+		"core":                constants.AccountId,
+		"pc":                  constants.AccountId,
+		"pc-kernel":           constants.AccountId,
+		"snap-req-other-base": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
