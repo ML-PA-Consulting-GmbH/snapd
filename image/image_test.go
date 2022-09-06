@@ -2111,9 +2111,9 @@ func (s *imageSuite) TestSetupSeedWithKernelTrackWithDefaultChannel(c *C) {
 	})
 
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	rootdir := filepath.Join(c.MkDir(), "image")
