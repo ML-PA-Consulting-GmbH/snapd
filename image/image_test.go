@@ -2171,9 +2171,9 @@ func (s *imageSuite) TestSetupSeedWithKernelTrackOnLocalSnap(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	// pretend we downloaded the core,kernel already
