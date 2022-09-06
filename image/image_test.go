@@ -2592,10 +2592,10 @@ func (s *imageSuite) TestSetupSeedMissingContentProvider(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":                  "canonical",
-		"pc":                    "canonical",
-		"pc-kernel":             "canonical",
-		"snap-req-content-snap": "canonical",
+		"core":                  constants.AccountId,
+		"pc":                    constants.AccountId,
+		"pc-kernel":             constants.AccountId,
+		"snap-req-content-snap": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -2904,8 +2904,8 @@ func (s *imageSuite) TestSetupSeedLocalSnapd(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	snapdFn := snaptest.MakeTestSnapWithFiles(c, snapdSnap, [][]string{{"local", ""}})
