@@ -142,13 +142,13 @@ func (sdbs *sysDBSuite) TestOpenSysDatabase(c *C) {
 
 	// check trusted
 	_, err = db.Find(asserts.AccountKeyType, map[string]string{
-		"account-id":          constants.EncodedCanonicalAccountId,
+		"account-id":          constants.AccountId,
 		"public-key-sha3-384": constants.EncodedCanonicalAccountSignKeySha3, // "-CvQKAwRQ5h3Ffn10FILJoEZUXOv6km9FwA80-Rcj-f-6jadQ89VRswHNiEB9Lxk",
 	})
 	c.Assert(err, IsNil)
 
 	trustedAcc, err := db.Find(asserts.AccountType, map[string]string{
-		"account-id": constants.EncodedCanonicalAccountId, // "canonical",
+		"account-id": constants.AccountId, // "canonical",
 	})
 	c.Assert(err, IsNil)
 
