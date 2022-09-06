@@ -2369,10 +2369,10 @@ func (s *imageSuite) TestSetupSeedBaseNone(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":           "canonical",
-		"pc":             "canonical",
-		"pc-kernel":      "canonical",
-		"snap-base-none": "canonical",
+		"core":           constants.AccountId,
+		"pc":             constants.AccountId,
+		"pc-kernel":      constants.AccountId,
+		"snap-base-none": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -2405,8 +2405,8 @@ func (s *imageSuite) TestSetupSeedCore18GadgetDefaults(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, defaults)
 
 	snapdFn := snaptest.MakeTestSnapWithFiles(c, snapdSnap, [][]string{{"local", ""}})
