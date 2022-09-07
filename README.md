@@ -1,5 +1,20 @@
 [![Snapcraft](https://avatars2.githubusercontent.com/u/19532717?s=200)](https://snapcraft.io)
 
+# About this fork
+
+Snapd is open source software. Yet, thousands of hard coded string constants 
+throughout the code base bind the software exclusively to canonicals snapstore. 
+
+We think, it's against clean coding principles to have constants hard coded 
+super-redundant in the code base.
+
+We also think, that open source software should be designed to be easily modified
+for alternative use cases - e.g. for using a self hosted snap store. 
+
+This fork centralizes all hard coded names, URLs and certificates in a single 
+module `constants/constants.go`. To use a self hosted store, you now simply need
+to update this configuration file (..and program your own snapstore).
+
 # Welcome to snapd
 
 This is the code repository for **snapd**, the background service that manages
