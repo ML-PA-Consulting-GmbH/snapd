@@ -22,6 +22,7 @@ package policy
 import (
 	"bytes"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"strings"
 
 	"github.com/snapcore/snapd/asserts"
@@ -139,7 +140,7 @@ import (
 
 const baseDeclarationHeader = `
 type: base-declaration
-authority-id: canonical
+authority-id: ` + constants.AccountId + `
 series: 16
 revision: 0
 `

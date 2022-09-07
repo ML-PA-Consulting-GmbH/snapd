@@ -21,6 +21,7 @@ package policy_test
 
 import (
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"strings"
 
 	. "gopkg.in/check.v1"
@@ -1406,12 +1407,12 @@ plugs:
 func (s *baseDeclSuite) TestComposeBaseDeclaration(c *C) {
 	decl, err := policy.ComposeBaseDeclaration(nil)
 	c.Assert(err, IsNil)
-	c.Assert(string(decl), testutil.Contains, `
+	c.Assert(string(decl), testutil.Contains, fmt.Sprintf(`
 type: base-declaration
-authority-id: canonical
+authority-id: %s
 series: 16
 revision: 0
-`)
+`, constants.AccountId))
 }
 
 func (s *baseDeclSuite) TestDoesNotPanic(c *C) {
