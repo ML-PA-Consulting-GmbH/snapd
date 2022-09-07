@@ -334,7 +334,9 @@ func (s *assertsSuite) TestAssertsFindManyJSONWithBody(c *check.C) {
 		c.Check(a.(map[string]interface{})["body"], check.HasLen, l)
 	}
 	sort.Strings(got)
-	c.Check(got, check.DeepEquals, []string{"can0nical/root", "can0nical/store", "canonical/root", "generic/models"})
+	gotCheck := []string{"can0nical/root", "can0nical/store", constants.AccountId + "/root", "generic/models"}
+	sort.Strings(gotCheck)
+	c.Check(got, check.DeepEquals, gotCheck)
 }
 
 func (s *assertsSuite) TestAssertsFindManyJSONHeadersOnly(c *check.C) {
