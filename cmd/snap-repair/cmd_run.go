@@ -67,7 +67,7 @@ func init() {
 	}
 }
 
-var rootBrandIDs = []string{"canonical"}
+var rootBrandIDs = []string{constants.AccountId}
 
 func (c *cmdRun) Execute(args []string) error {
 	if err := os.MkdirAll(dirs.SnapRunRepairDir, 0755); err != nil {

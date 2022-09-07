@@ -119,7 +119,7 @@ func (s *baseRunnerSuite) SetUpSuite(c *C) {
 
 	repairsKey, _ := assertstest.GenerateKey(752)
 
-	repairRootSigning := assertstest.NewSigningDB(constants.AccountId /*"canonical" */, repairRootKey)
+	repairRootSigning := assertstest.NewSigningDB(constants.AccountId, repairRootKey)
 
 	s.repairsAcctKey = assertstest.NewAccountKey(repairRootSigning, s.storeSigning.TrustedAccount, nil, repairsKey.PublicKey(), "")
 
@@ -882,8 +882,8 @@ func makeMockServer(c *C, seqRepairs *[]string, redirectFirst bool) *httptest.Se
 			}
 			urlPath = strings.TrimPrefix(urlPath, "/final")
 		}
-
-		c.Check(strings.HasPrefix(urlPath, fmt.Sprintf("/repairs/%s/", constants.AccountId)), Equals, true)
+		urlPathCheck := fmt.Sprintf("/repairs/%s/", constants.AccountId)
+		c.Check(strings.HasPrefix(urlPath, urlPathCheck), Equals, true)
 
 		seq, err := strconv.Atoi(strings.TrimPrefix(urlPath, fmt.Sprintf("/repairs/%s/", constants.AccountId)))
 		c.Assert(err, IsNil)
@@ -1282,8 +1282,8 @@ func (s *runnerSuite) TestNextVerifySelfSigned(c *C) {
 	randoKeyEncoded, err := asserts.EncodePublicKey(randoKey.PublicKey())
 	c.Assert(err, IsNil)
 	acctKey, err := randomSigning.Sign(asserts.AccountKeyType, map[string]interface{}{
-		"authority-id":        constants.AccountId, // "canonical",
-		"account-id":          constants.AccountId, //"canonical",
+		"authority-id":        constants.AccountId,
+		"account-id":          constants.AccountId,
 		"public-key-sha3-384": randoKey.PublicKey().ID(),
 		"name":                "repairs",
 		"since":               time.Now().UTC().Format(time.RFC3339),
@@ -1291,7 +1291,7 @@ func (s *runnerSuite) TestNextVerifySelfSigned(c *C) {
 	c.Assert(err, IsNil)
 
 	rpr, err := randomSigning.Sign(asserts.RepairType, map[string]interface{}{
-		"brand-id":  constants.AccountId, // "canonical",
+		"brand-id":  constants.AccountId,
 		"repair-id": "1",
 		"summary":   "repair one",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
