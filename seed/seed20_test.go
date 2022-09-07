@@ -21,6 +21,7 @@ package seed_test
 
 import (
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path/filepath"
 	"strings"
@@ -115,7 +116,7 @@ func (s *seed20Suite) SetUpTest(c *C) {
 	s.AddCleanup(snap.MockSanitizePlugsSlots(func(snapInfo *snap.Info) {}))
 
 	s.TestingSeed20 = &seedtest.TestingSeed20{}
-	s.SetupAssertSigning("canonical")
+	s.SetupAssertSigning(constants.AccountId)
 	s.Brands.Register("my-brand", brandPrivKey, map[string]interface{}{
 		"verification": "verified",
 	})
@@ -144,7 +145,7 @@ func (s *seed20Suite) commitTo(b *asserts.Batch) error {
 
 func (s *seed20Suite) makeSnap(c *C, yamlKey, publisher string) {
 	if publisher == "" {
-		publisher = "canonical"
+		publisher = constants.AccountId
 	}
 	s.MakeAssertedSnap(c, snapYaml[yamlKey], nil, snap.R(1), publisher, s.StoreSigning.Database)
 }
@@ -368,7 +369,7 @@ func (s *seed20Suite) TestLoadAssertionsMultiSnapRev(c *C) {
 		"snap-sha3-384": strings.Repeat("B", 64),
 		"snap-size":     "1000",
 		"snap-id":       s.AssertedSnapID("core20"),
-		"developer-id":  "canonical",
+		"developer-id":  constants.AccountId,
 		"snap-revision": "99",
 		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
@@ -394,7 +395,7 @@ func (s *seed20Suite) TestLoadAssertionsMultiSnapDecl(c *C) {
 	spuriousDecl, err := s.StoreSigning.Sign(asserts.SnapDeclarationType, map[string]interface{}{
 		"series":       "16",
 		"snap-id":      "idididididididididididididididid",
-		"publisher-id": "canonical",
+		"publisher-id": constants.AccountId,
 		"snap-name":    "core20",
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
@@ -404,7 +405,7 @@ func (s *seed20Suite) TestLoadAssertionsMultiSnapDecl(c *C) {
 		"snap-sha3-384": strings.Repeat("B", 64),
 		"snap-size":     "1000",
 		"snap-id":       s.AssertedSnapID("core20"),
-		"developer-id":  "canonical",
+		"developer-id":  constants.AccountId,
 		"snap-revision": "99",
 		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
@@ -464,7 +465,7 @@ func (s *seed20Suite) TestLoadMetaMissingSnapDeclByName(c *C) {
 	wrongDecl, err := s.StoreSigning.Sign(asserts.SnapDeclarationType, map[string]interface{}{
 		"series":       "16",
 		"snap-id":      "idididididididididididididididid",
-		"publisher-id": "canonical",
+		"publisher-id": constants.AccountId,
 		"snap-name":    "core20X",
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
@@ -474,7 +475,7 @@ func (s *seed20Suite) TestLoadMetaMissingSnapDeclByName(c *C) {
 		"snap-sha3-384": strings.Repeat("B", 64),
 		"snap-size":     "1000",
 		"snap-id":       "idididididididididididididididid",
-		"developer-id":  "canonical",
+		"developer-id":  constants.AccountId,
 		"snap-revision": "99",
 		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
@@ -507,7 +508,7 @@ func (s *seed20Suite) TestLoadMetaMissingSnapDeclByID(c *C) {
 	wrongDecl, err := s.StoreSigning.Sign(asserts.SnapDeclarationType, map[string]interface{}{
 		"series":       "16",
 		"snap-id":      "idididididididididididididididid",
-		"publisher-id": "canonical",
+		"publisher-id": constants.AccountId,
 		"snap-name":    "pc",
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
@@ -517,7 +518,7 @@ func (s *seed20Suite) TestLoadMetaMissingSnapDeclByID(c *C) {
 		"snap-sha3-384": strings.Repeat("B", 64),
 		"snap-size":     "1000",
 		"snap-id":       "idididididididididididididididid",
-		"developer-id":  "canonical",
+		"developer-id":  constants.AccountId,
 		"snap-revision": "99",
 		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
@@ -586,7 +587,7 @@ func (s *seed20Suite) TestLoadMetaWrongHashSnap(c *C) {
 		"snap-sha3-384": strings.Repeat("B", 64),
 		"snap-size":     pcRev.HeaderString("snap-size"),
 		"snap-id":       s.AssertedSnapID("pc"),
-		"developer-id":  "canonical",
+		"developer-id":  constants.AccountId,
 		"snap-revision": pcRev.HeaderString("snap-revision"),
 		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
@@ -614,7 +615,7 @@ func (s *seed20Suite) TestLoadMetaWrongGadgetBase(c *C) {
 	sysDir := s.makeCore20MinimalSeed(c, sysLabel)
 
 	// pc with base: core18
-	pc18Decl, pc18Rev := s.MakeAssertedSnap(c, snapYaml["pc=18"], nil, snap.R(2), "canonical")
+	pc18Decl, pc18Rev := s.MakeAssertedSnap(c, snapYaml["pc=18"], nil, snap.R(2), constants.AccountId)
 	err := os.Rename(s.AssertedSnap("pc"), filepath.Join(s.SeedDir, "snaps", "pc_2.snap"))
 	c.Assert(err, IsNil)
 	s.massageAssertions(c, filepath.Join(sysDir, "assertions", "snaps"), func(a asserts.Assertion) asserts.Assertion {
@@ -3052,7 +3053,7 @@ func (s *seed20Suite) TestLoadMetaWrongHashSnapParallelism2(c *C) {
 		"snap-sha3-384": strings.Repeat("B", 64),
 		"snap-size":     pcKernelRev.HeaderString("snap-size"),
 		"snap-id":       s.AssertedSnapID("pc-kernel"),
-		"developer-id":  "canonical",
+		"developer-id":  constants.AccountId,
 		"snap-revision": pcKernelRev.HeaderString("snap-revision"),
 		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
