@@ -118,7 +118,7 @@ volumes:
 		if yamlKey == "pc=20" {
 			files = append(files, []string{"meta/gadget.yaml", gadgetYaml})
 		}
-		s.MakeAssertedSnap(c, s.snapYaml(yamlKey), files, snap.R(1), constants.AccountId /*"canonical"*/, s.StoreSigning.Database)
+		s.MakeAssertedSnap(c, s.snapYaml(yamlKey), files, snap.R(1), constants.AccountId, s.StoreSigning.Database)
 	}
 
 	makeSnap("snapd")

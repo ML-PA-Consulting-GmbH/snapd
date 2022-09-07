@@ -22,6 +22,7 @@ package daemon_test
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -188,7 +189,10 @@ func (s *assertsSuite) TestAssertsFindManyAll(c *check.C) {
 
 	ids := []string{a1.(*asserts.Account).AccountID(), a2.(*asserts.Account).AccountID(), a3.(*asserts.Account).AccountID(), a4.(*asserts.Account).AccountID()}
 	sort.Strings(ids)
-	c.Check(ids, check.DeepEquals, []string{"can0nical", "canonical", "developer1-id", "generic"})
+
+	idsCheck := []string{"can0nical", constants.AccountId, "developer1-id", "generic"}
+	sort.Strings(idsCheck)
+	c.Check(ids, check.DeepEquals, idsCheck)
 }
 
 func (s *assertsSuite) TestAssertsFindManyFilter(c *check.C) {
