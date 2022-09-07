@@ -248,7 +248,7 @@ func copyNetworkConfig(src, dst string) error {
 
 // copyUbuntuDataMisc copies miscellaneous other files from the run mode system
 // to the recover system such as:
-//  - timesync clock to keep the same time setting in recover as in run mode
+//   - timesync clock to keep the same time setting in recover as in run mode
 func copyUbuntuDataMisc(src, dst string) error {
 	for _, globEx := range []string{
 		// systemd's timesync clock file so that the time in recover mode moves
@@ -268,9 +268,10 @@ func copyUbuntuDataMisc(src, dst string) error {
 }
 
 // copyUbuntuDataAuth copies the authentication files like
-//  - extrausers passwd,shadow etc
-//  - sshd host configuration
-//  - user .ssh dir
+//   - extrausers passwd,shadow etc
+//   - sshd host configuration
+//   - user .ssh dir
+//
 // to the target directory. This is used to copy the authentication
 // data from a real uc20 ubuntu-data partition into a ephemeral one.
 func copyUbuntuDataAuth(src, dst string) error {
@@ -820,10 +821,10 @@ func (m *recoverModeStateMachine) trustData() bool {
 
 // mountBoot is the first state to execute in the state machine, it can
 // transition to the following states:
-// - if ubuntu-boot is mounted successfully, execute unlockDataRunKey
-// - if ubuntu-boot can't be mounted, execute unlockDataFallbackKey
-// - if we mounted the wrong ubuntu-boot (or otherwise can't verify which one we
-//   mounted), return fatal error
+//   - if ubuntu-boot is mounted successfully, execute unlockDataRunKey
+//   - if ubuntu-boot can't be mounted, execute unlockDataFallbackKey
+//   - if we mounted the wrong ubuntu-boot (or otherwise can't verify which one we
+//     mounted), return fatal error
 func (m *recoverModeStateMachine) mountBoot() (stateFunc, error) {
 	part := m.degradedState.partition("ubuntu-boot")
 	// use the disk we mounted ubuntu-seed from as a reference to find
@@ -1227,6 +1228,7 @@ func generateMountsModeRecover(mst *initramfsMountsState) error {
 }
 
 func generateMountsModeFactoryReset(mst *initramfsMountsState) error {
+	fmt.Printf("\n\n\n\n\nHi - wir schreiben jetzt mal ein paar Infos auf die Konsole..\n\n\n\n")
 	// steps 1 and 2 are shared with install mode
 	model, snaps, err := generateMountsCommonInstallRecover(mst)
 	if err != nil {

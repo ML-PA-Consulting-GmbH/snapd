@@ -21,6 +21,7 @@ package devicestate_test
 
 import (
 	"errors"
+	"github.com/snapcore/snapd/constants"
 
 	. "gopkg.in/check.v1"
 
@@ -92,11 +93,11 @@ func (s *deviceMgrBootconfigSuite) SetUpTest(c *C) {
 
 func (s *deviceMgrBootconfigSuite) setupUC20Model(c *C) *asserts.Model {
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model-20",
 		Serial: "didididi",
 	})
-	return s.makeModelAssertionInState(c, "canonical", "pc-model-20", mockCore20ModelHeaders)
+	return s.makeModelAssertionInState(c, constants.AccountId, "pc-model-20", mockCore20ModelHeaders)
 }
 
 func (s *deviceMgrBootconfigSuite) testBootConfigUpdateRun(c *C, updateAttempted, applied bool, errMatch string) {
@@ -223,11 +224,11 @@ func (s *deviceMgrBootconfigSuite) TestBootConfigUpdateUpdateErr(c *C) {
 func (s *deviceMgrBootconfigSuite) TestBootConfigNoUC20(c *C) {
 	s.state.Lock()
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "didididi",
 	})
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -247,15 +248,15 @@ func (s *deviceMgrBootconfigSuite) TestBootConfigRemodelDoNothing(c *C) {
 	s.state.Lock()
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model-20",
 		Serial: "didididi",
 	})
 
 	uc20Model := s.setupUC20Model(c)
 	// save the hassle and try a trivial remodel
-	newModel := s.brands.Model("canonical", "pc-model-20", map[string]interface{}{
-		"brand":        "canonical",
+	newModel := s.brands.Model(constants.AccountId, "pc-model-20", map[string]interface{}{
+		"brand":        constants.AccountId,
 		"model":        "pc-model-20",
 		"architecture": "amd64",
 		"grade":        "dangerous",

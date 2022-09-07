@@ -22,6 +22,7 @@ package asserts_test
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"path/filepath"
 	"strings"
 	"time"
@@ -250,8 +251,8 @@ func (aks *accountKeySuite) openDB(c *C) *asserts.Database {
 	cfg := &asserts.DatabaseConfig{
 		Backstore: bs,
 		Trusted: []asserts.Assertion{
-			asserts.BootstrapAccountForTest("canonical"),
-			asserts.BootstrapAccountKeyForTest("canonical", trustedKey.PublicKey()),
+			asserts.BootstrapAccountForTest(constants.AccountId),
+			asserts.BootstrapAccountKeyForTest(constants.AccountId, trustedKey.PublicKey()),
 		},
 	}
 	db, err := asserts.OpenDatabase(cfg)
@@ -263,7 +264,7 @@ func (aks *accountKeySuite) prereqAccount(c *C, db *asserts.Database) {
 	trustedKey := testPrivKey0
 
 	headers := map[string]interface{}{
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"display-name": "Acct1",
 		"account-id":   "acc-id1",
 		"username":     "acc-id1",
@@ -281,7 +282,7 @@ func (aks *accountKeySuite) TestAccountKeyCheck(c *C) {
 	trustedKey := testPrivKey0
 
 	headers := map[string]interface{}{
-		"authority-id":        "canonical",
+		"authority-id":        constants.AccountId,
 		"account-id":          "acc-id1",
 		"name":                "default",
 		"public-key-sha3-384": aks.keyID,
@@ -303,7 +304,7 @@ func (aks *accountKeySuite) TestAccountKeyCheckNoAccount(c *C) {
 	trustedKey := testPrivKey0
 
 	headers := map[string]interface{}{
-		"authority-id":        "canonical",
+		"authority-id":        constants.AccountId,
 		"account-id":          "acc-id1",
 		"name":                "default",
 		"public-key-sha3-384": aks.keyID,
@@ -323,7 +324,7 @@ func (aks *accountKeySuite) TestAccountKeyCheckUntrustedAuthority(c *C) {
 	trustedKey := testPrivKey0
 
 	db := aks.openDB(c)
-	storeDB := assertstest.NewSigningDB("canonical", trustedKey)
+	storeDB := assertstest.NewSigningDB(constants.AccountId, trustedKey)
 	otherDB := setup3rdPartySigning(c, "other", storeDB, db)
 
 	headers := map[string]interface{}{
@@ -344,7 +345,7 @@ func (aks *accountKeySuite) TestAccountKeyCheckSameNameAndNewRevision(c *C) {
 	trustedKey := testPrivKey0
 
 	headers := map[string]interface{}{
-		"authority-id":        "canonical",
+		"authority-id":        constants.AccountId,
 		"account-id":          "acc-id1",
 		"name":                "default",
 		"public-key-sha3-384": aks.keyID,
@@ -372,7 +373,7 @@ func (aks *accountKeySuite) TestAccountKeyCheckSameAccountAndDifferentName(c *C)
 	trustedKey := testPrivKey0
 
 	headers := map[string]interface{}{
-		"authority-id":        "canonical",
+		"authority-id":        constants.AccountId,
 		"account-id":          "acc-id1",
 		"name":                "default",
 		"public-key-sha3-384": aks.keyID,
@@ -409,7 +410,7 @@ func (aks *accountKeySuite) TestAccountKeyCheckSameNameAndDifferentAccount(c *C)
 	trustedKey := testPrivKey0
 
 	headers := map[string]interface{}{
-		"authority-id":        "canonical",
+		"authority-id":        constants.AccountId,
 		"account-id":          "acc-id1",
 		"name":                "default",
 		"public-key-sha3-384": aks.keyID,
@@ -436,7 +437,7 @@ func (aks *accountKeySuite) TestAccountKeyCheckSameNameAndDifferentAccount(c *C)
 	c.Assert(err, IsNil)
 
 	acct2 := assertstest.NewAccount(db, "acc-id2", map[string]interface{}{
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"account-id":   "acc-id2",
 	}, trustedKey.PublicKey().ID())
 	db.Add(acct2)
@@ -455,7 +456,7 @@ func (aks *accountKeySuite) TestAccountKeyCheckNameClash(c *C) {
 	trustedKey := testPrivKey0
 
 	headers := map[string]interface{}{
-		"authority-id":        "canonical",
+		"authority-id":        constants.AccountId,
 		"account-id":          "acc-id1",
 		"name":                "default",
 		"public-key-sha3-384": aks.keyID,
@@ -492,7 +493,7 @@ func (aks *accountKeySuite) TestAccountKeyAddAndFind(c *C) {
 	trustedKey := testPrivKey0
 
 	headers := map[string]interface{}{
-		"authority-id":        "canonical",
+		"authority-id":        constants.AccountId,
 		"account-id":          "acc-id1",
 		"name":                "default",
 		"public-key-sha3-384": aks.keyID,
