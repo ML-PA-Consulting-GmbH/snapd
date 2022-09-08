@@ -290,6 +290,8 @@ R2PJK1VN6/ckJZAb3Rum5Ak5sbLTpRAVHIAVU1NAjHc5lYUHhxXJmJsbw6Jawb9Xb3T96s+WdD3Y
 062upMY95pr0ZPf1tVGgzpcVCEw7yAOw+SkMksx+
 `
 
+	EncodedGenericModelsAccountKeyPublicKeySha3 = "d-JcZF9nD9eBw7bwMnH61x-bklnQOhQud1Is6o_cn2wTj8EYDi9musrIT9z2MdAa"
+
 	EncodedGenericClassicModel = `type: model
 authority-id: generic
 series: 16

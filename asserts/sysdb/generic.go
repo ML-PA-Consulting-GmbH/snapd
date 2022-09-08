@@ -49,6 +49,7 @@ func init() {
 
 	genericAssertions = []asserts.Assertion{genericAccount, genericModelsAccountKey}
 
+	fmt.Sprintf("Decode assert: %s", constants.EncodedGenericClassicModel)
 	a, err := asserts.Decode([]byte(constants.EncodedGenericClassicModel))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s "generic-classic" model: %v`, err))
