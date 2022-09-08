@@ -104,7 +104,7 @@ func (t *firstBootBaseTest) setupBaseTest(c *C, s *seedtest.SeedSnaps) {
 	t.systemctl = testutil.MockCommand(c, "systemctl", "")
 	t.AddCleanup(t.systemctl.Restore)
 
-	s.SetupAssertSigning(constants.AccountId /*"canonical"*/)
+	s.SetupAssertSigning(constants.AccountId)
 	s.Brands.Register("my-brand", brandPrivKey, map[string]interface{}{
 		"verification": "verified",
 	})
@@ -205,7 +205,7 @@ func checkTrivialSeeding(c *C, tsAll []*state.TaskSet) {
 func modelHeaders(modelStr string, reqSnaps ...string) map[string]interface{} {
 	headers := map[string]interface{}{
 		"architecture": "amd64",
-		"store":        "canonical",
+		"store":        constants.AccountId,
 	}
 	if strings.HasSuffix(modelStr, "-classic") {
 		headers["classic"] = "true"
@@ -435,14 +435,14 @@ func (s *firstBoot16BaseTest) makeCoreSnaps(c *C, extraGadgetYaml string) (coreF
 	snapYaml := `name: core
 version: 1.0
 type: os`
-	coreFname, coreDecl, coreRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), "canonical")
+	coreFname, coreDecl, coreRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.AccountId)
 	s.WriteAssertions("core.asserts", coreRev, coreDecl)
 
 	// put kernel snap into the SnapBlobDir
 	snapYaml = `name: pc-kernel
 version: 1.0
 type: kernel`
-	kernelFname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), "canonical")
+	kernelFname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.AccountId)
 	s.WriteAssertions("kernel.asserts", kernelRev, kernelDecl)
 
 	gadgetYaml := `
@@ -458,7 +458,7 @@ volumes:
 	snapYaml = `name: pc
 version: 1.0
 type: gadget`
-	gadgetFname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), "canonical")
+	gadgetFname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.AccountId)
 	s.WriteAssertions("gadget.asserts", gadgetRev, gadgetDecl)
 
 	return coreFname, kernelFname, gadgetFname
@@ -1377,7 +1377,7 @@ func (s *firstBoot16BaseTest) makeCore18Snaps(c *C, opts *core18SnapsOpts) (core
 	core18Yaml := `name: core18
 version: 1.0
 type: base`
-	core18Fname, core18Decl, core18Rev := s.MakeAssertedSnap(c, core18Yaml, files, snap.R(1), "canonical")
+	core18Fname, core18Decl, core18Rev := s.MakeAssertedSnap(c, core18Yaml, files, snap.R(1), constants.AccountId)
 	s.WriteAssertions("core18.asserts", core18Rev, core18Decl)
 
 	snapdYaml := `name: snapd
@@ -1390,7 +1390,7 @@ VERSION=2.54.3+git1.g479e745-dirty
 SNAPD_APPARMOR_REEXEC=1
 `},
 	}
-	snapdFname, snapdDecl, snapdRev := s.MakeAssertedSnap(c, snapdYaml, snapdSnapFiles, snap.R(2), "canonical")
+	snapdFname, snapdDecl, snapdRev := s.MakeAssertedSnap(c, snapdYaml, snapdSnapFiles, snap.R(2), constants.AccountId)
 	s.WriteAssertions("snapd.asserts", snapdRev, snapdDecl)
 
 	var kernelFname string
@@ -1398,7 +1398,7 @@ SNAPD_APPARMOR_REEXEC=1
 		kernelYaml := `name: pc-kernel
 version: 1.0
 type: kernel`
-		fname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, kernelYaml, files, snap.R(1), "canonical")
+		fname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, kernelYaml, files, snap.R(1), constants.AccountId)
 		s.WriteAssertions("kernel.asserts", kernelRev, kernelDecl)
 		kernelFname = fname
 	}
@@ -1419,7 +1419,7 @@ version: 1.0
 type: gadget
 base: core18
 `
-		fname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, gaYaml, files, snap.R(1), "canonical")
+		fname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, gaYaml, files, snap.R(1), constants.AccountId)
 		s.WriteAssertions("gadget.asserts", gadgetRev, gadgetDecl)
 		gadgetFname = fname
 	}

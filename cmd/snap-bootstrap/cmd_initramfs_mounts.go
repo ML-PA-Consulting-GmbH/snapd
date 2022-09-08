@@ -1228,7 +1228,6 @@ func generateMountsModeRecover(mst *initramfsMountsState) error {
 }
 
 func generateMountsModeFactoryReset(mst *initramfsMountsState) error {
-	logger.Noticef("\n\n\n\n\nHi - wir schreiben jetzt mal ein paar Infos auf die Konsole..\n\n\n\n")
 	// steps 1 and 2 are shared with install mode
 	model, snaps, err := generateMountsCommonInstallRecover(mst)
 	if err != nil {
