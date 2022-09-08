@@ -96,3 +96,4 @@ cmd/test-driver
 /_build/
 /data/
 /packaging/ubuntu-16.04/.debhelper/bucket/
+/packaging/ubuntu-16.04/
