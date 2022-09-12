@@ -1,3 +1,4 @@
+*.snap
 ./share
 tags
 .coverage
