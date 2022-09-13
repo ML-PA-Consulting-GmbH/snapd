@@ -380,7 +380,7 @@ CP5llcBnopdWbuv5mxdjZemp5Vlja5CbzMSdzSXOQeR58BfXiXBNP6QhBM/LsqSRjldGWlbYfiUK
 	ProdIdCore   = "3337MUlRhtI3U0QFgl5mXXESAiSwt776"
 	ProdIdCore18 = "33304Jhav2yK0uz97cr0ipQRyqg0qQL6"
 	ProdIdCore20 = "3093d030090642fb972cd5898dd6c9cb"
-	ProdIdCore22 = ""
+	ProdIdCore22 = "NOT_SET"
 
 	StagingIdCore   = "333MpEm0COPZy7jq9YRwWVLCD9q5peow"
 	StagingIdSnapd  = "333rtQD1v4r1LXGPCDZAJO3AOw1EDGqy"
