@@ -437,4 +437,17 @@ ILIZupGooMouhddmcHem76lSnS+y75NMQXg5lBrUU2xAQRloWTw0oF+Hr5vcZkX5f4R/yH8Zz1Dt
 +zRs2zqOK5hjdejhU5x/N3KSBLy+TUMk7JsdVv0nhdpJUKrFyGWn+YzBNE2GgEfPfXnkaU91/AD2
 SWyt8kWVPmT3DCzs7u5IXYIVxcq4FjkmeU9sTrn88g==
 `
+
+	ProdIdSnapd  = "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4"
+	ProdIdCore   = "99T7MUlRhtI3U0QFgl5mXXESAiSwt776"
+	ProdIdCore18 = "CSO04Jhav2yK0uz97cr0ipQRyqg0qQL6"
+	ProdIdCore20 = "DLqre5XGLbDqg9jPtiAhRRjDuPVa5X1q"
+	ProdIdCore22 = "NOT_SET"
+
+	StagingIdCore   = "xMNMpEm0COPZy7jq9YRwWVLCD9q5peow"
+	StagingIdSnapd  = "Z44rtQD1v4r1LXGPCDZAJO3AOw1EDGqy"
+	StagingIdCore18 = "NhSvwckvNdvgdiVGlsO1vYmi3FPdTZ9U"
+	// TODO:UC20 no core20 uploaded to staging yet
+	StagingIdCore20 = ""
+	StagingIdCore22 = ""
 )

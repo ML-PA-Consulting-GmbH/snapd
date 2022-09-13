@@ -375,4 +375,16 @@ MW/oLuBVh5iOZnLTvMIvnKT33eqfHLjFd5I3VNjAvxmktcAcZgphvYPWwFelVwsipNqvkrrvqSuk
 CP5llcBnopdWbuv5mxdjZemp5Vlja5CbzMSdzSXOQeR58BfXiXBNP6QhBM/LsqSRjldGWlbYfiUK
 +l0soqO2qq2HjL4X2+p52DPKTPGBo2VI+nArlnq35g==
 `
+
+	ProdIdSnapd  = "4c083d60cc414930a1e3ad8d8d702628"
+	ProdIdCore   = ""
+	ProdIdCore18 = ""
+	ProdIdCore20 = "3093d030090642fb972cd5898dd6c9cb"
+	ProdIdCore22 = ""
+
+	StagingIdCore   = ""
+	StagingIdSnapd  = ""
+	StagingIdCore18 = ""
+	StagingIdCore20 = ""
+	StagingIdCore22 = ""
 )
