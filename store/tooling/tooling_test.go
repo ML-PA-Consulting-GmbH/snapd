@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -113,7 +114,7 @@ func (s *toolingSuite) setupSnaps(c *C, publishers map[string]string, defaultsYa
 
 func (s *toolingSuite) TestNewToolingStore(c *C) {
 	// default
-	u, err := url.Parse("https://api.snapcraft.io/")
+	u, err := url.Parse(constants.BaseUrlSnapcraftApi)
 	c.Assert(err, IsNil)
 
 	tsto, err := tooling.NewToolingStore()

@@ -3367,7 +3367,7 @@ func (s *storeTestSuite) TestStoreDeveloperURLDependsOnEnviron(c *C) {
 }
 
 func (s *storeTestSuite) TestStoreDefaultConfig(c *C) {
-	c.Check(store.DefaultConfig().StoreBaseURL.String(), Equals, "https://api.snapcraft.io/")
+	c.Check(store.DefaultConfig().StoreBaseURL.String(), Equals, constants.BaseUrlSnapcraftApi)
 	c.Check(store.DefaultConfig().AssertionsBaseURL, IsNil)
 }
 
