@@ -377,14 +377,14 @@ CP5llcBnopdWbuv5mxdjZemp5Vlja5CbzMSdzSXOQeR58BfXiXBNP6QhBM/LsqSRjldGWlbYfiUK
 `
 
 	ProdIdSnapd  = "4c083d60cc414930a1e3ad8d8d702628"
-	ProdIdCore   = ""
-	ProdIdCore18 = ""
+	ProdIdCore   = "3337MUlRhtI3U0QFgl5mXXESAiSwt776"
+	ProdIdCore18 = "33304Jhav2yK0uz97cr0ipQRyqg0qQL6"
 	ProdIdCore20 = "3093d030090642fb972cd5898dd6c9cb"
 	ProdIdCore22 = ""
 
-	StagingIdCore   = ""
-	StagingIdSnapd  = ""
-	StagingIdCore18 = ""
+	StagingIdCore   = "333MpEm0COPZy7jq9YRwWVLCD9q5peow"
+	StagingIdSnapd  = "333rtQD1v4r1LXGPCDZAJO3AOw1EDGqy"
+	StagingIdCore18 = "333vwckvNdvgdiVGlsO1vYmi3FPdTZ9U"
 	StagingIdCore20 = ""
 	StagingIdCore22 = ""
 )
