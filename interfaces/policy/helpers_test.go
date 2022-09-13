@@ -20,6 +20,7 @@
 package policy_test
 
 import (
+	"github.com/snapcore/snapd/constants"
 	. "gopkg.in/check.v1"
 
 	"github.com/snapcore/snapd/interfaces"
@@ -86,7 +87,7 @@ func (s *helpersSuite) TestSnapdTypeCheck(c *C) {
 	// Type checking the snapd snap is done in a special way.
 	// It appears to be of type "core" while in reality it is of type "app".
 	sideInfo := &snap.SideInfo{
-		SnapID: "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
+		SnapID: constants.ProdIdSnapd,
 	}
 	snapInfo := snaptest.MockInfo(c, `
 name: snapd

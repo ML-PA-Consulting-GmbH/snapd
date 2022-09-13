@@ -21,6 +21,7 @@ package main_test
 
 import (
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"net/http"
 
 	"gopkg.in/check.v1"
@@ -88,12 +89,12 @@ snaps:
       - run
   -
     default-channel: latest/stable
-    id: DLqre5XGLbDqg9jPtiAhRRjDuPVa5X1q
+    id: ` + constants.ProdIdCore20 + `
     name: core20
     type: base
   -
     default-channel: latest/stable
-    id: PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4
+    id: ` + constants.ProdIdSnapd + `
     name: snapd
     type: snapd
 timestamp: 2018-09-11T22:00:00+00:00
@@ -471,11 +472,11 @@ snaps:
     presence:         optional
     modes:            [recover, run]
   - name:             core20
-    id:               DLqre5XGLbDqg9jPtiAhRRjDuPVa5X1q
+    id:               `+constants.ProdIdCore20+`
     type:             base
     default-channel:  latest/stable
   - name:             snapd
-    id:               PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4
+    id:               `+constants.ProdIdSnapd+`
     type:             snapd
     default-channel:  latest/stable
 `[1:])

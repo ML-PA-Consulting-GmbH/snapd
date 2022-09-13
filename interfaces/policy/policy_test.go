@@ -2864,7 +2864,7 @@ slots:
         - app
         - core
       slot-snap-id:
-        - PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4
+        - ` + constants.ProdIdSnapd + `
 timestamp: 2022-03-20T12:00:00Z
 sign-key-sha3-384: Jv8_JiHiIzJVcO9M55pPdqSDWUvuhfDIBJUS-3VW7F_idjix7Ffn5qMxB21ZQuij
 
@@ -2921,7 +2921,7 @@ slots:
 authority-id: ` + constants.AccountId + `
 series: 16
 snap-name: snapd
-snap-id: PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4
+snap-id: ` + constants.ProdIdSnapd + `
 publisher-id: ` + constants.AccountId + `
 timestamp: 2022-03-20T12:00:00Z
 sign-key-sha3-384: Jv8_JiHiIzJVcO9M55pPdqSDWUvuhfDIBJUS-3VW7F_idjix7Ffn5qMxB21ZQuij
@@ -2952,7 +2952,7 @@ plugs:
         - app
         - core
       plug-snap-id:
-        - PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4
+        - ` + constants.ProdIdSnapd + `
 timestamp: 2022-03-20T12:00:00Z
 sign-key-sha3-384: Jv8_JiHiIzJVcO9M55pPdqSDWUvuhfDIBJUS-3VW7F_idjix7Ffn5qMxB21ZQuij
 

@@ -20,24 +20,24 @@
 package naming
 
 import (
+	"github.com/snapcore/snapd/constants"
 	"github.com/snapcore/snapd/snapdenv"
 )
 
 var (
 	prodWellKnownSnapIDs = map[string]string{
-		"core":   "99T7MUlRhtI3U0QFgl5mXXESAiSwt776",
-		"snapd":  "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
-		"core18": "CSO04Jhav2yK0uz97cr0ipQRyqg0qQL6",
-		"core20": "DLqre5XGLbDqg9jPtiAhRRjDuPVa5X1q",
-		"core22": "amcUKQILKXHHTlmSa7NMdnXSx02dNeeT",
+		"core":   constants.ProdIdCore,
+		"snapd":  constants.ProdIdSnapd,
+		"core18": constants.ProdIdCore18,
+		"core20": constants.ProdIdCore20,
+		"core22": constants.ProdIdCore22,
 	}
 
 	stagingWellKnownSnapIDs = map[string]string{
-		"core":   "xMNMpEm0COPZy7jq9YRwWVLCD9q5peow",
-		"snapd":  "Z44rtQD1v4r1LXGPCDZAJO3AOw1EDGqy",
-		"core18": "NhSvwckvNdvgdiVGlsO1vYmi3FPdTZ9U",
-		// TODO:UC20 no core20 uploaded to staging yet
-		"core20": "",
+		"core":   constants.StagingIdCore,
+		"snapd":  constants.StagingIdSnapd,
+		"core18": constants.StagingIdCore18,
+		"core20": constants.StagingIdCore20,
 	}
 )
 

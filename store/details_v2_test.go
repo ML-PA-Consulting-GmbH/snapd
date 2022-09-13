@@ -22,6 +22,7 @@ package store
 
 import (
 	"encoding/json"
+	"github.com/snapcore/snapd/constants"
 	"reflect"
 	"strings"
 
@@ -51,7 +52,7 @@ const (
   "download": {
      "sha3-384": "b691f6dde3d8022e4db563840f0ef82320cb824b6292ffd027dbc838535214dac31c3512c619beaf73f1aeaf35ac62d5",
      "size": 85291008,
-     "url": "https://api.snapcraft.io/api/v1/snaps/download/99T7MUlRhtI3U0QFgl5mXXESAiSwt776_3887.snap",
+     "url": "https://api.snapcraft.io/api/v1/snaps/download/` + constants.ProdIdCore + `_3887.snap",
      "deltas": []
   },
   "epoch": {
@@ -69,7 +70,7 @@ const (
      "validation": "verified"
   },
   "revision": 3887,
-  "snap-id": "99T7MUlRhtI3U0QFgl5mXXESAiSwt776",
+  "snap-id": "` + constants.ProdIdCore + `",
   "store-url": "https://snapcraft.io/core",
   "summary": "snapd runtime environment",
   "title": "core",
@@ -157,7 +158,7 @@ func (s *detailsV2Suite) TestInfoFromStoreSnapSimple(c *C) {
 		Architectures: []string{"amd64"},
 		SideInfo: snap.SideInfo{
 			RealName:          "core",
-			SnapID:            "99T7MUlRhtI3U0QFgl5mXXESAiSwt776",
+			SnapID:            constants.ProdIdCore,
 			Revision:          snap.R(3887),
 			EditedContact:     "mailto:snappy-canonical-storeaccount@canonical.com",
 			EditedTitle:       "core",
@@ -177,7 +178,7 @@ func (s *detailsV2Suite) TestInfoFromStoreSnapSimple(c *C) {
 			Validation:  "verified",
 		},
 		DownloadInfo: snap.DownloadInfo{
-			DownloadURL: "https://api.snapcraft.io/api/v1/snaps/download/99T7MUlRhtI3U0QFgl5mXXESAiSwt776_3887.snap",
+			DownloadURL: "https://api.snapcraft.io/api/v1/snaps/download/" + constants.ProdIdCore + "_3887.snap",
 			Sha3_384:    "b691f6dde3d8022e4db563840f0ef82320cb824b6292ffd027dbc838535214dac31c3512c619beaf73f1aeaf35ac62d5",
 			Size:        85291008,
 		},
