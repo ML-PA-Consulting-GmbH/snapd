@@ -80,7 +80,7 @@ parts:
       export DEBCONF_NONINTERACTIVE_SEEN=true
       # sudo -E apt-get build-dep -y ./
       ./get-deps.sh --skip-unused-check
-      ln -s ubuntu-16.04 packaging/ubuntu-20.04
+      ln -sf ubuntu-16.04 packaging/ubuntu-20.04
     override-build: |
       # TODO: when something like "craftctl get-version" is ready, then we can
       # use that, but until then, we have to re-run mkversion.sh to check if the
