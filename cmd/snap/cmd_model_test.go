@@ -449,8 +449,8 @@ func (s *SnapSuite) TestModelVerboseUC20(c *check.C) {
 	rest, err := snap.Parser(snap.Client()).ParseArgs([]string{"model", "--verbose", "--abs-time"})
 	c.Assert(err, check.IsNil)
 	c.Assert(rest, check.DeepEquals, []string{})
-	c.Check(s.Stdout(), check.Equals, `
-brand-id:        testrootorg
+	c.Check(s.Stdout(), check.Equals,
+		`brand-id:        testrootorg
 model:           test-snapd-core-20-amd64
 grade:           dangerous
 storage-safety:  prefer-encrypted
@@ -476,7 +476,7 @@ snaps:
     type:             base
     default-channel:  latest/stable
   - name:             snapd
-    id:               `+constants.ProdIdSnapd+`
+    id:               `+constants.ProdIdSnapd+` 
     type:             snapd
     default-channel:  latest/stable
 `[1:])
