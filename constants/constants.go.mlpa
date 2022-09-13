@@ -43,15 +43,14 @@ package constants
 // parameter: devmode yes/no allow/disallow --devmode installation
 
 const (
-	BaseUrlSnapcraftDashboard        = "https://dashboard.snapcraft.io/"
-	BaseUrlSnapcraftDashboardStaging = "https://dashboard.staging.snapcraft.io/"
-	BaseUrlSnapcraftApi              = "https://api.snapcraft.io/"
-	BaseUrlSnapcraftStagingApi       = "https://api.staging.snapcraft.io/"
-	BaseUrlSnapcraftApiV2            = "https://api.snapcraft.io/v2/"
-	BaseUrlSnapcraftStagingApiV2     = "https://api.staging.snapcraft.io/v2/"
-
-	AuthLocation        = "login.ubuntu.com"
-	AuthLocationStaging = "login.staging.ubuntu.com"
+	BaseUrlSnapcraftDashboard        = "https://st01.ml-pa.com/"
+	BaseUrlSnapcraftDashboardStaging = "https://st01.ml-pa.com/"
+	BaseUrlSnapcraftApi              = "https://st01.ml-pa.com/"
+	BaseUrlSnapcraftStagingApi       = "https://st01.ml-pa.com/"
+	BaseUrlSnapcraftApiV2            = "https://st01.ml-pa.com/v2/"
+	BaseUrlSnapcraftStagingApiV2     = "https://st01.ml-pa.com/v2/"
+	AuthLocation                     = "st01.ml-pa.com"
+	AuthLocationStaging              = "st01.ml-pa.com"
 
 	AccountId = "mlpa"
 
