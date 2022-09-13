@@ -46,9 +46,9 @@ const (
 	BaseUrlSnapcraftDashboard        = "https://st01.ml-pa.com/"
 	BaseUrlSnapcraftDashboardStaging = "https://st01.ml-pa.com/"
 	BaseUrlSnapcraftApi              = "https://st01.ml-pa.com/"
-	BaseUrlSnapcraftStagingApi       = "https://st01.ml-pa.com/"
+	BaseUrlSnapcraftStagingApi       = "https://st01.ml-pa.com/staging/"
 	BaseUrlSnapcraftApiV2            = "https://st01.ml-pa.com/v2/"
-	BaseUrlSnapcraftStagingApiV2     = "https://st01.ml-pa.com/v2/"
+	BaseUrlSnapcraftStagingApiV2     = "https://st01.ml-pa.com/staging/v2/"
 	AuthLocation                     = "st01.ml-pa.com"
 	AuthLocationStaging              = "st01.ml-pa.com"
 
