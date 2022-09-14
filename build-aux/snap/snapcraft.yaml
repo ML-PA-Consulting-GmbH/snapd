@@ -47,7 +47,7 @@ parts:
       - dh-autoreconf 
       - dh-golang 
       - dh-systemd 
-      - gcc-multilib 
+      # - gcc-multilib # downloading doesn't work on ARM64
       - gettext 
       - grub-common 
       - gnupg2 
