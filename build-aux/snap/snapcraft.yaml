@@ -69,8 +69,6 @@ parts:
 
     override-pull: |
       snapcraftctl pull
-      # set version, this needs dpkg-parsechangelog (from dpkg-dev) and git
-      snapcraftctl set-version "$(./mkversion.sh --output-only)"
       # Ensure that ./debian/ packaging which we are about to use
       # matches the current `build-base` release. I.e. ubuntu-16.04
       # for build-base:core, etc.
@@ -82,6 +80,8 @@ parts:
       ./get-deps.sh --skip-unused-check
       ln -sf ubuntu-16.04 packaging/ubuntu-20.04
     override-build: |
+      # set version, this needs dpkg-parsechangelog (from dpkg-dev) and git
+      snapcraftctl set-version "$(./mkversion.sh --output-only)"
       # TODO: when something like "craftctl get-version" is ready, then we can
       # use that, but until then, we have to re-run mkversion.sh to check if the
       # version number was set as "dirty" from the override-pull step
