@@ -34,23 +34,21 @@ var (
 )
 
 func init() {
-	canonicalAccount, err := asserts.Decode([]byte(constants.EncodedCanonicalAccount))
-	if err != nil {
-		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
+	trustedAssertions = []asserts.Assertion{}
+	accountAssertionsEncoded := strings.Split(constants.EncodedCanonicalAccount, "\n\n\n")
+	for _, accountAssertionEncoded := range accountAssertionsEncoded {
+		trimmed := strings.TrimSpace(accountAssertionEncoded) + "\n"
+		accountAssertion, err := asserts.Decode([]byte(trimmed))
+		if err != nil {
+			panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
+		}
+		trustedAssertions = append(trustedAssertions, accountAssertion)
 	}
 	canonicalRootAccountKey, err := asserts.Decode([]byte(constants.EncodedCanonicalRootAccountKey))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
 	}
-	customerAccount, err := asserts.Decode([]byte(constants.EncodedCustomerAccount))
-	if err != nil {
-		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
-	}
-	//customerRootAccountKey, err := asserts.Decode([]byte(constants.EncodedCustomerRootAccountKey))
-	//if err != nil {
-	//	panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
-	//}
-	trustedAssertions = []asserts.Assertion{canonicalAccount, canonicalRootAccountKey, customerAccount}
+	trustedAssertions = append(trustedAssertions, canonicalRootAccountKey)
 }
 
 // Trusted returns a copy of the current set of trusted assertions as used by Open.
