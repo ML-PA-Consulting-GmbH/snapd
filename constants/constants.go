@@ -166,6 +166,27 @@ LQAdm3xZ7t4WnxYC8YSCk9mXf3CZg59SpmnV5Q5Z6A5Pl7Nc3sj7hcsMBZEsOMPzNC9dPsBnZvjs
 WpPUffJzEdhHBFhvYMuD4Vqj6ejUv9l3oTrjQWVC
 `
 
+		EncodedCustomerAccount = `type: account
+authority-id: mlpa
+account-id: customer
+display-name: customer
+timestamp: 2023-02-16T14:57:30Z
+username: customer
+validation: certified
+sign-key-sha3-384: edGsBHOVCrchX6wCXYOWUAF81zcoGnoJ-JGwqcTylXQVKD6cCwDf3c8UM0YtFg2h
+
+AcLBUgQAAQoABgUCY+5EWgAATUkQAJptKSqOnuUNpRxFXhot418pn5t9LNa98dNCSs+XpkMs4W/B
+ZtCVi4oQi7WerOh9tuKYciNA+dtv6MJbGagQxwZ5eT+hyxPuWpizPYfi8UmlEnhU4i2xPdSm4xCP
+RN2b8mkITKi2dbmVmE9cl/JSkL58irCIazp7mEKRBQki9jv/QQZ5EGVrXXASlaqlq/zZThoLc2w7
+qmFJTWtH3kbMMLHQ0HdqZ4fpMs8WiZ+qwEp8G7By4UDiQjmR6ucaRqp6SWfmwTL8eNWm5QGjSVeQ
+NM+8LRFp/3Sf7i9y4d+cekuA0gdc5lZ6ZrJH59AKqjIEgIswSY1st+CrveIhRpJtyRb1t9SeLTND
+ozmGiY10M9HId2QA4/pIvneZBFAzTbT4eQ9NnAko4Cg78n4BPA7bwOKSWnkNrEnWWaX8SpaR45h7
+SqyXvjv1FpuwLvC10/vaYisr2KZ7fivK5THl+H+stFv2UZbWnuzjpWWqW28Y50Zmxrp9NA8RkZYe
+ZOJPv1IpPEU86ecIlM5MPvviBvi1g6UON5zVdfrL0h9fjmjIZnIILNw8MPV7v5MSQJxxe62iwDzF
+NLVt79RwDxNrSgRetDvj/9tJnJLF0xXYCjOCPSGg8YnSlexaow5KvsyHa2SrZk9smf6QWrLxyFZg
+gVO/1zdQ6xa1X4e0l3CuBQWrFXDd
+`
+
 	EncodedCanonicalAccountSignKeySha3 = "-CvQKAwRQ5h3Ffn10FILJoEZUXOv6km9FwA80-Rcj-f-6jadQ89VRswHNiEB9Lxk"
 
 	EncodedCanonicalRootAccountKey = `type: account-key
