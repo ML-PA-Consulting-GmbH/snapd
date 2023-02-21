@@ -42,7 +42,15 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
 	}
-	trustedAssertions = []asserts.Assertion{canonicalAccount, canonicalRootAccountKey}
+	customerAccount, err := asserts.Decode([]byte(constants.EncodedCustomerAccount))
+	if err != nil {
+		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
+	}
+	//customerRootAccountKey, err := asserts.Decode([]byte(constants.EncodedCustomerRootAccountKey))
+	//if err != nil {
+	//	panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
+	//}
+	trustedAssertions = []asserts.Assertion{canonicalAccount, canonicalRootAccountKey, customerAccount}
 }
 
 // Trusted returns a copy of the current set of trusted assertions as used by Open.
