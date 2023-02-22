@@ -21,7 +21,7 @@ package sysdb
 
 import (
 	"fmt"
-	"string"
+	"strings"
 	"github.com/snapcore/snapd/constants"
 
 	"github.com/snapcore/snapd/asserts"
