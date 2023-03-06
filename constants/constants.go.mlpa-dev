@@ -43,14 +43,14 @@ package constants
 // parameter: devmode yes/no allow/disallow --devmode installation
 
 const (
-	BaseUrlSnapcraftDashboard        = "https://st02.ml-pa.com/"
-	BaseUrlSnapcraftDashboardStaging = "https://st02-staging.ml-pa.com/"
-	BaseUrlSnapcraftApi              = "https://st02.ml-pa.com/"
-	BaseUrlSnapcraftStagingApi       = "https://st02-staging.ml-pa.com/"
-	BaseUrlSnapcraftApiV2            = "https://st02.ml-pa.com/v2/"
-	BaseUrlSnapcraftStagingApiV2     = "https://st02-staging.ml-pa.com/v2/"
-	AuthLocation                     = "st02.ml-pa.com"
-	AuthLocationStaging              = "st02-staging.ml-pa.com"
+	BaseUrlSnapcraftDashboard        = "https://app-snapstore-api-st02-dev.azurewebsites.net/"
+	BaseUrlSnapcraftDashboardStaging = "https://app-snapstore-api-st02-dev.azurewebsites.net/"
+	BaseUrlSnapcraftApi              = "https://app-snapstore-api-st02-dev.azurewebsites.net/"
+	BaseUrlSnapcraftStagingApi       = "https://app-snapstore-api-st02-dev.azurewebsites.net/"
+	BaseUrlSnapcraftApiV2            = "https://app-snapstore-api-st02-dev.azurewebsites.net/"
+	BaseUrlSnapcraftStagingApiV2     = "https://app-snapstore-api-st02-dev.azurewebsites.net/"
+	AuthLocation                     = "app-snapstore-api-st02-dev.azurewebsites.net"
+	AuthLocationStaging              = "app-snapstore-api-st02-dev.azurewebsites.net"
 
 	AccountId = "mlpa"
 
