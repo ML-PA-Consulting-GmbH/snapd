@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="snapd" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="snapd" />
+    <working_directory value="$PROJECT_DIR$" />
+    <envs>
+      <env name="SNAPD_DEBUG" value="1" />
+    </envs>
+    <sudo value="true" />
+    <kind value="FILE" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/cmd/snapd/main.go" />
+    <method v="2" />
+  </configuration>
+</component>
