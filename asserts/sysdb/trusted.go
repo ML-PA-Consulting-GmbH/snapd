@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"strings"
 	"github.com/snapcore/snapd/constants"
+	"strings"
 
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/snapdenv"
