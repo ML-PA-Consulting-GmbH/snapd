@@ -67,6 +67,17 @@ func (vs *ValidationSetTracking) sameAs(tr *ValidationSetTracking) bool {
 		vs.Name == tr.Name && vs.PinnedAt == tr.PinnedAt
 }
 
+// Sequence returns the sequence number of the currently used validation set.
+func (vs *ValidationSetTracking) Sequence() int {
+	// Current was occasionally set to the latest sequence number even when Pinned != 0,
+	// this should no longer happen but return PinnedAt anyway to be safe
+	if vs.PinnedAt > 0 {
+		return vs.PinnedAt
+	}
+
+	return vs.Current
+}
+
 // ValidationSetKey formats the given account id and name into a validation set key.
 func ValidationSetKey(accountID, name string) string {
 	return fmt.Sprintf("%s/%s", accountID, name)
@@ -146,11 +157,11 @@ func ValidationSets(st *state.State) (map[string]*ValidationSetTracking, error) 
 	return vsmap, nil
 }
 
-// EnforcedValidationSets returns ValidationSets object with all currently tracked
+// TrackedEnforcedValidationSets returns ValidationSets object with all currently tracked
 // validation sets that are in enforcing mode. If extraVss is not nil then they are
 // added to the returned set and replaces validation sets with same account/name
 // in case they were tracked already.
-func EnforcedValidationSets(st *state.State, extraVss ...*asserts.ValidationSet) (*snapasserts.ValidationSets, error) {
+func TrackedEnforcedValidationSets(st *state.State, extraVss ...*asserts.ValidationSet) (*snapasserts.ValidationSets, error) {
 	valsets, err := ValidationSets(st)
 	if err != nil {
 		return nil, err

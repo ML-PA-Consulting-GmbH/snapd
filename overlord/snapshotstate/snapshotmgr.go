@@ -78,7 +78,7 @@ func Manager(st *state.State, runner *state.TaskRunner) *SnapshotManager {
 	manager := &SnapshotManager{
 		state: st,
 	}
-	snapstate.AddAffectedSnapsByAttr("snapshot-setup", manager.affectedSnaps)
+	snapstate.RegisterAffectedSnapsByAttr("snapshot-setup", manager.affectedSnaps)
 
 	return manager
 }
@@ -335,8 +335,8 @@ func doRestore(task *state.Task, tomb *tomb.Tomb) error {
 		backendRevert(restoreState)
 		return fmt.Errorf("cannot set snap config: %v", err)
 	}
-
 	restoreState.Config = oldCfg
+
 	task.Set("restore-state", restoreState)
 
 	return nil

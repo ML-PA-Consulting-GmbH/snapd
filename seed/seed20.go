@@ -374,8 +374,8 @@ func (s *seed20) lookupSnap(snapRef naming.SnapRef, essType snap.Type, optSnap *
 	auxInfo := s.auxInfos[sideInfo.SnapID]
 	if auxInfo != nil {
 		sideInfo.Private = auxInfo.Private
-		// TODO: consider whether to use this if we have links
-		sideInfo.EditedContact = auxInfo.Contact
+		sideInfo.EditedLinks = auxInfo.Links
+		sideInfo.LegacyEditedContact = auxInfo.Contact
 	}
 
 	return &Snap{
@@ -406,6 +406,7 @@ func (s *seed20) doLoadMetaOne(sntoc *snapToConsider, handler SnapHandler, tm ti
 	var essential bool
 	var essType snap.Type
 	var required bool
+	var classic bool
 	if sntoc.modelSnap != nil {
 		snapRef = sntoc.modelSnap
 		essential = sntoc.essential
@@ -414,6 +415,7 @@ func (s *seed20) doLoadMetaOne(sntoc *snapToConsider, handler SnapHandler, tm ti
 		}
 		required = essential || sntoc.modelSnap.Presence == "required"
 		channel = sntoc.modelSnap.DefaultChannel
+		classic = sntoc.modelSnap.Classic
 		snapsDir = "../../snaps"
 	} else {
 		snapRef = sntoc.optSnap
@@ -430,6 +432,7 @@ func (s *seed20) doLoadMetaOne(sntoc *snapToConsider, handler SnapHandler, tm ti
 	}
 	seedSnap.Essential = essential
 	seedSnap.Required = required
+	seedSnap.Classic = classic
 	if essential {
 		if sntoc.modelSnap.SnapType == "gadget" {
 			// validity
@@ -772,4 +775,22 @@ func (s *seed20) Iter(f func(sn *Snap) error) error {
 		}
 	}
 	return nil
+}
+
+func (s *seed20) LoadAutoImportAssertions(commitTo func(*asserts.Batch) error) error {
+	if s.model.Grade() != asserts.ModelDangerous {
+		return nil
+	}
+
+	autoImportAssert := filepath.Join(s.systemDir, "auto-import.assert")
+	af, err := os.Open(autoImportAssert)
+	if err != nil {
+		return err
+	}
+	defer af.Close()
+	batch := asserts.NewBatch(nil)
+	if _, err := batch.AddStream(af); err != nil {
+		return err
+	}
+	return commitTo(batch)
 }

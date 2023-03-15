@@ -23,7 +23,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/snapcore/snapd/constants"
 	"io"
 	"path/filepath"
 	"strings"
@@ -92,9 +91,10 @@ const sharedMemoryBaseDeclarationSlots = `
         - app
         - gadget
         - core
-      slot-snap-id:
-        - ` + constants.ProdIdSnapd + `
-        - ` + constants.ProdIdCore + `
+    deny-installation:
+      slot-snap-type:
+        - app
+        - gadget
     deny-auto-connection: true
 `
 

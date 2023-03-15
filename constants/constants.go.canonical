@@ -43,6 +43,8 @@ const (
 	AuthLocationStaging = "login.staging.ubuntu.com"
 
     AccountId = "canonical"
+    HasGenericAccount = true
+
 
     EncodedRepairRootAccountKeyPublicKeySha3 = "nttW6NfBXI_E-00u38W-KH6eiksfQNXuI7IiumoV49_zkbhM0sYTzSnFlwZC-W4t"
 	EncodedRepairRootAccountKey = `type: account-key

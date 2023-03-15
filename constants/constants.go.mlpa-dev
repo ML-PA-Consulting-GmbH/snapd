@@ -53,6 +53,7 @@ const (
 	AuthLocationStaging              = "app-snapstore-api-st02-dev.azurewebsites.net"
 
 	AccountId = "mlpa"
+    HasGenericAccount = false
 
 	EncodedRepairRootAccountKeyPublicKeySha3 = "A_CvfLsPfxdYAJ4GA4wXZ9DZ-dNrFo_n383IKB5BF9qwnwqsaT96fY1__OAlqU9U"
 	EncodedRepairRootAccountKey              = `type: account-key

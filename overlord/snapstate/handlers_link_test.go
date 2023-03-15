@@ -60,10 +60,11 @@ func (s *linkSnapSuite) SetUpTest(c *C) {
 	s.baseHandlerSuite.SetUpTest(c)
 
 	s.state.Lock()
-	restart.Init(s.state, "boot-id-0", snapstatetest.MockRestartHandler(func(t restart.RestartType) {
+	_, err := restart.Manager(s.state, "boot-id-0", snapstatetest.MockRestartHandler(func(t restart.RestartType) {
 		s.restartRequested = append(s.restartRequested, t)
 	}))
 	s.state.Unlock()
+	c.Assert(err, IsNil)
 
 	s.AddCleanup(snapstatetest.MockDeviceModel(DefaultModel()))
 
@@ -234,7 +235,7 @@ func (s *linkSnapSuite) TestDoLinkSnapSuccessUserIDAlreadySet(c *C) {
 		UserID:  1,
 	})
 	// the user
-	user, err := auth.NewUser(s.state, auth.NewUserData{
+	user, err := auth.NewUser(s.state, auth.NewUserParams{
 		Username:   "username",
 		Email:      "email@test.com",
 		Macaroon:   "macaroon",
@@ -861,6 +862,51 @@ func (s *linkSnapSuite) TestDoLinkSnapSuccessRebootForCoreBase(c *C) {
 	c.Check(t.Log()[0], Matches, `.*INFO Requested system restart.*`)
 }
 
+func (s *linkSnapSuite) TestDoLinkSnapSuccessRebootForKernelClassicWithModes(c *C) {
+	restore := release.MockOnClassic(true)
+	defer restore()
+
+	r := snapstatetest.MockDeviceModel(MakeModelClassicWithModes("pc", nil))
+	defer r()
+
+	snapstate.MockSnapReadInfo(func(name string, si *snap.SideInfo) (*snap.Info, error) {
+		c.Assert(name, Equals, "kernel")
+		info := &snap.Info{SuggestedName: name, SideInfo: *si, SnapType: snap.TypeKernel}
+		return info, nil
+	})
+
+	s.fakeBackend.linkSnapMaybeReboot = true
+	s.fakeBackend.linkSnapRebootFor = map[string]bool{
+		"kernel": true,
+	}
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	si := &snap.SideInfo{
+		RealName: "kernel",
+		SnapID:   "pclinuxdidididididididididididid",
+		Revision: snap.R(22),
+	}
+	t := s.state.NewTask("link-snap", "test")
+	t.Set("snap-setup", &snapstate.SnapSetup{
+		SideInfo: si,
+		Type:     snap.TypeKernel,
+	})
+	chg := s.state.NewChange("sample", "...")
+	chg.AddTask(t)
+
+	s.state.Unlock()
+	s.se.Ensure()
+	s.se.Wait()
+	s.state.Lock()
+
+	c.Check(t.Status(), Equals, state.WaitStatus)
+	c.Check(s.restartRequested, HasLen, 0)
+	c.Assert(t.Log(), HasLen, 1)
+	c.Check(t.Log()[0], Matches, `.*INFO Task set to wait until a manual system restart allows to continue`)
+}
+
 func (s *linkSnapSuite) TestDoLinkSnapSuccessRebootForCoreBaseSystemRestartImmediate(c *C) {
 	restore := release.MockOnClassic(false)
 	defer restore()
@@ -1102,6 +1148,76 @@ func (s *linkSnapSuite) TestDoLinkSnapdSnapCleanupOnErrorNthInstall(c *C) {
 			path: filepath.Join(dirs.SnapMountDir, "snapd/20"),
 
 			unlinkFirstInstallUndo: false,
+		},
+	}
+
+	// start with an easier-to-read error if this fails:
+	c.Check(s.fakeBackend.ops.Ops(), DeepEquals, expected.Ops())
+	c.Check(s.fakeBackend.ops, DeepEquals, expected)
+
+	// link snap participant was invoked
+	c.Check(lp.instanceNames, DeepEquals, []string{"snapd"})
+}
+
+func (s *linkSnapSuite) TestDoLinkSnapdDiscardsNsOnDowngrade(c *C) {
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	lp := &testLinkParticipant{}
+	restore := snapstate.MockLinkSnapParticipants([]snapstate.LinkSnapParticipant{lp, snapstate.LinkSnapParticipantFunc(ifacestate.OnSnapLinkageChanged)})
+	defer restore()
+
+	// pretend we have an installed snapd
+	snapstate.MockSnapReadInfo(func(name string, si *snap.SideInfo) (*snap.Info, error) {
+		c.Check(name, Equals, "snapd")
+		info := &snap.Info{Version: "2.56", SideInfo: *si, SnapType: snap.TypeSnapd}
+		return info, nil
+	})
+	siSnapd := &snap.SideInfo{
+		RealName: "snapd",
+		SnapID:   "snapd-snap-id",
+		Revision: snap.R(42),
+	}
+	// Create a downgrade
+	si := &snap.SideInfo{
+		RealName: "snapd",
+		SnapID:   "snapd-snap-id",
+		Revision: snap.R(41),
+	}
+	snapstate.Set(s.state, "snapd", &snapstate.SnapState{
+		Active:          true,
+		Sequence:        []*snap.SideInfo{siSnapd, si},
+		Current:         siSnapd.Revision,
+		TrackingChannel: "latest/stable",
+		SnapType:        "snapd",
+	})
+	t := s.state.NewTask("link-snap", "test")
+	t.Set("snap-setup", &snapstate.SnapSetup{
+		SideInfo: si,
+		Channel:  "beta",
+	})
+
+	s.state.NewChange("sample", "...").AddTask(t)
+	s.state.Unlock()
+
+	s.se.Ensure()
+	s.se.Wait()
+
+	s.state.Lock()
+
+	// tried to cleanup
+	expected := fakeOps{
+		{
+			op:    "candidate",
+			sinfo: *si,
+		},
+		{
+			op:   "discard-namespace",
+			name: "snapd",
+		},
+		{
+			op:   "link-snap",
+			path: filepath.Join(dirs.SnapMountDir, "snapd/41"),
 		},
 	}
 
@@ -1944,9 +2060,9 @@ func (s *linkSnapSuite) TestMaybeUndoRemodelBootChangesUnrelatedAppDoesNothing(c
 		},
 	})
 
-	err := s.snapmgr.MaybeUndoRemodelBootChanges(t)
+	restartRequested, _, err := s.snapmgr.MaybeUndoRemodelBootChanges(t)
 	c.Assert(err, IsNil)
-	c.Check(s.restartRequested, HasLen, 0)
+	c.Check(restartRequested, Equals, false)
 }
 
 func (s *linkSnapSuite) TestMaybeUndoRemodelBootChangesSameKernel(c *C) {
@@ -1963,9 +2079,9 @@ func (s *linkSnapSuite) TestMaybeUndoRemodelBootChangesSameKernel(c *C) {
 		Type: "kernel",
 	})
 
-	err := s.snapmgr.MaybeUndoRemodelBootChanges(t)
+	restartRequested, _, err := s.snapmgr.MaybeUndoRemodelBootChanges(t)
 	c.Assert(err, IsNil)
-	c.Check(s.restartRequested, HasLen, 0)
+	c.Check(restartRequested, Equals, false)
 }
 
 func (s *linkSnapSuite) TestMaybeUndoRemodelBootChangesNeedsUndo(c *C) {
@@ -2015,9 +2131,10 @@ func (s *linkSnapSuite) TestMaybeUndoRemodelBootChangesNeedsUndo(c *C) {
 		},
 		Type: "kernel",
 	})
+	s.state.NewChange("sample", "...").AddTask(t)
 
 	// now we simulate that the new kernel is getting undone
-	err := s.snapmgr.MaybeUndoRemodelBootChanges(t)
+	restartRequested, rebootRequired, err := s.snapmgr.MaybeUndoRemodelBootChanges(t)
 	c.Assert(err, IsNil)
 
 	// that will schedule a boot into the previous kernel
@@ -2026,8 +2143,8 @@ func (s *linkSnapSuite) TestMaybeUndoRemodelBootChangesNeedsUndo(c *C) {
 		"snap_kernel":     "kernel_1.snap",
 		"snap_try_kernel": "",
 	})
-	c.Check(s.restartRequested, HasLen, 1)
-	c.Check(s.restartRequested[0], Equals, restart.RestartSystem)
+	c.Check(restartRequested, Equals, true)
+	c.Check(rebootRequired, Equals, true)
 }
 
 func (s *linkSnapSuite) testDoLinkSnapWithToolingDependency(c *C, classicOrBase string) {

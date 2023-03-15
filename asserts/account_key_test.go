@@ -55,6 +55,8 @@ func (aks *accountKeySuite) SetUpSuite(c *C) {
 	pubKey, err := accDb.PublicKey(aks.keyID)
 	c.Assert(err, IsNil)
 	pubKeyEncoded, err := asserts.EncodePublicKey(pubKey)
+	pubKeyRedecoded, err := asserts.DecodePublicKey(pubKeyEncoded)
+	_ = pubKeyRedecoded
 	c.Assert(err, IsNil)
 	aks.pubKeyBody = string(pubKeyEncoded)
 

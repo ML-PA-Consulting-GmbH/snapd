@@ -52,7 +52,9 @@ const (
 	AuthLocation                     = "localhost"
 	AuthLocationStaging              = "localhost"
 
-	AccountId                                = "mlpa"
+	AccountId         = "mlpa"
+	HasGenericAccount = false
+
 	EncodedRepairRootAccountKeyPublicKeySha3 = "edGsBHOVCrchX6wCXYOWUAF81zcoGnoJ-JGwqcTylXQVKD6cCwDf3c8UM0YtFg2h"
 	EncodedRepairRootAccountKey              = `type: account-key
 authority-id: mlpa
@@ -123,21 +125,42 @@ LwAr1Gi4GyBaujiuXM7FvPChriEj
 authority-id: mlpa
 account-id: mlpa
 display-name: mlpa
-timestamp: 2023-01-04T07:35:30Z
+timestamp: 2023-02-08T12:51:16Z
 username: mlpa
 validation: certified
 sign-key-sha3-384: edGsBHOVCrchX6wCXYOWUAF81zcoGnoJ-JGwqcTylXQVKD6cCwDf3c8UM0YtFg2h
 
-AcLBUgQAAQoABgUCY7UsQgAAyyYQAG1H36ccorj5L2cG25m+oUSvWGbnQgpRpOysxiuAt45d9yRY
-kekERVHbuv1GV0QiBrwmKJL9H57YQESz9vLKQ3MT7AJg8T+CqfqLzXQBsh1FZT9tiDLbTAYvYCQf
-lEcPd7keyFbO/WUrjqdKDsTg93il82CSagsUS2E8ENeslUaAY8I0YjddVPf43+WULUbTfdgwuXby
-y4yz96TztIe1syzmIxTpgQTMNZR3oLgvm7xmgs5mfjbnINDXhHxv7G8pHpqIytxPUFNMzaKR9UIX
-xhcNYBD4nHZX49q+0NMWW6zTHWutNf0OO+Y9eVBAPm0NglDzS6tweBhG/5jqw1Gv4cizcyQGkLM7
-RbtQ8KZE51AqQ8M8fWL4vDauY50eGVfPkeQq2S2jm0nBmYwlOMxSktPbGDjgjmwPm2j/kwzpV5ag
-McToiwC6BwQI71xRQpYH/lnTu9AfAO7oEpfIfMJRsn/wjJ79mxV7+BE/Bk5QCh2T5ueonurr8Yda
-7upuvJAx7gOTWAktqq3rIaS/Gk61Xyi8Yb0mgl06n/Le5JnFg1dA8KWLMwQhjAvMvhqh/wnjmuQk
-oDhi6ibi6YRNDEVc53Gw+4kx6B9ZYAWzJBaatqNcmAxCthpVMnt5P8pb4CmbWii9B0o8rFMhD4HU
-pxtjlrvXa3aIsd+O2XuYOwzttrVj
+AcLBUgQAAQoABgUCY+OaxAAAgkkQALZjXtSmYr4lNv8Y81eaeL8uAi2zcpCDXRxkWQc01iYcW11R
+iZ7PceSUs+zppCqSJa/NloqtqEeh6GozQYCme7N6UP1vUozSxHf0Ic4sYnCBXbGdC44KqGNOtXXV
+XI9+oAZsgezUq1vyx+cYoX7nwJZYV41vZM3vGXftDOYohz2mnWG8nnBq+A5H7hDu4a2pha1kEO+H
+k2jL5+mMyM+Pw+WB9HsuUFEuT9sXduuE98hSofCi+tRXHRlrr7tL6EcTx3pp5QB22sOr+YY+dbJX
+Cf4hy7naLch8HRY2ovKDEpo+E1mKJ467J9X0HQUqo1FPxYj7MRBErV3+tumgnxBZQYCdG44xCDht
+8AP/loqCNwfhEmAtKsWqW9XGLVqvMkvLoD2W7ldTxt6BuS6ZKF/pTDM09NWvQgWbxB/A0vOj+lUC
+a/JKGqzfB1zJL2opFfEQO1WND36PF5nUErP/Mug3xENfGm2Y/34/1h06FuUX6El2lAARoDsy5xdL
+n8dTA4JAmKY7Rz7Bfo/HytoNHQvc8ifxNbyxdUD5p2RweMMoMLeBao4xbmxlNfKOB4UeDnpFJR5T
+wtdgiqsbdjorK/5qtdJXVSNf+mbkdGW6MNq579yjKjocrctjfO1Mfe8A4arXzQDn20metotrpl9s
+s+3X5WuUiMdNbCiORoCAml6rT3QU
+
+
+type: account
+authority-id: mlpa
+account-id: knorr
+display-name: knorr
+timestamp: 2023-02-16T14:57:30Z
+username: knorr
+validation: certified
+sign-key-sha3-384: edGsBHOVCrchX6wCXYOWUAF81zcoGnoJ-JGwqcTylXQVKD6cCwDf3c8UM0YtFg2h
+
+AcLBUgQAAQoABgUCY+5EWgAATUkQAJptKSqOnuUNpRxFXhot418pn5t9LNa98dNCSs+XpkMs4W/B
+ZtCVi4oQi7WerOh9tuKYciNA+dtv6MJbGagQxwZ5eT+hyxPuWpizPYfi8UmlEnhU4i2xPdSm4xCP
+RN2b8mkITKi2dbmVmE9cl/JSkL58irCIazp7mEKRBQki9jv/QQZ5EGVrXXASlaqlq/zZThoLc2w7
+qmFJTWtH3kbMMLHQ0HdqZ4fpMs8WiZ+qwEp8G7By4UDiQjmR6ucaRqp6SWfmwTL8eNWm5QGjSVeQ
+NM+8LRFp/3Sf7i9y4d+cekuA0gdc5lZ6ZrJH59AKqjIEgIswSY1st+CrveIhRpJtyRb1t9SeLTND
+ozmGiY10M9HId2QA4/pIvneZBFAzTbT4eQ9NnAko4Cg78n4BPA7bwOKSWnkNrEnWWaX8SpaR45h7
+SqyXvjv1FpuwLvC10/vaYisr2KZ7fivK5THl+H+stFv2UZbWnuzjpWWqW28Y50Zmxrp9NA8RkZYe
+ZOJPv1IpPEU86ecIlM5MPvviBvi1g6UON5zVdfrL0h9fjmjIZnIILNw8MPV7v5MSQJxxe62iwDzF
+NLVt79RwDxNrSgRetDvj/9tJnJLF0xXYCjOCPSGg8YnSlexaow5KvsyHa2SrZk9smf6QWrLxyFZg
+gVO/1zdQ6xa1X4e0l3CuBQWrFXDd
 `
 
 	EncodedCanonicalRootAccountKey = `type: account-key

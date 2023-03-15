@@ -62,8 +62,11 @@ const systemObserveConnectedPlugAppArmor = `
 ptrace (read),
 
 # Other miscellaneous accesses for observing the system
+@{PROC}/cgroups r,
 @{PROC}/locks r,
 @{PROC}/modules r,
+@{PROC}/mdstat r,
+@{PROC}/schedstat r,
 @{PROC}/stat r,
 @{PROC}/vmstat r,
 @{PROC}/zoneinfo r,
@@ -78,6 +81,7 @@ ptrace (read),
 @{PROC}/sys/kernel/sched_autogroup_enabled r,
 @{PROC}/sys/vm/max_map_count r,
 @{PROC}/sys/vm/panic_on_oom r,
+@{PROC}/sys/vm/swappiness r,
 
 # These are not process-specific (/proc/*/... and /proc/*/task/*/...)
 @{PROC}/*/{,task/,task/*/} r,
@@ -140,7 +144,7 @@ dbus (send)
     bus={session,system}
     path=/org/freedesktop/DBus
     interface=org.freedesktop.DBus
-    member=ListNames
+    member={ListNames,ListActivatableNames}
     peer=(label=unconfined),
 
 # Allow clients to obtain the DBus machine ID on common buses. We do not
@@ -194,7 +198,7 @@ func (iface *systemObserveInterface) AppArmorConnectedPlug(spec *apparmor.Specif
 
 func (iface *systemObserveInterface) MountPermanentPlug(spec *mount.Specification, plug *snap.PlugInfo) error {
 	dir := filepath.Join(dirs.GlobalRootDir, "/boot")
-	if matches, _ := filepath.Glob("/boot/config*"); len(matches) > 0 {
+	if matches, _ := filepath.Glob(filepath.Join(dir, "config*")); len(matches) > 0 {
 		spec.AddMountEntry(osutil.MountEntry{
 			Name:    "/var/lib/snapd/hostfs" + dir,
 			Dir:     "/boot",

@@ -275,14 +275,14 @@ func (s *apiBaseSuite) daemonWithStore(c *check.C, sto snapstate.StoreService) *
 	// mark as already seeded
 	st.Lock()
 	st.Set("seeded", true)
+	// and registered
+	s.mockModel(st, nil)
 	st.Unlock()
 	c.Assert(d.Overlord().StartUp(), check.IsNil)
 
 	st.Lock()
 	defer st.Unlock()
 	snapstate.ReplaceStore(st, sto)
-	// registered
-	s.mockModel(st, nil)
 
 	// don't actually try to talk to the store on snapstate.Ensure
 	// needs doing after the call to devicestate.Manager (which
@@ -346,7 +346,7 @@ func (s *apiBaseSuite) asUserAuth(c *check.C, req *http.Request) {
 	if s.authUser == nil {
 		st := s.d.Overlord().State()
 		st.Lock()
-		u, err := auth.NewUser(st, auth.NewUserData{
+		u, err := auth.NewUser(st, auth.NewUserParams{
 			Username:   "username",
 			Email:      "email@test.com",
 			Macaroon:   "macaroon",

@@ -207,7 +207,7 @@ func snapEssentialInfo(w http.ResponseWriter, fn, snapID string, bs asserts.Back
 	}
 
 	snapRev, devAcct, err := findSnapRevision(snapDigest, bs)
-	if err != nil && !asserts.IsNotFound(err) {
+	if err != nil && !errors.Is(err, &asserts.NotFoundError{}) {
 		http.Error(w, fmt.Sprintf("cannot get info for: %v: %v", fn, err), 400)
 		return nil, errInfo
 	}
@@ -276,7 +276,7 @@ func (s *Store) repairsEndpoint(w http.ResponseWriter, req *http.Request) {
 	}
 
 	a, err := s.retrieveAssertion(bs, asserts.RepairType, brandAndRepairID)
-	if asserts.IsNotFound(err) {
+	if errors.Is(err, &asserts.NotFoundError{}) {
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(404)
 		w.Write([]byte(`{"status": 404}`))
@@ -587,6 +587,7 @@ type snapAction struct {
 	InstanceKey string `json:"instance-key"`
 	SnapID      string `json:"snap-id"`
 	Name        string `json:"name"`
+	Revision    int    `json:"revision,omitempty"`
 }
 
 type snapActionRequest struct {
@@ -711,6 +712,7 @@ func (s *Store) snapActionEndpoint(w http.ResponseWriter, req *http.Request) {
 					Base:          essInfo.Base,
 				},
 			}
+			logger.Debugf("requested snap %q revision %d", essInfo.Name, a.Revision)
 			res.Snap.Publisher.ID = essInfo.DeveloperID
 			res.Snap.Publisher.Username = essInfo.DevelName
 			res.Snap.Download.URL = fmt.Sprintf("%s/download/%s", s.URL(), filepath.Base(fn))
@@ -732,7 +734,7 @@ func (s *Store) snapActionEndpoint(w http.ResponseWriter, req *http.Request) {
 
 func (s *Store) retrieveAssertion(bs asserts.Backstore, assertType *asserts.AssertionType, primaryKey []string) (asserts.Assertion, error) {
 	a, err := bs.Get(assertType, primaryKey, assertType.MaxSupportedFormat())
-	if asserts.IsNotFound(err) && s.assertFallback {
+	if errors.Is(err, &asserts.NotFoundError{}) && s.assertFallback {
 		return s.fallback.Assertion(assertType, primaryKey, nil)
 	}
 	return a, err
@@ -767,7 +769,7 @@ func (s *Store) assertionsEndpoint(w http.ResponseWriter, req *http.Request) {
 	}
 
 	a, err := s.retrieveAssertion(bs, typ, pk)
-	if asserts.IsNotFound(err) {
+	if errors.Is(err, &asserts.NotFoundError{}) {
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(404)
 		w.Write([]byte(`{"error-list":[{"code":"not-found","message":"not found"}]}`))

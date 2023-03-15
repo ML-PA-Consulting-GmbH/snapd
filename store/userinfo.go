@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/snapcore/snapd/httputil"
 )
@@ -43,6 +44,9 @@ type User struct {
 func (s *Store) UserInfo(email string) (userinfo *User, err error) {
 	var v keysReply
 	ssourl := fmt.Sprintf("%s/keys/%s", authURL(), url.QueryEscape(email))
+
+	// TODO: DEBUG changed https to http for local testing
+	ssourl = strings.Replace(ssourl, "https://", "http://", 1)
 
 	resp, err := httputil.RetryRequest(ssourl, func() (*http.Response, error) {
 		return s.client.Get(ssourl)

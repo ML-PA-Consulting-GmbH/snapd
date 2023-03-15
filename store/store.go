@@ -115,6 +115,10 @@ type Config struct {
 
 	// Proxy returns the HTTP proxy to use when talking to the store
 	Proxy func(*http.Request) (*url.URL, error)
+
+	// AssertionMaxFormats if set provides a way to override
+	// the assertion max formats sent to the store as supported.
+	AssertionMaxFormats map[string]int
 }
 
 // setBaseURL updates the store API's base URL in the Config. Must not be used
@@ -418,6 +422,12 @@ func New(cfg *Config, dauthCtx DeviceAndAuthContext) *Store {
 	store.SetCacheDownloads(cfg.CacheDownloads)
 
 	return store
+}
+
+// SetAssertionMaxFormats allows to change the assertion max formats to send
+// for a store already in use.
+func (s *Store) SetAssertionMaxFormats(maxFormats map[string]int) {
+	s.cfg.AssertionMaxFormats = maxFormats
 }
 
 // API endpoint paths
@@ -736,6 +746,31 @@ func (s *Store) doRequest(ctx context.Context, client *http.Client, reqOptions *
 	}
 }
 
+func (s *Store) buildLocationString() (string, error) {
+	if s.dauthCtx == nil {
+		return "", nil
+	}
+
+	cloudInfo, err := s.dauthCtx.CloudInfo()
+	if err != nil {
+		return "", err
+	}
+
+	if cloudInfo == nil {
+		return "", nil
+	}
+
+	cdnParams := []string{fmt.Sprintf("cloud-name=%q", cloudInfo.Name)}
+	if cloudInfo.Region != "" {
+		cdnParams = append(cdnParams, fmt.Sprintf("region=%q", cloudInfo.Region))
+	}
+	if cloudInfo.AvailabilityZone != "" {
+		cdnParams = append(cdnParams, fmt.Sprintf("availability-zone=%q", cloudInfo.AvailabilityZone))
+	}
+
+	return strings.Join(cdnParams, " "), nil
+}
+
 // build a new http.Request with headers for the store
 func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user *auth.UserState) (*http.Request, error) {
 	var body io.Reader
@@ -771,6 +806,13 @@ func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user
 	req.Header.Set(hdrSnapDeviceSeries[reqOptions.APILevel], s.series)
 	req.Header.Set(hdrSnapClassic[reqOptions.APILevel], strconv.FormatBool(release.OnClassic))
 	req.Header.Set("Snap-Device-Capabilities", "default-tracks")
+	locationHeader, err := s.buildLocationString()
+	if err != nil {
+		return nil, err
+	}
+	if locationHeader != "" {
+		req.Header.Set("Snap-Device-Location", locationHeader)
+	}
 	if cua := ClientUserAgent(ctx); cua != "" {
 		req.Header.Set("Snap-Client-User-Agent", cua)
 	}

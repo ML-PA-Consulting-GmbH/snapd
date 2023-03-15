@@ -58,6 +58,8 @@ type toolingSuite struct {
 	storeActions           []*store.SnapAction
 	curSnaps               [][]*store.CurrentSnap
 
+	assertMaxFormats map[string]int
+
 	tsto *tooling.ToolingStore
 
 	// SeedSnaps helps creating and making available seed snaps
@@ -392,6 +394,21 @@ func (s *toolingSuite) TestDownloadSnap(c *C) {
 	c.Check(logbuf.String(), Matches, `.* DEBUG: Going to download snap "core" `+opts.String()+".\n")
 }
 
+func (s *toolingSuite) TestSetAssertionMaxFormats(c *C) {
+	c.Check(s.tsto.AssertionMaxFormats(), IsNil)
+
+	m := map[string]int{
+		"snap-declaration": 4,
+	}
+	s.tsto.SetAssertionMaxFormats(m)
+	c.Check(s.tsto.AssertionMaxFormats(), DeepEquals, m)
+	c.Check(s.assertMaxFormats, DeepEquals, m)
+
+	s.tsto.SetAssertionMaxFormats(nil)
+	c.Check(s.tsto.AssertionMaxFormats(), IsNil)
+	c.Check(s.assertMaxFormats, IsNil)
+}
+
 // interface for the store
 func (s *toolingSuite) SnapAction(_ context.Context, curSnaps []*store.CurrentSnap, actions []*store.SnapAction, assertQuery store.AssertionQuery, _ *auth.UserState, _ *store.RefreshOptions) ([]store.SnapActionResult, []store.AssertionResult, error) {
 	if assertQuery != nil {
@@ -435,6 +452,10 @@ func (s *toolingSuite) SnapAction(_ context.Context, curSnaps []*store.CurrentSn
 
 func (s *toolingSuite) Download(ctx context.Context, name, targetFn string, downloadInfo *snap.DownloadInfo, pbar progress.Meter, user *auth.UserState, dlOpts *store.DownloadOptions) error {
 	return osutil.CopyFile(s.AssertedSnap(name), targetFn, 0)
+}
+
+func (s *toolingSuite) SetAssertionMaxFormats(m map[string]int) {
+	s.assertMaxFormats = m
 }
 
 func (s *toolingSuite) Assertion(assertType *asserts.AssertionType, primaryKey []string, user *auth.UserState) (asserts.Assertion, error) {

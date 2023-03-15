@@ -20,6 +20,7 @@
 package seedtest
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -212,7 +213,7 @@ func (s *TestingSeed16) WriteAssertions(fn string, assertions ...asserts.Asserti
 }
 
 func WriteAssertions(fn string, assertions ...asserts.Assertion) {
-	f, err := os.OpenFile(fn, os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(fn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		panic(err)
 	}
@@ -303,9 +304,11 @@ func (s *TestingSeed20) MakeSeedWithModel(c *C, label string, model *asserts.Mod
 	localSnaps, err := w.LocalSnaps()
 	c.Assert(err, IsNil)
 
+	localARefs := make(map[*seedwriter.SeedSnap][]*asserts.Ref)
+
 	for _, sn := range localSnaps {
 		si, aRefs, err := seedwriter.DeriveSideInfo(sn.Path, model, rf, db)
-		if !asserts.IsNotFound(err) {
+		if !errors.Is(err, &asserts.NotFoundError{}) {
 			c.Assert(err, IsNil)
 		}
 		f, err := snapfile.Open(sn.Path)
@@ -313,11 +316,24 @@ func (s *TestingSeed20) MakeSeedWithModel(c *C, label string, model *asserts.Mod
 		info, err := snap.ReadInfoFromSnapFile(f, si)
 		c.Assert(err, IsNil)
 		w.SetInfo(sn, info)
-		sn.ARefs = aRefs
+		if aRefs != nil {
+			localARefs[sn] = aRefs
+		}
 	}
 
 	err = w.InfoDerived()
 	c.Assert(err, IsNil)
+
+	fetchAsserts := func(sn, _, _ *seedwriter.SeedSnap) ([]*asserts.Ref, error) {
+		if aRefs, ok := localARefs[sn]; ok {
+			return aRefs, nil
+		}
+		prev := len(rf.Refs())
+		if err = rf.Save(s.snapRevs[sn.SnapName()]); err != nil {
+			return nil, err
+		}
+		return rf.Refs()[prev:], nil
+	}
 
 	for {
 		snaps, err := w.SnapsToDownload()
@@ -331,11 +347,6 @@ func (s *TestingSeed20) MakeSeedWithModel(c *C, label string, model *asserts.Mod
 			err := w.SetInfo(sn, info)
 			c.Assert(err, IsNil)
 
-			prev := len(rf.Refs())
-			err = rf.Save(s.snapRevs[name])
-			c.Assert(err, IsNil)
-			sn.ARefs = rf.Refs()[prev:]
-
 			if _, err := os.Stat(sn.Path); err == nil {
 				// snap is already present
 				continue
@@ -345,7 +356,7 @@ func (s *TestingSeed20) MakeSeedWithModel(c *C, label string, model *asserts.Mod
 			c.Assert(err, IsNil)
 		}
 
-		complete, err := w.Downloaded()
+		complete, err := w.Downloaded(fetchAsserts)
 		c.Assert(err, IsNil)
 		if complete {
 			break
@@ -393,4 +404,36 @@ func ValidateSeed(c *C, root, label string, usesSnapd bool, trusted []asserts.As
 		c.Check(sd.EssentialSnaps(), HasLen, 3)
 	}
 	return sd
+}
+
+var goodUser = map[string]interface{}{
+	"authority-id": "my-brand",
+	"brand-id":     "my-brand",
+	"email":        "foo@bar.com",
+	"series":       []interface{}{"16", "18"},
+	"models":       []interface{}{"my-model", "other-model"},
+	"name":         "Boring Guy",
+	"username":     "guy",
+	"password":     "$6$salt$hash",
+	"since":        time.Now().Format(time.RFC3339),
+	"until":        time.Now().Add(24 * 30 * time.Hour).Format(time.RFC3339),
+}
+
+func WriteValidAutoImportAssertion(c *C, brands *assertstest.SigningAccounts, seedDir, sysLabel string, perm os.FileMode) {
+	systemUsers := []map[string]interface{}{goodUser}
+	// write system user assertion to the system seed root
+	autoImportAssert := filepath.Join(seedDir, "systems", sysLabel, "auto-import.assert")
+	f, err := os.OpenFile(autoImportAssert, os.O_CREATE|os.O_WRONLY, perm)
+	c.Assert(err, IsNil)
+	defer f.Close()
+	enc := asserts.NewEncoder(f)
+	c.Assert(enc, NotNil)
+
+	for _, suMap := range systemUsers {
+		systemUser, err := brands.Signing(suMap["authority-id"].(string)).Sign(asserts.SystemUserType, suMap, nil, "")
+		c.Assert(err, IsNil)
+		systemUser = systemUser.(*asserts.SystemUser)
+		err = enc.Encode(systemUser)
+		c.Assert(err, IsNil)
+	}
 }

@@ -24,11 +24,13 @@ package quota
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"time"
 
 	// TODO: move this to snap/quantity? or similar
+	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/gadget/quantity"
 	"github.com/snapcore/snapd/progress"
 	"github.com/snapcore/snapd/snap/naming"
@@ -69,10 +71,15 @@ type GroupQuotaJournal struct {
 	// journald namespaces is 4GB. A value of 0 here means no limit is present.
 	Size quantity.Size `json:"size,omitempty"`
 
-	// RateCount/RatePeriod determines the maximum rate of journal writes for
-	// the group. The count is the number of journal messages that can be written
-	// in each period. 0 Values here means there is no limit currently set.
-	RateCount  int           `json:"rate-count,omitempty"`
+	// RateEnabled tells us whether or not the values provided in RateCount and
+	// RatePeriod should be written.
+	RateEnabled bool `json:"rate-enabled,omitempty"`
+	// RateCount is the number of messages allowed each RatePeriod. A zero value
+	// in this field will disable the rate-limit.
+	RateCount int `json:"rate-count,omitempty"`
+	// RatePeriod is the time-period for when the rate resets. Each RatePeriod,
+	// RateCount number of messages is allowed. A zero value in this field will
+	// disable the rate-limit.
 	RatePeriod time.Duration `json:"rate-period,omitempty"`
 }
 
@@ -107,10 +114,10 @@ type Group struct {
 	// and which cores (requires cgroupsv2) are allowed to be used.
 	CPULimit *GroupQuotaCPU `json:"cpu-limit,omitempty"`
 
-	// TaskLimit is the limit of threads/processes that can be active at once in
+	// ThreadLimit is the limit of threads/processes that can be active at once in
 	// the group. Once the limit is reached, further forks() or clones() will be blocked
 	// for processes in the group.
-	TaskLimit int `json:"task-limit,omitempty"`
+	ThreadLimit int `json:"task-limit,omitempty"`
 
 	// JournalLimit is the limits that apply to the journal for this quota group. When
 	// this limit is present, then the quota group will be assigned a log namespace for
@@ -125,9 +132,15 @@ type Group struct {
 	// calculations
 	parentGroup *Group
 
-	// Snaps is the set of snaps that is part of this quota group. If this is
-	// empty then the underlying slice may not exist on the system.
+	// Snaps is the set of snaps that is part of this quota group. If both this
+	// and Services is empty then the underlying slice may not exist on the system.
 	Snaps []string `json:"snaps,omitempty"`
+
+	// Services is the set of snap services that is part of this quota group. The entries here
+	// are in the format of snap-name.service-name, and the snap-name will refer to a snap in a
+	// parent quota group. If both this and Snaps is empty then the underlying slice may not
+	// exist on the system.
+	Services []string `json:"services,omitempty"`
 }
 
 // NewGroup creates a new top quota group with the given name and memory limit.
@@ -163,15 +176,19 @@ func (grp *Group) GetQuotaResources() Resources {
 			resourcesBuilder.WithCPUSet(grp.CPULimit.CPUSet)
 		}
 	}
-	if grp.TaskLimit != 0 {
-		resourcesBuilder.WithThreadLimit(grp.TaskLimit)
+	if grp.ThreadLimit != 0 {
+		resourcesBuilder.WithThreadLimit(grp.ThreadLimit)
 	}
 	if grp.JournalLimit != nil {
 		resourcesBuilder.WithJournalNamespace()
 		if grp.JournalLimit.Size != 0 {
 			resourcesBuilder.WithJournalSize(grp.JournalLimit.Size)
 		}
-		if grp.JournalLimit.RateCount != 0 && grp.JournalLimit.RatePeriod != 0 {
+		// We cannot just check for RateCount and RatePeriod and call WithJournalRate()
+		// only if both are non-zero, because not calling WithJournalRate() causes the
+		// system's default rate count and rate period to be used; what we really want
+		// here is to be able to completely disable the rate-limit for a journal quota.
+		if grp.JournalLimit.RateEnabled {
 			resourcesBuilder.WithJournalRate(grp.JournalLimit.RateCount, grp.JournalLimit.RatePeriod)
 		}
 	}
@@ -257,16 +274,67 @@ func (grp *Group) SliceFileName() string {
 	return buf.String()
 }
 
-// JournalNamespaceName returns the snap formatted name of the log namespace
+// JournalQuotaSet returns true if the group is subject to
+// a journal quota. This should only be used in cases where the caller
+// is interested in knowing if a quota group is affected by a journal
+// quota, and not in the case where the caller needs to know if the
+// group itself has a journal quota set. For service groups this depends
+// on their parent quota group.
+func (grp *Group) JournalQuotaSet() bool {
+	if grp.parentGroup != nil && len(grp.Services) > 0 {
+		return grp.parentGroup.JournalQuotaSet()
+	}
+	return grp.JournalLimit != nil
+}
+
+// JournalNamespaceName returns the snap formatted name of the log namespace,
+// corresponding to the namespace of the journal quota affecting this group. If
+// this group is a service group, this returns the journal namespace name for the
+// parent group instead.
 func (grp *Group) JournalNamespaceName() string {
+	if grp.parentGroup != nil && len(grp.Services) > 0 {
+		return grp.parentGroup.JournalNamespaceName()
+	}
 	return fmt.Sprintf("snap-%s", grp.Name)
 }
 
-// JournalFileName returns the name of the journal configuration file that should
+// JournalConfFileName returns the name of the journal configuration file that should
 // be used for this quota group. As an example, a group named "foo" will return a name
 // of journald@snap-foo.conf
-func (grp *Group) JournalFileName() string {
+func (grp *Group) JournalConfFileName() string {
 	return fmt.Sprintf("journald@%s.conf", grp.JournalNamespaceName())
+}
+
+// JournalServiceName returns the systemd service name for the quota group.
+func (grp *Group) JournalServiceName() string {
+	return fmt.Sprintf("systemd-journald@%s.service", grp.JournalNamespaceName())
+}
+
+// JournalServiceFile returns the directory specific to this quota group for
+// its journal service unit drop-in.
+func (grp *Group) JournalServiceDropInDir() string {
+	return filepath.Join(dirs.SnapServicesDir, grp.JournalServiceName()+".d")
+}
+
+// JournalServiceDropInFile returns the full path to the journal service unit drop-in
+// file for the quota group.
+func (grp *Group) JournalServiceDropInFile() string {
+	return filepath.Join(grp.JournalServiceDropInDir(), "00-snap.conf")
+}
+
+// ServiceMap calculates a map of services to quota groups. If a group
+// contains service sub-groups, this will map each service in those sub-groups
+// to their sub-groups.
+// If a root group contains a snap foo and service subgroup bar, with service svc1
+// in bar, then this will return a map with entry foo.svc1=bar
+func (grp *Group) ServiceMap() map[string]*Group {
+	serviceMap := make(map[string]*Group)
+	for _, subgrp := range grp.subGroups {
+		for _, svc := range subgrp.Services {
+			serviceMap[svc] = subgrp
+		}
+	}
+	return serviceMap
 }
 
 // groupQuotaAllocations contains information about current quotas of a group
@@ -379,7 +447,7 @@ func (grp *Group) getQuotaAllocations(allQuotas map[string]*groupQuotaAllocation
 	limits := &groupQuotaAllocations{
 		MemoryLimit:  grp.MemoryLimit,
 		CPULimit:     grp.getCurrentCPUAllocation(),
-		ThreadsLimit: grp.TaskLimit,
+		ThreadsLimit: grp.ThreadLimit,
 		CPUSetLimit:  grp.GetLocalCPUSetQuota(),
 	}
 
@@ -611,7 +679,7 @@ func (grp *Group) validateThreadResourceFit(allQuotas map[string]*groupQuotaAllo
 	// make sure current usage does not exceed the new limit, we can avoid any
 	// recursive descent as we already have counted up the usage of our children.
 	currentLimits := allQuotas[grp.Name]
-	threadsReserved := grp.TaskLimit
+	threadsReserved := grp.ThreadLimit
 	if currentLimits != nil {
 		if currentLimits.ThreadsReservedByChildren > threadLimit {
 			return fmt.Errorf("group thread limit of %d is too small to fit current subgroup usage of %d",
@@ -620,7 +688,7 @@ func (grp *Group) validateThreadResourceFit(allQuotas map[string]*groupQuotaAllo
 
 		// if we are reducing the limit, then we don't need to check upper parents,
 		// as we can assume it will fit by this point
-		if threadLimit < grp.TaskLimit {
+		if threadLimit < grp.ThreadLimit {
 			return nil
 		}
 
@@ -716,7 +784,7 @@ func (grp *Group) UpdateQuotaLimits(resourceLimits Resources) error {
 		grp.CPULimit.CPUSet = resourceLimits.CPUSet.CPUs
 	}
 	if resourceLimits.Threads != nil {
-		grp.TaskLimit = resourceLimits.Threads.Limit
+		grp.ThreadLimit = resourceLimits.Threads.Limit
 	}
 	if resourceLimits.Journal != nil {
 		if grp.JournalLimit == nil {
@@ -726,6 +794,7 @@ func (grp *Group) UpdateQuotaLimits(resourceLimits Resources) error {
 			grp.JournalLimit.Size = resourceLimits.Journal.Size.Limit
 		}
 		if resourceLimits.Journal.Rate != nil {
+			grp.JournalLimit.RateEnabled = true
 			grp.JournalLimit.RateCount = resourceLimits.Journal.Rate.Count
 			grp.JournalLimit.RatePeriod = resourceLimits.Journal.Rate.Period
 		}
@@ -761,6 +830,12 @@ func (grp *Group) validate() error {
 			}
 		}
 	}
+
+	// We don't support mixing services and the journal quota, the journal quota
+	// must be applied to the parent group, and services will inherit that one.
+	if len(grp.Services) > 0 && grp.JournalLimit != nil {
+		return fmt.Errorf("journal quota is not supported for individual services")
+	}
 	return nil
 }
 
@@ -785,13 +860,15 @@ func (grp *Group) NewSubGroup(name string, resourceLimits Resources) (*Group, er
 		return nil, fmt.Errorf("cannot use same name %q for sub group as parent group", name)
 	}
 
-	// With the new quotas we don't support groups that have a mixture of snaps and
-	// subgroups, as this will cause issues with nesting. Groups/subgroups may now
-	// only consist of either snaps or subgroups.
-	if len(grp.Snaps) != 0 {
-		return nil, fmt.Errorf("cannot mix sub groups with snaps in the same group")
+	// We do not allow services to be mixed with sub-groups. Instead snaps can be mixed
+	// with sub-groups to apply individual limits to services that originate from that snap.
+	if len(grp.Services) != 0 {
+		return nil, fmt.Errorf("cannot mix sub groups with services in the same group")
 	}
 
+	// With the new quotas we don't support nesting of snaps and sub-groups. However as we
+	// now allow sub-groups to be mixed with snaps, the sub-groups mixed this way
+	// can only contain services.
 	if err := subGrp.validate(); err != nil {
 		return nil, err
 	}
@@ -801,6 +878,50 @@ func (grp *Group) NewSubGroup(name string, resourceLimits Resources) (*Group, er
 	grp.SubGroups = append(grp.SubGroups, name)
 
 	return subGrp, nil
+}
+
+// ValidateNestingAndSnaps takes a group and verifies that it satisfies the following conditions:
+//  1. That if any parent is mixed (has both snaps and sub-groups), it must be the immediate
+//     parent group.
+//  2. If the group itself is mixed, that it has only one level of sub-grouping.
+func (grp *Group) ValidateNestingAndSnaps() error {
+	// A parent group is only allowed to contain a mixture of snaps
+	// and sub-groups if it's a direct parent. Introducing this limitation
+	// will not affect anything as we didn't allow mixing snaps and sub-groups
+	// prior to this change.
+	parent := grp.parentGroup
+	for parent != nil {
+		// We know that the parent contains sub-groups (grp), so just
+		// do a check for snaps
+		if len(parent.Snaps) > 0 {
+			// then the group must be a direct parent
+			// and we must not have any sub-groups
+			if grp.parentGroup != parent || len(grp.SubGroups) > 0 {
+				return fmt.Errorf("group %q is invalid: only one level of sub-groups are allowed for groups with snaps",
+					grp.Name)
+			}
+		}
+		parent = parent.parentGroup
+	}
+
+	// Now we verify sub-groups, make sure that we are not mixing
+	// snaps and sub-groups with depths deeper than 1.
+	if len(grp.Snaps) > 0 && len(grp.SubGroups) > 0 {
+		for _, sub := range grp.subGroups {
+			// If the sub-group has sub-groups, then we fail on this as we don't
+			// allow more nesting that one level.
+			if len(sub.SubGroups) > 0 {
+				return fmt.Errorf("group %q is invalid: only one level of sub-groups are allowed for groups with snaps",
+					sub.SubGroups[0])
+			}
+			// If the sub-group has snaps in it, then fail on this as we don't allow
+			// nesting of snaps
+			if len(sub.Snaps) > 0 {
+				return fmt.Errorf("group %q is invalid: nesting of groups with snaps is not supported", grp.Name)
+			}
+		}
+	}
+	return nil
 }
 
 // ResolveCrossReferences takes a set of deserialized groups and sets all

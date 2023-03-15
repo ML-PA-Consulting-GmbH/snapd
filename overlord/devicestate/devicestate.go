@@ -74,7 +74,7 @@ func findModel(st *state.State) (*asserts.Model, error) {
 		"brand-id": device.Brand,
 		"model":    device.Model,
 	})
-	if asserts.IsNotFound(err) {
+	if errors.Is(err, &asserts.NotFoundError{}) {
 		return nil, state.ErrNoState
 	}
 	if err != nil {
@@ -103,7 +103,7 @@ func findSerial(st *state.State, device *auth.DeviceState) (*asserts.Serial, err
 		"model":    device.Model,
 		"serial":   device.Serial,
 	})
-	if asserts.IsNotFound(err) {
+	if errors.Is(err, &asserts.NotFoundError{}) {
 		return nil, state.ErrNoState
 	}
 	if err != nil {
@@ -266,7 +266,7 @@ func proxyStore(st *state.State, tr *config.Transaction) (*asserts.Store, error)
 	a, err := assertstate.DB(st).Find(asserts.StoreType, map[string]string{
 		"store": proxyStore,
 	})
-	if asserts.IsNotFound(err) {
+	if errors.Is(err, &asserts.NotFoundError{}) {
 		return nil, state.ErrNoState
 	}
 	if err != nil {
@@ -325,6 +325,21 @@ func CanManageRefreshes(st *state.State) bool {
 	}
 
 	return false
+}
+
+// ResetSession clears the device store session if any.
+func ResetSession(st *state.State) error {
+	device, err := internal.Device(st)
+	if err != nil {
+		return err
+	}
+	if device.SessionMacaroon != "" {
+		device.SessionMacaroon = ""
+		if err := internal.SetDevice(st, device); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func getAllRequiredSnapsForModel(model *asserts.Model) *naming.SnapSet {
@@ -874,6 +889,14 @@ func Remodel(st *state.State, new *asserts.Model) (*state.Change, error) {
 		return nil, fmt.Errorf("cannot remodel to different series yet")
 	}
 
+	// don't allow remodel on classic for now
+	if current.Classic() {
+		return nil, fmt.Errorf("cannot remodel from classic model")
+	}
+	if current.Classic() != new.Classic() {
+		return nil, fmt.Errorf("cannot remodel across classic and non-classic models")
+	}
+
 	// TODO:UC20: ensure we never remodel to a lower
 	// grade
 
@@ -1074,5 +1097,45 @@ func CreateRecoverySystem(st *state.State, label string) (*state.Change, error) 
 		return nil, err
 	}
 	chg.AddAll(ts)
+	return chg, nil
+}
+
+// InstallFinish creates a change that will finish the install for the given
+// label and volumes. This includes writing missing volume content, seting
+// up the bootloader and installing the kernel.
+func InstallFinish(st *state.State, label string, onVolumes map[string]*gadget.Volume) (*state.Change, error) {
+	if label == "" {
+		return nil, fmt.Errorf("cannot finish install with an empty system label")
+	}
+	if onVolumes == nil {
+		return nil, fmt.Errorf("cannot finish install without volumes data")
+	}
+
+	chg := st.NewChange("install-step-finish", fmt.Sprintf("Finish setup of run system for %q", label))
+	finishTask := st.NewTask("install-finish", fmt.Sprintf("Finish setup of run system for %q", label))
+	finishTask.Set("system-label", label)
+	finishTask.Set("on-volumes", onVolumes)
+	chg.AddTask(finishTask)
+
+	return chg, nil
+}
+
+// InstallSetupStorageEncryption creates a change that will setup the
+// storage encryption for the install of the given label and
+// volumes.
+func InstallSetupStorageEncryption(st *state.State, label string, onVolumes map[string]*gadget.Volume) (*state.Change, error) {
+	if label == "" {
+		return nil, fmt.Errorf("cannot setup storage encryption with an empty system label")
+	}
+	if onVolumes == nil {
+		return nil, fmt.Errorf("cannot setup storage encryption without volumes data")
+	}
+
+	chg := st.NewChange("install-step-setup-storage-encryption", fmt.Sprintf("Setup storage encryption for installing system %q", label))
+	setupStorageEncryptionTask := st.NewTask("install-setup-storage-encryption", fmt.Sprintf("Setup storage encryption for installing system %q", label))
+	setupStorageEncryptionTask.Set("system-label", label)
+	setupStorageEncryptionTask.Set("on-volumes", onVolumes)
+	chg.AddTask(setupStorageEncryptionTask)
+
 	return chg, nil
 }

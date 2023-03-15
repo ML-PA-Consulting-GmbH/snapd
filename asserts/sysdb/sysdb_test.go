@@ -123,10 +123,19 @@ func (sdbs *sysDBSuite) TestGenericClassicModel(c *C) {
 	m := sysdb.GenericClassicModel()
 	c.Assert(m, NotNil)
 
-	c.Check(m.AuthorityID(), Equals, "generic")
-	c.Check(m.BrandID(), Equals, "generic")
-	c.Check(m.Model(), Equals, "generic-classic")
-	c.Check(m.Classic(), Equals, true)
+	// for the MLPA version of snapd, we don't use the generic model
+	// as we're targeting embedded devices only
+	if constants.AccountId == "mlpa" {
+		c.Check(m.AuthorityID(), Equals, constants.AccountId)
+		c.Check(m.BrandID(), Equals, constants.AccountId)
+		c.Check(m.Model(), Equals, "pc")    // this name might change in the future
+		c.Check(m.Classic(), Equals, false) // no embedded system is classic
+	} else {
+		c.Check(m.AuthorityID(), Equals, "generic")
+		c.Check(m.BrandID(), Equals, "generic")
+		c.Check(m.Model(), Equals, "generic-classic")
+		c.Check(m.Classic(), Equals, true)
+	}
 
 	r := sysdb.MockGenericClassicModel(sdbs.otherModel)
 	defer r()
@@ -157,28 +166,29 @@ func (sdbs *sysDBSuite) TestOpenSysDatabase(c *C) {
 	err = db.Check(trustedAcc)
 	c.Check(err, IsNil)
 
-	// check generic
-	genericAcc, err := db.Find(asserts.AccountType, map[string]string{
-		"account-id": "generic",
-	})
-	c.Assert(err, IsNil)
-	_, err = db.FindMany(asserts.AccountKeyType, map[string]string{
-		"account-id": "generic",
-		"name":       "models",
-	})
-	c.Assert(err, IsNil)
+	// customized snapd versions (e.g. MLPA-snapd) might not have a generic account
+	// as they support only registered embedded devices
+	if constants.HasGenericAccount {
+		genericAcc, err := db.Find(asserts.AccountType, map[string]string{
+			"account-id": "generic",
+		})
+		c.Assert(err, IsNil)
+		_, err = db.FindMany(asserts.AccountKeyType, map[string]string{
+			"account-id": "generic",
+			"name":       "models",
+		})
+		c.Assert(err, IsNil)
+		c.Check(genericAcc.(*asserts.Account).Validation(), Equals, "verified")
+		err = db.Check(genericAcc)
+		c.Check(err, IsNil)
 
-	c.Check(genericAcc.(*asserts.Account).Validation(), Equals, "verified")
+		err = db.Check(sysdb.GenericClassicModel())
+		c.Check(err, IsNil)
 
-	err = db.Check(genericAcc)
-	c.Check(err, IsNil)
-
-	err = db.Check(sysdb.GenericClassicModel())
-	c.Check(err, IsNil)
-
-	// extraneous
-	err = db.Check(sdbs.probeAssert)
-	c.Check(err, ErrorMatches, "no matching public key.*")
+		// extraneous
+		err = db.Check(sdbs.probeAssert)
+		c.Check(err, ErrorMatches, "no matching public key.*")
+	}
 }
 
 func (sdbs *sysDBSuite) TestOpenSysDatabaseExtras(c *C) {

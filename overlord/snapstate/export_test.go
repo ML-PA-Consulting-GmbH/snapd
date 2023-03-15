@@ -23,6 +23,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/snapcore/snapd/asserts"
+	"github.com/snapcore/snapd/asserts/snapasserts"
 	"github.com/snapcore/snapd/overlord/snapstate/backend"
 	"github.com/snapcore/snapd/overlord/state"
 	"github.com/snapcore/snapd/snap"
@@ -39,6 +41,10 @@ type (
 	ByType              = byType
 	DirMigrationOptions = dirMigrationOptions
 	Migration           = migration
+
+	ReRefreshSetup = reRefreshSetup
+
+	TooSoonError = tooSoonError
 )
 
 const (
@@ -238,7 +244,7 @@ var (
 
 type UpdateFilter = updateFilter
 
-func MockReRefreshUpdateMany(f func(context.Context, *state.State, []string, int, UpdateFilter, *Flags, string) ([]string, []*state.TaskSet, error)) (restore func()) {
+func MockReRefreshUpdateMany(f func(context.Context, *state.State, []string, []*RevisionOptions, int, UpdateFilter, *Flags, string) ([]string, *UpdateTaskSets, error)) (restore func()) {
 	old := reRefreshUpdateMany
 	reRefreshUpdateMany = f
 	return func() {
@@ -269,8 +275,12 @@ var (
 	MissingDisabledServices = missingDisabledServices
 )
 
-func (m *SnapManager) MaybeUndoRemodelBootChanges(t *state.Task) error {
-	return m.maybeUndoRemodelBootChanges(t)
+func (m *SnapManager) MaybeUndoRemodelBootChanges(t *state.Task) (restartRequested, rebootRequired bool, err error) {
+	restartPoss, err := m.maybeUndoRemodelBootChanges(t)
+	if restartPoss != nil {
+		return true, restartPoss.RebootRequired, nil
+	}
+	return false, false, err
 }
 
 func MockPidsOfSnap(f func(instanceName string) (map[string][]int, error)) func() {
@@ -317,6 +327,7 @@ var (
 )
 
 type RefreshCandidate = refreshCandidate
+type TimedBusySnapError = timedBusySnapError
 
 func NewBusySnapError(info *snap.Info, pids []int, busyAppNames, busyHookNames []string) *BusySnapError {
 	return &BusySnapError{
@@ -327,10 +338,10 @@ func NewBusySnapError(info *snap.Info, pids []int, busyAppNames, busyHookNames [
 	}
 }
 
-func MockGenericRefreshCheck(fn func(info *snap.Info, canAppRunDuringRefresh func(app *snap.AppInfo) bool) error) (restore func()) {
-	old := genericRefreshCheck
-	genericRefreshCheck = fn
-	return func() { genericRefreshCheck = old }
+func MockRefreshAppsCheck(fn func(info *snap.Info) error) (restore func()) {
+	old := refreshAppsCheck
+	refreshAppsCheck = fn
+	return func() { refreshAppsCheck = old }
 }
 
 func (m *autoRefresh) EnsureRefreshHoldAtLeast(d time.Duration) error {
@@ -357,6 +368,7 @@ var (
 	CreateGateAutoRefreshHooks = createGateAutoRefreshHooks
 	AutoRefreshPhase1          = autoRefreshPhase1
 	RefreshRetain              = refreshRetain
+	RefreshCheck               = refreshAppsCheck
 
 	ExcludeFromRefreshAppAwareness = excludeFromRefreshAppAwareness
 )
@@ -374,9 +386,15 @@ func MockHoldState(firstHeld string, holdUntil string) *HoldState {
 	if err != nil {
 		panic(err)
 	}
-	until, err := time.Parse(time.RFC3339, holdUntil)
-	if err != nil {
-		panic(err)
+	var until time.Time
+	if holdUntil != "forever" {
+		var err error
+		until, err = time.Parse(time.RFC3339, holdUntil)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		until = first.Add(maxDuration)
 	}
 	return &holdState{
 		FirstHeld: first,
@@ -427,5 +445,29 @@ func MockGetHiddenDirOptions(f func(*state.State, *SnapState, *SnapSetup) (*dirM
 	getDirMigrationOpts = f
 	return func() {
 		getDirMigrationOpts = old
+	}
+}
+
+func MockEnforcedValidationSets(f func(st *state.State, extraVss ...*asserts.ValidationSet) (*snapasserts.ValidationSets, error)) func() {
+	old := EnforcedValidationSets
+	EnforcedValidationSets = f
+	return func() {
+		EnforcedValidationSets = old
+	}
+}
+
+func MockEnforceValidationSets(f func(*state.State, map[string]*asserts.ValidationSet, map[string]int, []*snapasserts.InstalledSnap, map[string]bool, int) error) func() {
+	old := EnforceValidationSets
+	EnforceValidationSets = f
+	return func() {
+		EnforceValidationSets = old
+	}
+}
+
+func MockCgroupMonitorSnapEnded(f func(string, chan<- string) error) func() {
+	old := cgroupMonitorSnapEnded
+	cgroupMonitorSnapEnded = f
+	return func() {
+		cgroupMonitorSnapEnded = old
 	}
 }

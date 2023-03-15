@@ -40,6 +40,7 @@ import (
 
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/asserts/assertstest"
+	"github.com/snapcore/snapd/testutil"
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -202,6 +203,18 @@ func (dbs *databaseSuite) TestPublicKeyNotFound(c *C) {
 
 	_, err = dbs.db.PublicKey("ff" + keyID)
 	c.Check(err, ErrorMatches, "cannot find key pair")
+}
+
+func (dbs *databaseSuite) TestNotFoundErrorIs(c *C) {
+	this := &asserts.NotFoundError{
+		Headers: map[string]string{"a": "a"},
+		Type:    asserts.ValidationSetType,
+	}
+	that := &asserts.NotFoundError{
+		Headers: map[string]string{"b": "b"},
+		Type:    asserts.RepairType,
+	}
+	c.Check(this, testutil.ErrorIs, that)
 }
 
 type checkSuite struct {
@@ -765,13 +778,13 @@ func (safs *signAddFindSuite) TestNotFoundError(c *C) {
 			"snap-id": "snap-id",
 		},
 	}
-	c.Check(asserts.IsNotFound(err1), Equals, true)
+	c.Check(errors.Is(err1, &asserts.NotFoundError{}), Equals, true)
 	c.Check(err1.Error(), Equals, "snap-declaration (snap-id; series:16) not found")
 
 	err2 := &asserts.NotFoundError{
 		Type: asserts.SnapRevisionType,
 	}
-	c.Check(asserts.IsNotFound(err1), Equals, true)
+	c.Check(errors.Is(err2, &asserts.NotFoundError{}), Equals, true)
 	c.Check(err2.Error(), Equals, "snap-revision assertion not found")
 }
 
@@ -983,7 +996,7 @@ func (safs *signAddFindSuite) TestFindTrusted(c *C) {
 	_, err = safs.db.FindTrusted(asserts.AccountType, map[string]string{
 		"account-id": "predefined",
 	})
-	c.Check(asserts.IsNotFound(err), Equals, true)
+	c.Check(errors.Is(err, &asserts.NotFoundError{}), Equals, true)
 }
 
 func (safs *signAddFindSuite) TestFindPredefined(c *C) {
@@ -1136,7 +1149,7 @@ func (safs *signAddFindSuite) TestFindManyPredefined(c *C) {
 		"account-id":          acct1.AccountID(),
 		"public-key-sha3-384": acct1Key.PublicKeyID(),
 	})
-	c.Check(asserts.IsNotFound(err), Equals, true)
+	c.Check(errors.Is(err, &asserts.NotFoundError{}), Equals, true)
 }
 
 func (safs *signAddFindSuite) TestDontLetAddConfusinglyAssertionClashingWithTrustedOnes(c *C) {
@@ -1391,7 +1404,7 @@ func (safs *signAddFindSuite) TestWithStackedBackstore(c *C) {
 	_, err = safs.db.Find(asserts.TestOnlyType, map[string]string{
 		"primary-key": "two",
 	})
-	c.Check(asserts.IsNotFound(err), Equals, true)
+	c.Check(errors.Is(err, &asserts.NotFoundError{}), Equals, true)
 
 	_, err = stacked.Find(asserts.AccountKeyType, map[string]string{
 		"public-key-sha3-384": safs.signingKeyID,

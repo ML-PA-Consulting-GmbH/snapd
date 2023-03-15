@@ -26,9 +26,13 @@ import (
 
 var goTestExeRe = regexp.MustCompile(`^.*/.*go-build.*/.*\.test$`)
 
+// This is the pattern used by the GoLand IDE.
+var goTestIdeRe = regexp.MustCompile(`^/tmp/GoLand/.*Test.*\.test$`)
+
 // IsTestBinary checks whether the current process is a go test binary.
+// MLPA added: also true, if running in GoLand IDE.
 func IsTestBinary() bool {
-	return len(os.Args) > 0 && goTestExeRe.MatchString(os.Args[0])
+	return len(os.Args) > 0 && (goTestExeRe.MatchString(os.Args[0]) || goTestIdeRe.MatchString(os.Args[0]))
 }
 
 // MustBeTestBinary checks whether the executing process is a go test binary,

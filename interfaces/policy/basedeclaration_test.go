@@ -836,6 +836,8 @@ var (
 		"custom-device":   nil,
 		"docker":          nil,
 		"lxd":             nil,
+		"microceph":       nil,
+		"microovn":        nil,
 		"pkcs11":          nil,
 		"posix-mq":        nil,
 		"shared-memory":   nil,
@@ -891,11 +893,23 @@ func (s *baseDeclSuite) TestSlotInstallation(c *C) {
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "installation not allowed by \"lxd\" slot rule of interface \"lxd\"")
 
+	// test microceph specially
+	ic = s.installSlotCand(c, "microceph", snap.TypeApp, ``)
+	err = ic.Check()
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "installation not allowed by \"microceph\" slot rule of interface \"microceph\"")
+
+	// test microovn specially
+	ic = s.installSlotCand(c, "microovn", snap.TypeApp, ``)
+	err = ic.Check()
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "installation not allowed by \"microovn\" slot rule of interface \"microovn\"")
+
 	// test shared-memory specially
 	ic = s.installSlotCand(c, "shared-memory", snap.TypeApp, ``)
 	err = ic.Check()
 	c.Assert(err, Not(IsNil))
-	c.Assert(err, ErrorMatches, "installation not allowed by \"shared-memory\" slot rule of interface \"shared-memory\"")
+	c.Assert(err, ErrorMatches, "installation denied by \"shared-memory\" slot rule of interface \"shared-memory\"")
 
 	// The core and snapd snaps may provide a shared-memory slot
 	ic = s.installSlotCand(c, "shared-memory", snap.TypeOS, `name: core
@@ -996,6 +1010,8 @@ func (s *baseDeclSuite) TestConnection(c *C) {
 		"location-observe":          true,
 		"lxd":                       true,
 		"maliit":                    true,
+		"microceph":                 true,
+		"microovn":                  true,
 		"mir":                       true,
 		"online-accounts-service":   true,
 		"posix-mq":                  true,

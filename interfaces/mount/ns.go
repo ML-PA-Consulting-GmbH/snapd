@@ -41,7 +41,7 @@ func runNamespaceTool(toolName, snapName string) ([]byte, error) {
 	if osutil.FileExists(mntFile) {
 		toolPath, err := snapdtool.InternalToolPath(toolName)
 		if err != nil {
-			return nil, err
+			return nil, err // required binary is missing
 		}
 		cmd := exec.Command(toolPath, snapName)
 		output, err := cmd.CombinedOutput()
