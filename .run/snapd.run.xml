@@ -4,6 +4,7 @@
     <working_directory value="$PROJECT_DIR$" />
     <envs>
       <env name="SNAPD_DEBUG" value="1" />
+      <env name="SNAP" value="$PROJECT_DIR$/constants" />
     </envs>
     <sudo value="true" />
     <kind value="FILE" />
