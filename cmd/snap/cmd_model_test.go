@@ -60,7 +60,7 @@ ZaVXKg8Lu+cHtCJDeYXEkPIDQzXswdBO1M8Mb9D0mYxQwHxwvsWv1DByB+Otq08EYgPh4kyHo7ag
 85yK2e/NQ/fxSwQJMhBF74jM1z9arq6RMiE/KOleFAOraKn2hcROKnEeinABW+sOn6vNuMVv
 `
 
-const happyUC20ModelAssertionResponse = `type: model
+var happyUC20ModelAssertionResponse = `type: model
 authority-id: testrootorg
 series: 16
 brand-id: testrootorg
@@ -89,12 +89,12 @@ snaps:
       - run
   -
     default-channel: latest/stable
-    id: ` + constants.ProdIdCore20 + `
+    id: ` + constants.GetProdId("Core20") + `
     name: core20
     type: base
   -
     default-channel: latest/stable
-    id: ` + constants.ProdIdSnapd + `
+    id: ` + constants.GetProdId("Snapd") + `
     name: snapd
     type: snapd
 timestamp: 2018-09-11T22:00:00+00:00
@@ -472,11 +472,11 @@ snaps:
     presence:         optional
     modes:            [recover, run]
   - name:             core20
-    id:               `+constants.ProdIdCore20+`
+    id:               `+constants.GetProdId("Core20")+`
     type:             base
     default-channel:  latest/stable
   - name:             snapd
-    id:               `+constants.ProdIdSnapd+` 
+    id:               `+constants.GetProdId("Snapd")+` 
     type:             snapd
     default-channel:  latest/stable
 `[1:])

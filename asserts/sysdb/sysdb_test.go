@@ -125,9 +125,9 @@ func (sdbs *sysDBSuite) TestGenericClassicModel(c *C) {
 
 	// for the MLPA version of snapd, we don't use the generic model
 	// as we're targeting embedded devices only
-	if constants.AccountId == "mlpa" {
-		c.Check(m.AuthorityID(), Equals, constants.AccountId)
-		c.Check(m.BrandID(), Equals, constants.AccountId)
+	if constants.GetAccountId() == "mlpa" {
+		c.Check(m.AuthorityID(), Equals, constants.GetAccountId())
+		c.Check(m.BrandID(), Equals, constants.GetAccountId())
 		c.Check(m.Model(), Equals, "pc")    // this name might change in the future
 		c.Check(m.Classic(), Equals, false) // no embedded system is classic
 	} else {
@@ -151,13 +151,13 @@ func (sdbs *sysDBSuite) TestOpenSysDatabase(c *C) {
 
 	// check trusted
 	_, err = db.Find(asserts.AccountKeyType, map[string]string{
-		"account-id":          constants.AccountId,
-		"public-key-sha3-384": constants.EncodedCanonicalAccountSignKeySha3, // "-CvQKAwRQ5h3Ffn10FILJoEZUXOv6km9FwA80-Rcj-f-6jadQ89VRswHNiEB9Lxk",
+		"account-id":          constants.GetAccountId(),
+		"public-key-sha3-384": constants.GetEncoded("CanonicalAccountSignKeySha3"), // "-CvQKAwRQ5h3Ffn10FILJoEZUXOv6km9FwA80-Rcj-f-6jadQ89VRswHNiEB9Lxk",
 	})
 	c.Assert(err, IsNil)
 
 	trustedAcc, err := db.Find(asserts.AccountType, map[string]string{
-		"account-id": constants.AccountId, // "canonical",
+		"account-id": constants.GetAccountId(), // "canonical",
 	})
 	c.Assert(err, IsNil)
 
@@ -168,7 +168,7 @@ func (sdbs *sysDBSuite) TestOpenSysDatabase(c *C) {
 
 	// customized snapd versions (e.g. MLPA-snapd) might not have a generic account
 	// as they support only registered embedded devices
-	if constants.HasGenericAccount {
+	if constants.GetHasGenericAccount() {
 		genericAcc, err := db.Find(asserts.AccountType, map[string]string{
 			"account-id": "generic",
 		})

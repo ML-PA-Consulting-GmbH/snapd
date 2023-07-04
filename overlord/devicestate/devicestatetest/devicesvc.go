@@ -223,7 +223,7 @@ func MockDeviceService(c *C, bhv *DeviceServiceBehavior) *httptest.Server {
 				c.Check(mod.Model(), Equals, model)
 			}
 			serial, ancillary, err := bhv.SignSerial(c, bhv, map[string]interface{}{
-				"authority-id":        constants.AccountId,
+				"authority-id":        constants.GetAccountId(),
 				"brand-id":            brandID,
 				"model":               model,
 				"serial":              serialStr,

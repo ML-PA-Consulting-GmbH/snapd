@@ -44,8 +44,8 @@ func (s *accountSuite) SetUpSuite(c *C) {
 	s.tsLine = "timestamp: " + s.ts.Format(time.RFC3339) + "\n"
 }
 
-const accountExample = "type: account\n" +
-	"authority-id: " + constants.AccountId + "\n" +
+var accountExample = "type: account\n" +
+	"authority-id: " + constants.GetAccountId() + "\n" +
 	"account-id: abc-123\n" +
 	"display-name: Nice User\n" +
 	"username: nice\n" +
@@ -74,7 +74,7 @@ func (s *accountSuite) TestDecodeOK(c *C) {
 	c.Assert(err, IsNil)
 	c.Check(a.Type(), Equals, asserts.AccountType)
 	account := a.(*asserts.Account)
-	c.Check(account.AuthorityID(), Equals, constants.AccountId)
+	c.Check(account.AuthorityID(), Equals, constants.GetAccountId())
 	c.Check(account.Timestamp(), Equals, s.ts)
 	c.Check(account.AccountID(), Equals, "abc-123")
 	c.Check(account.DisplayName(), Equals, "Nice User")

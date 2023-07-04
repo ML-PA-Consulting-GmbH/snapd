@@ -54,10 +54,10 @@ import (
 func (s *deviceMgrSuite) TestSetModelHandlerNewRevision(c *C) {
 	s.state.Lock()
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc-model",
 	})
-	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -100,7 +100,7 @@ func (s *deviceMgrSuite) TestSetModelHandlerNewRevision(c *C) {
 	})
 	s.state.Unlock()
 
-	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "other-kernel",
 		"gadget":         "pc",
@@ -144,7 +144,7 @@ func (s *deviceMgrSuite) TestSetModelHandlerNewRevision(c *C) {
 }
 
 func (s *deviceMgrSuite) TestSetModelHandlerSameRevisionNoError(c *C) {
-	model := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
+	model := s.brands.Model(constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -154,7 +154,7 @@ func (s *deviceMgrSuite) TestSetModelHandlerSameRevisionNoError(c *C) {
 	s.state.Lock()
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc-model",
 	})
 	err := assertstate.Add(s.state, model)
@@ -178,10 +178,10 @@ func (s *deviceMgrSuite) TestSetModelHandlerSameRevisionNoError(c *C) {
 func (s *deviceMgrSuite) TestSetModelHandlerStoreSwitch(c *C) {
 	s.state.Lock()
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc-model",
 	})
-	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -189,7 +189,7 @@ func (s *deviceMgrSuite) TestSetModelHandlerStoreSwitch(c *C) {
 	})
 	s.state.Unlock()
 
-	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -211,7 +211,7 @@ func (s *deviceMgrSuite) TestSetModelHandlerStoreSwitch(c *C) {
 	chg := s.state.NewChange("sample", "...")
 	chg.Set("new-model", string(asserts.Encode(newModel)))
 	chg.Set("device", auth.DeviceState{
-		Brand:           constants.AccountId,
+		Brand:           constants.GetAccountId(),
 		Model:           "pc-model",
 		SessionMacaroon: "switched-store-session",
 	})
@@ -233,7 +233,7 @@ func (s *deviceMgrSuite) TestSetModelHandlerStoreSwitch(c *C) {
 	device, err := devicestatetest.Device(s.state)
 	c.Assert(err, IsNil)
 	c.Check(device, DeepEquals, &auth.DeviceState{
-		Brand:           constants.AccountId,
+		Brand:           constants.GetAccountId(),
 		Model:           "pc-model",
 		SessionMacaroon: "switched-store-session",
 	})
@@ -256,19 +256,19 @@ func (s *deviceMgrSuite) TestSetModelHandlerStoreSwitch(c *C) {
 func (s *deviceMgrSuite) TestSetModelHandlerRereg(c *C) {
 	s.state.Lock()
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc-model",
 		Serial: "orig-serial",
 	})
-	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	})
-	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "orig-serial")
+	s.makeSerialAssertionInState(c, constants.GetAccountId(), "pc-model", "orig-serial")
 	s.state.Unlock()
 
-	newModel := s.brands.Model(constants.AccountId, "rereg-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.GetAccountId(), "rereg-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -288,7 +288,7 @@ func (s *deviceMgrSuite) TestSetModelHandlerRereg(c *C) {
 	chg := s.state.NewChange("sample", "...")
 	chg.Set("new-model", string(asserts.Encode(newModel)))
 	chg.Set("device", auth.DeviceState{
-		Brand:           constants.AccountId,
+		Brand:           constants.GetAccountId(),
 		Model:           "rereg-model",
 		Serial:          "orig-serial",
 		SessionMacaroon: "switched-store-session",
@@ -311,7 +311,7 @@ func (s *deviceMgrSuite) TestSetModelHandlerRereg(c *C) {
 	device, err := devicestatetest.Device(s.state)
 	c.Assert(err, IsNil)
 	c.Check(device, DeepEquals, &auth.DeviceState{
-		Brand:           constants.AccountId,
+		Brand:           constants.GetAccountId(),
 		Model:           "rereg-model",
 		Serial:          "orig-serial",
 		SessionMacaroon: "switched-store-session",
@@ -348,21 +348,21 @@ func (s *deviceMgrSuite) TestDoPrepareRemodeling(c *C) {
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "orig-serial")
+	s.makeSerialAssertionInState(c, constants.GetAccountId(), "pc-model", "orig-serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:           constants.AccountId,
+		Brand:           constants.GetAccountId(),
 		Model:           "pc-model",
 		Serial:          "orig-serial",
 		SessionMacaroon: "old-session",
 	})
 
-	new := s.brands.Model(constants.AccountId, "rereg-model", map[string]interface{}{
+	new := s.brands.Model(constants.GetAccountId(), "rereg-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -396,9 +396,9 @@ func (s *deviceMgrSuite) TestDoPrepareRemodeling(c *C) {
 	chg.AddTask(t)
 
 	// set new serial
-	s.makeSerialAssertionInState(c, constants.AccountId, "rereg-model", "orig-serial")
+	s.makeSerialAssertionInState(c, constants.GetAccountId(), "rereg-model", "orig-serial")
 	chg.Set("device", auth.DeviceState{
-		Brand:           constants.AccountId,
+		Brand:           constants.GetAccountId(),
 		Model:           "rereg-model",
 		Serial:          "orig-serial",
 		SessionMacaroon: "switched-store-session",
@@ -669,10 +669,10 @@ volumes:
           type: 83,0FC63DAF-8483-4772-8E79-3D69D8477DE4
           size: 2G
 `
-	s.MakeAssertedSnap(c, seedtest.SampleSnapYaml["snapd"], nil, snap.R(1), constants.AccountId, s.StoreSigning.Database)
-	s.MakeAssertedSnap(c, seedtest.SampleSnapYaml["pc-kernel=20"], nil, snap.R(1), constants.AccountId, s.StoreSigning.Database)
-	s.MakeAssertedSnap(c, seedtest.SampleSnapYaml["core20"], nil, snap.R(1), constants.AccountId, s.StoreSigning.Database)
-	s.MakeAssertedSnap(c, seedtest.SampleSnapYaml["pc=20"], [][]string{{"meta/gadget.yaml", gadgetYaml}}, snap.R(1), constants.AccountId, s.StoreSigning.Database)
+	s.MakeAssertedSnap(c, seedtest.SampleSnapYaml["snapd"], nil, snap.R(1), constants.GetAccountId(), s.StoreSigning.Database)
+	s.MakeAssertedSnap(c, seedtest.SampleSnapYaml["pc-kernel=20"], nil, snap.R(1), constants.GetAccountId(), s.StoreSigning.Database)
+	s.MakeAssertedSnap(c, seedtest.SampleSnapYaml["core20"], nil, snap.R(1), constants.GetAccountId(), s.StoreSigning.Database)
+	s.MakeAssertedSnap(c, seedtest.SampleSnapYaml["pc=20"], [][]string{{"meta/gadget.yaml", gadgetYaml}}, snap.R(1), constants.GetAccountId(), s.StoreSigning.Database)
 
 	model := map[string]interface{}{
 		"display-name": "my model",
@@ -721,7 +721,7 @@ func (s *preseedingUC20Suite) TestEarlyPreloadGadgetPicksSystemOnCore20(c *C) {
 	})
 	defer restore()
 
-	s.SetupAssertSigning(constants.AccountId)
+	s.SetupAssertSigning(constants.GetAccountId())
 	s.Brands.Register("my-brand", brandPrivKey, map[string]interface{}{
 		"verification": "verified",
 	})

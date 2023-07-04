@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	repairRootAccountKey, err := asserts.Decode([]byte(constants.EncodedRepairRootAccountKey))
+	repairRootAccountKey, err := asserts.Decode([]byte(constants.GetEncoded("RepairRootAccountKey")))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted account-key: %v", err))
 	}

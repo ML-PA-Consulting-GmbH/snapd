@@ -78,7 +78,7 @@ exit 0
 	c.Check(err, IsNil)
 	c.Check(r.Stdout(), HasLen, 0)
 
-	c.Check(osutil.FileExists(filepath.Join(dirs.SnapRepairRunDir, constants.AccountId, "1", "r0.done")), Equals, true)
+	c.Check(osutil.FileExists(filepath.Join(dirs.SnapRepairRunDir, constants.GetAccountId(), "1", "r0.done")), Equals, true)
 }
 
 func (r *repairSuite) TestRunAlreadyLocked(c *C) {

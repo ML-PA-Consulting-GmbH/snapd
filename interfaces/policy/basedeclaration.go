@@ -138,9 +138,9 @@ import (
 //       on-classic: false
 //
 
-const baseDeclarationHeader = `
+var baseDeclarationHeader = `
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 revision: 0
 `

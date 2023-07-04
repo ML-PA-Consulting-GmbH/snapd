@@ -646,7 +646,7 @@ volumes:
 		if yamlKey == "pc=20" {
 			files = append(files, []string{"meta/gadget.yaml", gadgetYaml})
 		}
-		ts.MakeAssertedSnap(c, seedtest.SampleSnapYaml[yamlKey], files, snap.R(1), constants.AccountId, ts.StoreSigning.Database)
+		ts.MakeAssertedSnap(c, seedtest.SampleSnapYaml[yamlKey], files, snap.R(1), constants.GetAccountId(), ts.StoreSigning.Database)
 	}
 
 	makeSnap("snapd")
@@ -1927,7 +1927,7 @@ func (s *deviceMgrInstallModeSuite) TestInstallCheckEncrypted(c *C) {
 
 	s.makeMockInstalledPcGadget(c, "", "")
 
-	mockModel := s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	mockModel := s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"display-name": "my model",
 		"architecture": "amd64",
 		"base":         "core20",
@@ -1947,7 +1947,7 @@ func (s *deviceMgrInstallModeSuite) TestInstallCheckEncrypted(c *C) {
 			}},
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 	deviceCtx := &snapstatetest.TrivialDeviceContext{DeviceModel: mockModel}
@@ -2117,13 +2117,13 @@ func (s *deviceMgrInstallModeSuite) TestInstallCheckEncryptedFDEHook(c *C) {
 	st.Lock()
 	defer st.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 	makeInstalledMockKernelSnap(c, st, kernelYamlWithFdeSetup)

@@ -444,7 +444,7 @@ type bulkReplyJSON struct {
 var someSnapIDtoName = map[string]map[string]string{
 	"production": {
 		"b8X2psL1ryVrPt5WEmpYiqfr5emixTd7": "ubuntu-core",
-		constants.ProdIdCore:               "core",
+		constants.GetProdId("Core"):        "core",
 		"bul8uZn9U3Ll4ke6BMqvNVEZjuJCSQvO": "canonical-pc",
 		"SkKeDk2PRgBrX89DdgULk3pyY5DJo6Jk": "canonical-pc-linux",
 		"eFe8BTR5L5V9F7yHeMAPxkEr2NdUXMtw": "test-snapd-tools",
@@ -452,7 +452,7 @@ var someSnapIDtoName = map[string]map[string]string{
 		"DVvhXhpa9oJjcm0rnxfxftH1oo5vTW1M": "test-snapd-go-webserver",
 	},
 	"staging": {
-		constants.StagingIdCore:            "core",
+		constants.GetStagingId("Core"):     "core",
 		"02AHdOomTzby7gTaiLX3M3SGMmXDfLJp": "test-snapd-tools",
 		"uHjTANBWSXSiYzNOUXZNDnOSH3POSqWS": "test-snapd-python-webserver",
 		"edmdK5G9fP1q1bGyrjnaDXS4RkdjiTGV": "test-snapd-go-webserver",

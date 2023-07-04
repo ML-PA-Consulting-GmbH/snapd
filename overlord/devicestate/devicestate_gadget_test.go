@@ -169,21 +169,21 @@ func (s *deviceMgrGadgetSuite) mockModeenvForMode(c *C, mode string) {
 }
 
 func (s *deviceMgrGadgetSuite) setupModelWithGadget(c *C, gadget string) {
-	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       gadget,
 		"base":         "core18",
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc-model",
 		Serial: "serial",
 	})
 }
 
 func (s *deviceMgrGadgetSuite) setupUC20ModelWithGadget(c *C, gadget string) {
-	s.makeModelAssertionInState(c, constants.AccountId, "pc20-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc20-model", map[string]interface{}{
 		"display-name": "UC20 pc model",
 		"architecture": "amd64",
 		"base":         "core20",
@@ -204,7 +204,7 @@ func (s *deviceMgrGadgetSuite) setupUC20ModelWithGadget(c *C, gadget string) {
 			}},
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc20-model",
 		Serial: "serial",
 	})
@@ -813,7 +813,7 @@ func (s *deviceMgrGadgetSuite) TestCurrentAndUpdateInfo(c *C) {
 		Type:     snap.TypeGadget,
 	}
 
-	model := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
+	model := s.brands.Model(constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "foo-gadget",
@@ -1126,7 +1126,7 @@ func (s *deviceMgrGadgetSuite) TestUpdateGadgetOnCoreFromKernelRemodel(c *C) {
 	chg, t := s.makeMinimalKernelAssetsUpdateChange(c)
 	devicestate.SetBootOkRan(s.mgr, true)
 
-	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "foo-gadget",

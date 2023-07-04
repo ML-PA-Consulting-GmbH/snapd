@@ -77,7 +77,7 @@ type AssertsMock struct {
 func (am *AssertsMock) SetupAsserts(c *C, st *state.State, cleaner cleaner) {
 	am.st = st
 	am.cleaner = cleaner
-	am.storeSigning = assertstest.NewStoreStack(constants.AccountId, nil)
+	am.storeSigning = assertstest.NewStoreStack(constants.GetAccountId(), nil)
 
 	db, err := asserts.OpenDatabase(&asserts.DatabaseConfig{
 		Backstore: asserts.NewMemoryBackstore(),
@@ -1389,7 +1389,7 @@ func (s *interfaceManagerSuite) TestConnectTaskCheckAllowed(c *C) {
 func (s *interfaceManagerSuite) testConnectTaskCheck(c *C, setup func(), check func(*state.Change)) {
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -1515,7 +1515,7 @@ func (s *interfaceManagerSuite) TestConnectTaskCheckDeviceScopeRightFriendlyStor
 func (s *interfaceManagerSuite) testConnectTaskCheckDeviceScope(c *C, check func(*state.Change)) {
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -2784,7 +2784,7 @@ func (s *interfaceManagerSuite) testDoSetupSnapSecurityAutoConnectsDeclBased(c *
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -2934,7 +2934,7 @@ func (s *interfaceManagerSuite) TestDoSetupSnapSecurityAutoConnectsDeclBasedDevi
 func (s *interfaceManagerSuite) testDoSetupSnapSecurityAutoConnectsDeclBasedDeviceScope(c *C, check func(map[string]interface{}, []*interfaces.ConnRef)) {
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -4728,7 +4728,7 @@ func (s *interfaceManagerSuite) TestCheckInterfacesDeny(c *C) {
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -4749,7 +4749,7 @@ func (s *interfaceManagerSuite) TestCheckInterfacesNoDenyIfNoDecl(c *C) {
 	deviceCtx := s.TrivialDeviceContext(c, nil)
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -4771,7 +4771,7 @@ func (s *interfaceManagerSuite) TestCheckInterfacesDisallowBasedOnSnapTypeNoSnap
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -4795,7 +4795,7 @@ func (s *interfaceManagerSuite) TestCheckInterfacesAllowBasedOnSnapTypeNoSnapDec
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -4819,7 +4819,7 @@ func (s *interfaceManagerSuite) TestCheckInterfacesAllow(c *C) {
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -4848,7 +4848,7 @@ func (s *interfaceManagerSuite) TestCheckInterfacesDeviceScopeRightStore(c *C) {
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -4879,7 +4879,7 @@ func (s *interfaceManagerSuite) TestCheckInterfacesDeviceScopeNoStore(c *C) {
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -4912,7 +4912,7 @@ func (s *interfaceManagerSuite) TestCheckInterfacesDeviceScopeWrongStore(c *C) {
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -4949,7 +4949,7 @@ func (s *interfaceManagerSuite) TestCheckInterfacesDeviceScopeRightFriendlyStore
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -4986,7 +4986,7 @@ func (s *interfaceManagerSuite) TestCheckInterfacesDeviceScopeWrongFriendlyStore
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -6325,7 +6325,7 @@ func (s *interfaceManagerSuite) setupAutoConnectGadget(c *C) {
 
 	r := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -6601,7 +6601,7 @@ func (s *interfaceManagerSuite) TestAutoConnectGadgetConflictRetry(c *C) {
 func (s *interfaceManagerSuite) TestAutoConnectGadgetSkipUnknown(c *C) {
 	r := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   test:
@@ -8527,7 +8527,7 @@ func (s *interfaceManagerSuite) TestDoSetupSnapSecurityAutoConnectsDeclBasedSlot
 
 	restore := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 plugs:
   test:

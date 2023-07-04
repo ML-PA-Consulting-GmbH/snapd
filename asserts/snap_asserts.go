@@ -892,7 +892,7 @@ var (
 	builtinBaseDeclarationCheckOrder      = []string{"type", "authority-id", "series"}
 	builtinBaseDeclarationExpectedHeaders = map[string]interface{}{
 		"type":         "base-declaration",
-		"authority-id": constants.AccountId,
+		"authority-id": constants.GetAccountId(),
 		"series":       release.Series,
 	}
 )

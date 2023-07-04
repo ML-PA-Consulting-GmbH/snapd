@@ -36,7 +36,7 @@ var (
 
 func init() {
 	trustedAssertions = []asserts.Assertion{}
-	accountAssertionsEncoded := strings.Split(constants.EncodedCanonicalAccount, "\n\n\n")
+	accountAssertionsEncoded := strings.Split(constants.GetEncoded("CanonicalAccount"), "\n\n\n")
 	for _, accountAssertionEncoded := range accountAssertionsEncoded {
 		trimmed := strings.TrimSpace(accountAssertionEncoded) + "\n"
 		accountAssertion, err := asserts.Decode([]byte(trimmed))
@@ -45,7 +45,7 @@ func init() {
 		}
 		trustedAssertions = append(trustedAssertions, accountAssertion)
 	}
-	canonicalRootAccountKey, err := asserts.Decode([]byte(constants.EncodedCanonicalRootAccountKey))
+	canonicalRootAccountKey, err := asserts.Decode([]byte(constants.GetEncoded("CanonicalRootAccountKey")))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
 	}

@@ -1702,7 +1702,7 @@ name: snapd
 type: app
 version: 1
 `
-	snapInfo := snaptest.MockSnap(c, snapdYaml, &snap.SideInfo{Revision: snap.R(1), SnapID: constants.ProdIdSnapd})
+	snapInfo := snaptest.MockSnap(c, snapdYaml, &snap.SideInfo{Revision: snap.R(1), SnapID: constants.GetProdId("Snapd")})
 	c.Check(snapInfo.Type(), Equals, snap.TypeSnapd)
 }
 

@@ -116,7 +116,7 @@ func (s *toolingSuite) setupSnaps(c *C, publishers map[string]string, defaultsYa
 
 func (s *toolingSuite) TestNewToolingStore(c *C) {
 	// default
-	u, err := url.Parse(constants.BaseUrlSnapcraftApi)
+	u, err := url.Parse(constants.GetBaseUrl("SnapcraftApi"))
 	c.Assert(err, IsNil)
 
 	tsto, err := tooling.NewToolingStore()

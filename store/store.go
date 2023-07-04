@@ -231,9 +231,9 @@ func endpointURL(base *url.URL, path string, query url.Values) *url.URL {
 
 // apiURL returns the system default base API URL.
 func apiURL() *url.URL {
-	s := constants.BaseUrlSnapcraftApi
+	s := constants.GetBaseUrl("SnapcraftApi")
 	if snapdenv.UseStagingStore() {
-		s = constants.BaseUrlSnapcraftStagingApi
+		s = constants.GetBaseUrl("SnapcraftStagingApi")
 	}
 	u, _ := url.Parse(s)
 	return u
@@ -280,9 +280,9 @@ func assertsURL() (*url.URL, error) {
 
 func authLocation() string {
 	if snapdenv.UseStagingStore() {
-		return constants.AuthLocationStaging
+		return constants.GetAuthLocationStaging()
 	}
-	return constants.AuthLocation
+	return constants.GetAuthLocation()
 }
 
 func authURL() string {
@@ -292,11 +292,11 @@ func authURL() string {
 	return "https://" + authLocation() + "/api/v2"
 }
 
-var defaultStoreDeveloperURL = constants.BaseUrlSnapcraftDashboard
+var defaultStoreDeveloperURL = constants.GetBaseUrl("SnapcraftDashboard")
 
 func storeDeveloperURL() string {
 	if snapdenv.UseStagingStore() {
-		return constants.BaseUrlSnapcraftDashboardStaging
+		return constants.GetBaseUrl("SnapcraftDashboardStaging")
 	}
 	return defaultStoreDeveloperURL
 }

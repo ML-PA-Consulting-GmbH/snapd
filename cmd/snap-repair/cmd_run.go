@@ -50,9 +50,9 @@ var baseURL *url.URL
 func init() {
 	var baseurl string
 	if snapdenv.UseStagingStore() {
-		baseurl = constants.BaseUrlSnapcraftStagingApiV2
+		baseurl = constants.GetBaseUrl("SnapcraftStagingApiV2")
 	} else {
-		baseurl = constants.BaseUrlSnapcraftApiV2
+		baseurl = constants.GetBaseUrl("SnapcraftApiV2")
 	}
 
 	// allow redirecting assertion requests under a different base url
@@ -67,7 +67,7 @@ func init() {
 	}
 }
 
-var rootBrandIDs = []string{constants.AccountId}
+var rootBrandIDs = []string{constants.GetAccountId()}
 
 func (c *cmdRun) Execute(args []string) error {
 	if err := os.MkdirAll(dirs.SnapRunRepairDir, 0755); err != nil {

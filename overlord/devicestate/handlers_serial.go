@@ -50,9 +50,9 @@ import (
 
 func baseURL() *url.URL {
 	if snapdenv.UseStagingStore() {
-		return mustParse(constants.BaseUrlSnapcraftStagingApi)
+		return mustParse(constants.GetBaseUrl("SnapcraftStagingApi"))
 	}
-	return mustParse(constants.BaseUrlSnapcraftApi)
+	return mustParse(constants.GetBaseUrl("SnapcraftApi"))
 }
 
 func mustParse(s string) *url.URL {

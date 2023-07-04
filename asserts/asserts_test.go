@@ -185,10 +185,10 @@ func (as *assertsSuite) TestRef(c *C) {
 func (as *assertsSuite) TestRefString(c *C) {
 	ref := &asserts.Ref{
 		Type:       asserts.AccountType,
-		PrimaryKey: []string{constants.AccountId},
+		PrimaryKey: []string{constants.GetAccountId()},
 	}
 
-	c.Check(ref.String(), Equals, fmt.Sprintf("account (%s)", constants.AccountId))
+	c.Check(ref.String(), Equals, fmt.Sprintf("account (%s)", constants.GetAccountId()))
 
 	ref = &asserts.Ref{
 		Type:       asserts.SnapDeclarationType,
@@ -333,19 +333,19 @@ func (as *assertsSuite) TestAcceptablePrimaryKey(c *C) {
 func (as *assertsSuite) TestAtRevisionString(c *C) {
 	ref := asserts.Ref{
 		Type:       asserts.AccountType,
-		PrimaryKey: []string{constants.AccountId},
+		PrimaryKey: []string{constants.GetAccountId()},
 	}
 
 	at := &asserts.AtRevision{
 		Ref: ref,
 	}
-	c.Check(at.String(), Equals, fmt.Sprintf("account (%s) at revision 0", constants.AccountId))
+	c.Check(at.String(), Equals, fmt.Sprintf("account (%s) at revision 0", constants.GetAccountId()))
 
 	at = &asserts.AtRevision{
 		Ref:      ref,
 		Revision: asserts.RevisionNotKnown,
 	}
-	c.Check(at.String(), Equals, fmt.Sprintf("account (%s)", constants.AccountId))
+	c.Check(at.String(), Equals, fmt.Sprintf("account (%s)", constants.GetAccountId()))
 }
 
 const exKeyID = "Jv8_JiHiIzJVcO9M55pPdqSDWUvuhfDIBJUS-3VW7F_idjix7Ffn5qMxB21ZQuij"
@@ -1241,32 +1241,32 @@ func (as *assertsSuite) TestHeadersFromSequenceKey(c *C) {
 func (as *assertsSuite) TestAtSequenceString(c *C) {
 	atSeq := asserts.AtSequence{
 		Type:        asserts.ValidationSetType,
-		SequenceKey: []string{"16", constants.AccountId, "foo"},
+		SequenceKey: []string{"16", constants.GetAccountId(), "foo"},
 		Sequence:    8,
 		Revision:    2,
 	}
-	c.Check(atSeq.String(), Equals, fmt.Sprintf("validation-set %s/foo/8 at revision 2", constants.AccountId))
+	c.Check(atSeq.String(), Equals, fmt.Sprintf("validation-set %s/foo/8 at revision 2", constants.GetAccountId()))
 
 	// Sequence number not set
 	atSeq = asserts.AtSequence{
 		Type:        asserts.ValidationSetType,
-		SequenceKey: []string{"16", constants.AccountId, "foo"},
+		SequenceKey: []string{"16", constants.GetAccountId(), "foo"},
 		Revision:    asserts.RevisionNotKnown,
 	}
-	c.Check(atSeq.String(), Equals, fmt.Sprintf("validation-set %s/foo", constants.AccountId))
+	c.Check(atSeq.String(), Equals, fmt.Sprintf("validation-set %s/foo", constants.GetAccountId()))
 
 	atSeq = asserts.AtSequence{
 		Type:        asserts.ValidationSetType,
-		SequenceKey: []string{"16", constants.AccountId, "foo"},
+		SequenceKey: []string{"16", constants.GetAccountId(), "foo"},
 		Sequence:    8,
 		Pinned:      true,
 		Revision:    2,
 	}
-	c.Check(atSeq.String(), Equals, fmt.Sprintf("validation-set %s/foo=8 at revision 2", constants.AccountId))
+	c.Check(atSeq.String(), Equals, fmt.Sprintf("validation-set %s/foo=8 at revision 2", constants.GetAccountId()))
 
 	atSeq = asserts.AtSequence{
 		Type:        asserts.ValidationSetType,
-		SequenceKey: []string{"16", constants.AccountId},
+		SequenceKey: []string{"16", constants.GetAccountId()},
 		Revision:    2,
 	}
 	c.Check(atSeq.String(), Equals, "validation-set ??? at revision 2")
@@ -1275,18 +1275,18 @@ func (as *assertsSuite) TestAtSequenceString(c *C) {
 func (as *assertsSuite) TestAtSequenceUnique(c *C) {
 	atSeq := asserts.AtSequence{
 		Type:        asserts.ValidationSetType,
-		SequenceKey: []string{"16", constants.AccountId, "foo"},
+		SequenceKey: []string{"16", constants.GetAccountId(), "foo"},
 		Sequence:    8,
 		Revision:    2,
 	}
-	c.Check(atSeq.Unique(), Equals, fmt.Sprintf("validation-set/16/%s/foo", constants.AccountId))
+	c.Check(atSeq.Unique(), Equals, fmt.Sprintf("validation-set/16/%s/foo", constants.GetAccountId()))
 
 	// not a valid sequence-key (but Unique() doesn't care).
 	atSeq = asserts.AtSequence{
 		Type:        asserts.ValidationSetType,
-		SequenceKey: []string{"16", constants.AccountId},
+		SequenceKey: []string{"16", constants.GetAccountId()},
 	}
-	c.Check(atSeq.Unique(), Equals, fmt.Sprintf("validation-set/16/%s", constants.AccountId))
+	c.Check(atSeq.Unique(), Equals, fmt.Sprintf("validation-set/16/%s", constants.GetAccountId()))
 }
 
 func (as *assertsSuite) TestAtSequenceResolveError(c *C) {
@@ -1300,14 +1300,14 @@ func (as *assertsSuite) TestAtSequenceResolveError(c *C) {
 
 	atSeq = asserts.AtSequence{
 		Type:        asserts.ValidationSetType,
-		SequenceKey: []string{"16", constants.AccountId, "foo"},
+		SequenceKey: []string{"16", constants.GetAccountId(), "foo"},
 	}
 	_, err = atSeq.Resolve(nil)
 	c.Assert(err, DeepEquals, &asserts.NotFoundError{
 		Type: asserts.ValidationSetType,
 		Headers: map[string]string{
 			"series":     "16",
-			"account-id": constants.AccountId,
+			"account-id": constants.GetAccountId(),
 			"name":       "foo",
 		},
 	})

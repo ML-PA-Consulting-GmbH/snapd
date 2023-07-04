@@ -2221,7 +2221,7 @@ func (s *assertMgrSuite) TestBaseSnapDeclaration(c *C) {
 
 	r2 := assertstest.MockBuiltinBaseDeclaration([]byte(`
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 plugs:
   iface: true

@@ -39,8 +39,7 @@ type detailsV2Suite struct {
 
 var _ = Suite(&detailsV2Suite{})
 
-const (
-	coreStoreJSON = `{
+var coreStoreJSON = `{
   "architectures": [
     "amd64"
   ],
@@ -52,7 +51,7 @@ const (
   "download": {
      "sha3-384": "b691f6dde3d8022e4db563840f0ef82320cb824b6292ffd027dbc838535214dac31c3512c619beaf73f1aeaf35ac62d5",
      "size": 85291008,
-     "url": "https://api.snapcraft.io/api/v1/snaps/download/` + constants.ProdIdCore + `_3887.snap",
+     "url": "https://api.snapcraft.io/api/v1/snaps/download/` + constants.GetProdId("Core") + `_3887.snap",
      "deltas": []
   },
   "epoch": {
@@ -70,7 +69,7 @@ const (
      "validation": "verified"
   },
   "revision": 3887,
-  "snap-id": "` + constants.ProdIdCore + `",
+  "snap-id": "` + constants.GetProdId("Core") + `",
   "store-url": "https://snapcraft.io/core",
   "summary": "snapd runtime environment",
   "title": "core",
@@ -80,7 +79,7 @@ const (
   "media": []
 }`
 
-	thingyStoreJSON = `{
+var thingyStoreJSON = `{
   "architectures": [
     "amd64"
   ],
@@ -139,7 +138,6 @@ const (
      {"type": "screenshot", "url": "https://dashboard.snapcraft.io/site_media/appmedia/2018/01/Thingy_02.png", "width": 600, "height": 200}
   ]
 }`
-)
 
 func (s *detailsV2Suite) SetUpTest(c *C) {
 	s.BaseTest.SetUpTest(c)
@@ -183,7 +181,7 @@ func (s *detailsV2Suite) TestInfoFromStoreSnapSimpleAndLegacy(c *C) {
 			Validation:  "verified",
 		},
 		DownloadInfo: snap.DownloadInfo{
-			DownloadURL: "https://api.snapcraft.io/api/v1/snaps/download/" + constants.ProdIdCore + "_3887.snap",
+			DownloadURL: "https://api.snapcraft.io/api/v1/snaps/download/" + constants.GetProdId("Core") + "_3887.snap",
 			Sha3_384:    "b691f6dde3d8022e4db563840f0ef82320cb824b6292ffd027dbc838535214dac31c3512c619beaf73f1aeaf35ac62d5",
 			Size:        85291008,
 		},

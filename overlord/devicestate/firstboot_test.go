@@ -106,7 +106,7 @@ func (t *firstBootBaseTest) setupBaseTest(c *C, s *seedtest.SeedSnaps) {
 	t.systemctl = testutil.MockCommand(c, "systemctl", "")
 	t.AddCleanup(t.systemctl.Restore)
 
-	s.SetupAssertSigning(constants.AccountId)
+	s.SetupAssertSigning(constants.GetAccountId())
 	s.Brands.Register("my-brand", brandPrivKey, map[string]interface{}{
 		"verification": "verified",
 	})
@@ -210,7 +210,7 @@ func checkTrivialSeeding(c *C, tsAll []*state.TaskSet) {
 func modelHeaders(modelStr string, reqSnaps ...string) map[string]interface{} {
 	headers := map[string]interface{}{
 		"architecture": "amd64",
-		"store":        constants.AccountId,
+		"store":        constants.GetAccountId(),
 	}
 	if strings.HasSuffix(modelStr, "-classic") {
 		headers["classic"] = "true"
@@ -442,14 +442,14 @@ func (s *firstBoot16BaseTest) makeCoreSnaps(c *C, extraGadgetYaml string) (coreF
 	snapYaml := `name: core
 version: 1.0
 type: os`
-	coreFname, coreDecl, coreRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.AccountId)
+	coreFname, coreDecl, coreRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.GetAccountId())
 	s.WriteAssertions("core.asserts", coreRev, coreDecl)
 
 	// put kernel snap into the SnapBlobDir
 	snapYaml = `name: pc-kernel
 version: 1.0
 type: kernel`
-	kernelFname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.AccountId)
+	kernelFname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.GetAccountId())
 	s.WriteAssertions("kernel.asserts", kernelRev, kernelDecl)
 
 	gadgetYaml := `
@@ -465,7 +465,7 @@ volumes:
 	snapYaml = `name: pc
 version: 1.0
 type: gadget`
-	gadgetFname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.AccountId)
+	gadgetFname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.GetAccountId())
 	s.WriteAssertions("gadget.asserts", gadgetRev, gadgetDecl)
 
 	return coreFname, kernelFname, gadgetFname
@@ -842,11 +842,11 @@ func (s *firstBoot16Suite) TestPopulateFromSeedConfigureHappy(c *C) {
 	bloader.SetBootKernel("pc-kernel_1.snap")
 	bloader.SetBootBase("core_1.snap")
 
-	const defaultsYaml = `
+	var defaultsYaml = `
 defaults:
     foodidididididididididididididid:
        foo-cfg: foo.
-    ` + constants.ProdIdCore + `:  # core
+    ` + constants.GetProdId("Core") + `:  # core
        core-cfg: core_cfg_defl
     pckernelidididididididididididid:
        pc-kernel-cfg: pc-kernel_cfg_defl
@@ -1332,7 +1332,7 @@ func (s *firstBoot16BaseTest) makeCore18Snaps(c *C, opts *core18SnapsOpts) (core
 	core18Yaml := `name: core18
 version: 1.0
 type: base`
-	core18Fname, core18Decl, core18Rev := s.MakeAssertedSnap(c, core18Yaml, files, snap.R(1), constants.AccountId)
+	core18Fname, core18Decl, core18Rev := s.MakeAssertedSnap(c, core18Yaml, files, snap.R(1), constants.GetAccountId())
 	s.WriteAssertions("core18.asserts", core18Rev, core18Decl)
 
 	snapdYaml := `name: snapd
@@ -1345,7 +1345,7 @@ VERSION=2.54.3+git1.g479e745-dirty
 SNAPD_APPARMOR_REEXEC=1
 `},
 	}
-	snapdFname, snapdDecl, snapdRev := s.MakeAssertedSnap(c, snapdYaml, snapdSnapFiles, snap.R(2), constants.AccountId)
+	snapdFname, snapdDecl, snapdRev := s.MakeAssertedSnap(c, snapdYaml, snapdSnapFiles, snap.R(2), constants.GetAccountId())
 	s.WriteAssertions("snapd.asserts", snapdRev, snapdDecl)
 
 	var kernelFname string
@@ -1353,7 +1353,7 @@ SNAPD_APPARMOR_REEXEC=1
 		kernelYaml := `name: pc-kernel
 version: 1.0
 type: kernel`
-		fname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, kernelYaml, files, snap.R(1), constants.AccountId)
+		fname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, kernelYaml, files, snap.R(1), constants.GetAccountId())
 		s.WriteAssertions("kernel.asserts", kernelRev, kernelDecl)
 		kernelFname = fname
 	}
@@ -1374,7 +1374,7 @@ version: 1.0
 type: gadget
 base: core18
 `
-		fname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, gaYaml, files, snap.R(1), constants.AccountId)
+		fname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, gaYaml, files, snap.R(1), constants.GetAccountId())
 		s.WriteAssertions("gadget.asserts", gadgetRev, gadgetDecl)
 		gadgetFname = fname
 	}

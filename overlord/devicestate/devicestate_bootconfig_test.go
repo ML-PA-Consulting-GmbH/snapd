@@ -93,11 +93,11 @@ func (s *deviceMgrBootconfigSuite) SetUpTest(c *C) {
 
 func (s *deviceMgrBootconfigSuite) setupUC20Model(c *C) *asserts.Model {
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc-model-20",
 		Serial: "didididi",
 	})
-	return s.makeModelAssertionInState(c, constants.AccountId, "pc-model-20", mockCore20ModelHeaders)
+	return s.makeModelAssertionInState(c, constants.GetAccountId(), "pc-model-20", mockCore20ModelHeaders)
 }
 
 func (s *deviceMgrBootconfigSuite) setupClassicWithModesModel(c *C) *asserts.Model {
@@ -320,11 +320,11 @@ func (s *deviceMgrBootconfigSuite) TestBootConfigUpdateUpdateErr(c *C) {
 func (s *deviceMgrBootconfigSuite) TestBootConfigNoUC20(c *C) {
 	s.state.Lock()
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc-model",
 		Serial: "didididi",
 	})
-	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -344,15 +344,15 @@ func (s *deviceMgrBootconfigSuite) TestBootConfigRemodelDoNothing(c *C) {
 	s.state.Lock()
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc-model-20",
 		Serial: "didididi",
 	})
 
 	uc20Model := s.setupUC20Model(c)
 	// save the hassle and try a trivial remodel
-	newModel := s.brands.Model(constants.AccountId, "pc-model-20", map[string]interface{}{
-		"brand":        constants.AccountId,
+	newModel := s.brands.Model(constants.GetAccountId(), "pc-model-20", map[string]interface{}{
+		"brand":        constants.GetAccountId(),
 		"model":        "pc-model-20",
 		"architecture": "amd64",
 		"grade":        "dangerous",

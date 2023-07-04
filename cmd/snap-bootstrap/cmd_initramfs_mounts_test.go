@@ -221,7 +221,7 @@ func (s *baseInitramfsMountsSuite) setupSeed(c *C, modelAssertTime time.Time, ga
 
 	// now create a minimal uc20 seed dir with snaps/assertions
 	seed20 := &seedtest.TestingSeed20{SeedDir: s.seedDir}
-	seed20.SetupAssertSigning(constants.AccountId)
+	seed20.SetupAssertSigning(constants.GetAccountId())
 	restore := seed.MockTrusted(seed20.StoreSigning.Trusted)
 	s.AddCleanup(restore)
 
@@ -234,10 +234,10 @@ func (s *baseInitramfsMountsSuite) setupSeed(c *C, modelAssertTime time.Time, ga
 	seed20.SetSnapAssertionNow(s.snapDeclAssertsTime)
 
 	// add a bunch of snaps
-	seed20.MakeAssertedSnap(c, "name: snapd\nversion: 1\ntype: snapd", nil, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
-	seed20.MakeAssertedSnap(c, "name: pc\nversion: 1\ntype: gadget\nbase: core20", gadgetSnapFiles, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
-	seed20.MakeAssertedSnap(c, "name: pc-kernel\nversion: 1\ntype: kernel", nil, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
-	seed20.MakeAssertedSnap(c, "name: core20\nversion: 1\ntype: base", nil, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: snapd\nversion: 1\ntype: snapd", nil, snap.R(1), constants.GetAccountId(), seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: pc\nversion: 1\ntype: gadget\nbase: core20", gadgetSnapFiles, snap.R(1), constants.GetAccountId(), seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: pc-kernel\nversion: 1\ntype: kernel", nil, snap.R(1), constants.GetAccountId(), seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: core20\nversion: 1\ntype: base", nil, snap.R(1), constants.GetAccountId(), seed20.StoreSigning.Database)
 
 	// pretend that by default, the model uses an older timestamp than the
 	// snap assertions

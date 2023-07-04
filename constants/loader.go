@@ -47,6 +47,19 @@ type constants struct {
 	EncodedStagingGenericAccount          string
 	EncodedStagingGenericModelsAccountKey string
 	EncodedStagingGenericClassicModel     string
+
+	EncodedRepairRootAccountKeyPublicKeySha3           string
+	EncodedStagingRepairRootAccountKeyPublicKeySha3    string
+	EncodedCanonicalAccountPublicKeySha3               string
+	EncodedCanonicalRootAccountKeyPublicKeySha3        string
+	EncodedGenericAccountPublicKeySha3                 string
+	EncodedGenericModelsAccountKeyPublicKeySha3        string
+	EncodedGenericClassicModelPublicKeySha3            string
+	EncodedStagingTrustedAccountPublicKeySha3          string
+	EncodedStagingRootAccountKeyPublicKeySha3          string
+	EncodedStagingGenericAccountPublicKeySha3          string
+	EncodedStagingGenericModelsAccountKeyPublicKeySha3 string
+	EncodedStagingGenericClassicModelPublicKeySha3     string
 }
 
 var initOnce sync.Once
@@ -116,7 +129,7 @@ func GetHasGenericAccount() bool {
 	return values.HasGenericAccount
 }
 
-func GetProdSnapId(name string) string {
+func GetProdId(name string) string {
 	initOnce.Do(doInit)
 	switch name {
 	case "snapd":
@@ -134,7 +147,7 @@ func GetProdSnapId(name string) string {
 	}
 }
 
-func GetStagingSnapId(name string) string {
+func GetStagingId(name string) string {
 	initOnce.Do(doInit)
 	switch name {
 	case "snapd":
@@ -152,7 +165,7 @@ func GetStagingSnapId(name string) string {
 	}
 }
 
-func GetEncodedKey(name string) string {
+func GetEncoded(name string) string {
 	initOnce.Do(doInit)
 	switch name {
 	case "RepairRootAccountKey":
@@ -179,6 +192,32 @@ func GetEncodedKey(name string) string {
 		return values.EncodedStagingGenericModelsAccountKey
 	case "StagingGenericClassicModel":
 		return values.EncodedStagingGenericClassicModel
+
+	case "RepairRootAccountKeyPublicKeySha3":
+		return values.EncodedRepairRootAccountKeyPublicKeySha3
+	case "StagingRepairRootAccountKeyPublicKeySha3":
+		return values.EncodedStagingRepairRootAccountKeyPublicKeySha3
+	case "CanonicalAccountPublicKeySha3":
+		return values.EncodedCanonicalAccountPublicKeySha3
+	case "CanonicalRootAccountKeyPublicKeySha3":
+		return values.EncodedCanonicalRootAccountKeyPublicKeySha3
+	case "GenericAccountPublicKeySha3":
+		return values.EncodedGenericAccountPublicKeySha3
+	case "GenericModelsAccountKeyPublicKeySha3":
+		return values.EncodedGenericModelsAccountKeyPublicKeySha3
+	case "GenericClassicModelPublicKeySha3":
+		return values.EncodedGenericClassicModelPublicKeySha3
+	case "StagingTrustedAccountPublicKeySha3":
+		return values.EncodedStagingTrustedAccountPublicKeySha3
+	case "StagingRootAccountKeyPublicKeySha3":
+		return values.EncodedStagingRootAccountKeyPublicKeySha3
+	case "StagingGenericAccountPublicKeySha3":
+		return values.EncodedStagingGenericAccountPublicKeySha3
+	case "StagingGenericModelsAccountKeyPublicKeySha3":
+		return values.EncodedStagingGenericModelsAccountKeyPublicKeySha3
+	case "StagingGenericClassicModelPublicKeySha3":
+		return values.EncodedStagingGenericClassicModelPublicKeySha3
+
 	default:
 		panic("Unknown encoded key: " + name)
 	}

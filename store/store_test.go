@@ -80,7 +80,7 @@ var (
 func (suite *configTestSuite) TestSetBaseURL(c *C) {
 	// Validity check to prove at least one URI changes.
 	cfg := store.DefaultConfig()
-	c.Assert(cfg.StoreBaseURL.String(), Equals, constants.BaseUrlSnapcraftApi)
+	c.Assert(cfg.StoreBaseURL.String(), Equals, constants.GetBaseUrl("SnapcraftApi"))
 
 	u, err := url.Parse("http://example.com/path/prefix/")
 	c.Assert(err, IsNil)
@@ -3421,7 +3421,7 @@ func (s *storeTestSuite) TestStoreDeveloperURLDependsOnEnviron(c *C) {
 }
 
 func (s *storeTestSuite) TestStoreDefaultConfig(c *C) {
-	c.Check(store.DefaultConfig().StoreBaseURL.String(), Equals, constants.BaseUrlSnapcraftApi)
+	c.Check(store.DefaultConfig().StoreBaseURL.String(), Equals, constants.GetBaseUrl("SnapcraftApi"))
 	c.Check(store.DefaultConfig().AssertionsBaseURL, IsNil)
 }
 

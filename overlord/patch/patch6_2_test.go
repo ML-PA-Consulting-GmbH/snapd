@@ -49,7 +49,7 @@ var statePatch6_2JSON = []byte(`
 			"sequence": [
 			  {
 				"name": "snapd",
-				"snap-id": "` + constants.ProdIdSnapd + `",
+				"snap-id": "` + constants.GetProdId("Snapd") + `",
 				"revision": "2"
 			  }
 			],
@@ -132,7 +132,7 @@ var statePatch6_2JSON = []byte(`
 				},
 				"side-info": {
 				  "name": "snapd",
-				  "snap-id": "` + constants.ProdIdSnapd + `",
+				  "snap-id": "` + constants.GetProdId("Snapd") + `",
 				  "revision": "1",
 				  "channel": "stable",
 				  "title": "snapd"
@@ -175,7 +175,7 @@ var statePatch6_2JSON = []byte(`
 				"snap-path": "/path",
 				"side-info": {
 				  "name": "snapd",
-				  "snap-id": "` + constants.ProdIdSnapd + `",
+				  "snap-id": "` + constants.GetProdId("Snapd") + `",
 				  "revision": "1",
 				  "channel": "stable",
 				  "title": "snapd"
@@ -196,7 +196,7 @@ var statePatch6_2JSON = []byte(`
 				"snap-path": "/path",
 				"side-info": {
 				  "name": "snapd",
-				  "snap-id": "` + constants.ProdIdSnapd + `",
+				  "snap-id": "` + constants.GetProdId("Snapd") + `",
 				  "revision": "1",
 				  "channel": "stable",
 				  "title": "snapd"
@@ -211,7 +211,7 @@ var statePatch6_2JSON = []byte(`
 }`)
 
 // State with 'snapd' snap with proper snap type, and an extra 'other'
-// snap with snapd snap-id (constants.ProdIdSnapd) but
+// snap with snapd snap-id (constants.GetProdId("Snapd")) but
 // improper 'app' type.
 var statePatch6_2JSONWithSnapd = []byte(`
 {
@@ -223,7 +223,7 @@ var statePatch6_2JSONWithSnapd = []byte(`
 			"sequence": [
 			  {
 				"name": "snapd",
-				"snap-id": "` + constants.ProdIdSnapd + `",
+				"snap-id": "` + constants.GetProdId("Snapd") + `",
 				"revision": "2"
 			  }
 			],
@@ -236,7 +236,7 @@ var statePatch6_2JSONWithSnapd = []byte(`
 			"sequence": [
 			  {
 				"name": "other",
-				"snap-id": "` + constants.ProdIdSnapd + `",
+				"snap-id": "` + constants.GetProdId("Snapd") + `",
 				"revision": "1"
 			  }
 			],
@@ -253,7 +253,7 @@ var statePatch6_2JSONWithSnapd = []byte(`
 }`)
 
 // State with two snaps with snapd snap-id
-// (constants.ProdIdSnapd) and improper snap types
+// (constants.GetProdId("Snapd")) and improper snap types
 var statePatch6_2JSONWithSnapd2 = []byte(`
 {
 	"data": {
@@ -264,7 +264,7 @@ var statePatch6_2JSONWithSnapd2 = []byte(`
 			"sequence": [
 			  {
 				"name": "snapd",
-				"snap-id": "` + constants.ProdIdSnapd + `",
+				"snap-id": "` + constants.GetProdId("Snapd") + `",
 				"revision": "2"
 			  }
 			],
@@ -277,7 +277,7 @@ var statePatch6_2JSONWithSnapd2 = []byte(`
 			"sequence": [
 			  {
 				"name": "other",
-				"snap-id": "` + constants.ProdIdSnapd + `",
+				"snap-id": "` + constants.GetProdId("Snapd") + `",
 				"revision": "1"
 			  }
 			],

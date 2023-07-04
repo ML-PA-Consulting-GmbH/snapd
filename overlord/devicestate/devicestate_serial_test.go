@@ -85,7 +85,7 @@ func (s *deviceMgrSerialSuite) signSerial(c *C, bhv *devicestatetest.DeviceServi
 	case "pc", "pc2", "pc-20":
 		fallthrough
 	case "classic-alt-store":
-		c.Check(brandID, Equals, constants.AccountId)
+		c.Check(brandID, Equals, constants.GetAccountId())
 	case "my-model-accept-generic":
 		c.Check(brandID, Equals, "my-brand")
 		headers["authority-id"] = "generic"
@@ -139,14 +139,14 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappy(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	})
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 
@@ -178,7 +178,7 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappy(c *C) {
 
 	device, err := devicestatetest.Device(s.state)
 	c.Assert(err, IsNil)
-	c.Check(device.Brand, Equals, constants.AccountId)
+	c.Check(device.Brand, Equals, constants.GetAccountId())
 	c.Check(device.Model, Equals, "pc")
 	c.Check(device.Serial, Equals, "9999")
 
@@ -192,7 +192,7 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappy(c *C) {
 	c.Check(ok, Equals, true)
 
 	a, err := s.db.Find(asserts.SerialType, map[string]string{
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "pc",
 		"serial":   "9999",
 	})
@@ -243,14 +243,14 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyWithProxy(c *C) {
 
 	assertstatetest.AddMany(s.state, operatorAcct, stoAs)
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	})
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 
@@ -271,7 +271,7 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyWithProxy(c *C) {
 
 	device, err := devicestatetest.Device(s.state)
 	c.Assert(err, IsNil)
-	c.Check(device.Brand, Equals, constants.AccountId)
+	c.Check(device.Brand, Equals, constants.GetAccountId())
 	c.Check(device.Model, Equals, "pc")
 	c.Check(device.Serial, Equals, "9999")
 
@@ -285,7 +285,7 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyWithProxy(c *C) {
 	c.Check(ok, Equals, true)
 
 	a, err := s.db.Find(asserts.SerialType, map[string]string{
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "pc",
 		"serial":   "9999",
 	})
@@ -316,13 +316,13 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyClassicNoGadget(c 
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "classic-alt-store", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "classic-alt-store", map[string]interface{}{
 		"classic": "true",
 		"store":   "alt-store",
 	})
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "classic-alt-store",
 	})
 
@@ -342,12 +342,12 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyClassicNoGadget(c 
 
 	device, err := devicestatetest.Device(s.state)
 	c.Assert(err, IsNil)
-	c.Check(device.Brand, Equals, constants.AccountId)
+	c.Check(device.Brand, Equals, constants.GetAccountId())
 	c.Check(device.Model, Equals, "classic-alt-store")
 	c.Check(device.Serial, Equals, "9999")
 
 	a, err := s.db.Find(asserts.SerialType, map[string]string{
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "classic-alt-store",
 		"serial":   "9999",
 	})
@@ -562,7 +562,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialIdempotentAfterAddSerial(c *C)
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -571,7 +571,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialIdempotentAfterAddSerial(c *C)
 	devicestatetest.MockGadget(c, s.state, "pc", snap.R(2), nil)
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 		KeyID: privKey.PublicKey().ID(),
 	})
@@ -594,7 +594,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialIdempotentAfterAddSerial(c *C)
 	device, err := devicestatetest.Device(s.state)
 	c.Check(err, IsNil)
 	_, err = s.db.Find(asserts.SerialType, map[string]string{
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "pc",
 		"serial":   "9999",
 	})
@@ -645,7 +645,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialIdempotentAfterGotSerial(c *C)
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -654,7 +654,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialIdempotentAfterGotSerial(c *C)
 	devicestatetest.MockGadget(c, s.state, "pc", snap.R(2), nil)
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 		KeyID: privKey.PublicKey().ID(),
 	})
@@ -676,7 +676,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialIdempotentAfterGotSerial(c *C)
 	_, err := devicestatetest.Device(s.state)
 	c.Check(err, IsNil)
 	_, err = s.db.Find(asserts.SerialType, map[string]string{
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "pc",
 		"serial":   "9999",
 	})
@@ -719,7 +719,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialErrorsOnNoHost(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -728,7 +728,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialErrorsOnNoHost(c *C) {
 	devicestatetest.MockGadget(c, s.state, "gadget", snap.R(2), nil)
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 		KeyID: privKey.PublicKey().ID(),
 	})
@@ -773,7 +773,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialMaxTentatives(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -782,7 +782,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialMaxTentatives(c *C) {
 	devicestatetest.MockGadget(c, s.state, "pc", snap.R(2), nil)
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 		KeyID: privKey.PublicKey().ID(),
 	})
@@ -903,7 +903,7 @@ func (s *deviceMgrSerialSuite) makeRequestChangeWithTransport(c *C, rt http.Roun
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -912,7 +912,7 @@ func (s *deviceMgrSerialSuite) makeRequestChangeWithTransport(c *C, rt http.Roun
 	devicestatetest.MockGadget(c, s.state, "pc", snap.R(2), nil)
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 		KeyID: privKey.PublicKey().ID(),
 	})
@@ -983,14 +983,14 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationPollHappy(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	})
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 
@@ -1018,12 +1018,12 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationPollHappy(c *C) {
 
 	device, err := devicestatetest.Device(s.state)
 	c.Assert(err, IsNil)
-	c.Check(device.Brand, Equals, constants.AccountId)
+	c.Check(device.Brand, Equals, constants.GetAccountId())
 	c.Check(device.Model, Equals, "pc")
 	c.Check(device.Serial, Equals, "10002")
 
 	a, err := s.db.Find(asserts.SerialType, map[string]string{
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "pc",
 		"serial":   "10002",
 	})
@@ -1075,14 +1075,14 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyPrepareDeviceHook(
 	r3 := devicestate.MockBaseStoreURL(mockServer.URL + "/direct/baad/")
 	defer r3()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc2", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc2", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "gadget",
 	})
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc2",
 	})
 
@@ -1114,12 +1114,12 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyPrepareDeviceHook(
 
 	device, err := devicestatetest.Device(s.state)
 	c.Assert(err, IsNil)
-	c.Check(device.Brand, Equals, constants.AccountId)
+	c.Check(device.Brand, Equals, constants.GetAccountId())
 	c.Check(device.Model, Equals, "pc2")
 	c.Check(device.Serial, Equals, "Y9999")
 
 	a, err := s.db.Find(asserts.SerialType, map[string]string{
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "pc2",
 		"serial":   "Y9999",
 	})
@@ -1217,14 +1217,14 @@ func (s *deviceMgrSerialSuite) testFullDeviceRegistrationHappyWithHookAndProxy(c
 
 	assertstatetest.AddMany(s.state, operatorAcct, stoAs)
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc2", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc2", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "gadget",
 	})
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc2",
 	})
 
@@ -1244,12 +1244,12 @@ func (s *deviceMgrSerialSuite) testFullDeviceRegistrationHappyWithHookAndProxy(c
 
 	device, err := devicestatetest.Device(s.state)
 	c.Assert(err, IsNil)
-	c.Check(device.Brand, Equals, constants.AccountId)
+	c.Check(device.Brand, Equals, constants.GetAccountId())
 	c.Check(device.Model, Equals, "pc2")
 	c.Check(device.Serial, Equals, "9999")
 
 	a, err := s.db.Find(asserts.SerialType, map[string]string{
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "pc2",
 		"serial":   "9999",
 	})
@@ -1281,14 +1281,14 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationErrorBackoff(c *C) {
 	// validity
 	c.Check(devicestate.EnsureOperationalAttempts(s.state), Equals, 0)
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	})
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 
@@ -1377,14 +1377,14 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationMismatchedSerial(c *C) 
 
 	devicestatetest.MockGadget(c, s.state, "gadget", snap.R(2), nil)
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "gadget",
 	})
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 
@@ -1414,7 +1414,7 @@ func (s *deviceMgrSerialSuite) TestModelAndSerial(c *C) {
 
 	// just brand and model
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 	_, err = s.mgr.Model()
@@ -1423,7 +1423,7 @@ func (s *deviceMgrSerialSuite) TestModelAndSerial(c *C) {
 	c.Check(err, testutil.ErrorIs, state.ErrNoState)
 
 	// have a model assertion
-	model := s.brands.Model(constants.AccountId, "pc", map[string]interface{}{
+	model := s.brands.Model(constants.GetAccountId(), "pc", map[string]interface{}{
 		"gadget":       "pc",
 		"kernel":       "kernel",
 		"architecture": "amd64",
@@ -1432,14 +1432,14 @@ func (s *deviceMgrSerialSuite) TestModelAndSerial(c *C) {
 
 	mod, err := s.mgr.Model()
 	c.Assert(err, IsNil)
-	c.Assert(mod.BrandID(), Equals, constants.AccountId)
+	c.Assert(mod.BrandID(), Equals, constants.GetAccountId())
 
 	_, err = s.mgr.Serial()
 	c.Check(err, testutil.ErrorIs, state.ErrNoState)
 
 	// have a serial as well
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc",
 		Serial: "8989",
 	})
@@ -1449,7 +1449,7 @@ func (s *deviceMgrSerialSuite) TestModelAndSerial(c *C) {
 	c.Check(err, testutil.ErrorIs, state.ErrNoState)
 
 	// have a serial assertion
-	s.makeSerialAssertionInState(c, constants.AccountId, "pc", "8989")
+	s.makeSerialAssertionInState(c, constants.GetAccountId(), "pc", "8989")
 
 	_, err = s.mgr.Model()
 	c.Assert(err, IsNil)
@@ -1489,7 +1489,7 @@ func (s *deviceMgrSerialSuite) TestStoreContextBackendModelAndSerial(c *C) {
 
 	// just brand and model
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 	_, err = scb.Model()
@@ -1498,7 +1498,7 @@ func (s *deviceMgrSerialSuite) TestStoreContextBackendModelAndSerial(c *C) {
 	c.Check(err, testutil.ErrorIs, state.ErrNoState)
 
 	// have a model assertion
-	model := s.brands.Model(constants.AccountId, "pc", map[string]interface{}{
+	model := s.brands.Model(constants.GetAccountId(), "pc", map[string]interface{}{
 		"gadget":       "pc",
 		"kernel":       "kernel",
 		"architecture": "amd64",
@@ -1507,14 +1507,14 @@ func (s *deviceMgrSerialSuite) TestStoreContextBackendModelAndSerial(c *C) {
 
 	mod, err := scb.Model()
 	c.Assert(err, IsNil)
-	c.Assert(mod.BrandID(), Equals, constants.AccountId)
+	c.Assert(mod.BrandID(), Equals, constants.GetAccountId())
 
 	_, err = scb.Serial()
 	c.Check(err, testutil.ErrorIs, state.ErrNoState)
 
 	// have a serial as well
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc",
 		Serial: "8989",
 	})
@@ -1524,7 +1524,7 @@ func (s *deviceMgrSerialSuite) TestStoreContextBackendModelAndSerial(c *C) {
 	c.Check(err, testutil.ErrorIs, state.ErrNoState)
 
 	// have a serial assertion
-	s.makeSerialAssertionInState(c, constants.AccountId, "pc", "8989")
+	s.makeSerialAssertionInState(c, constants.GetAccountId(), "pc", "8989")
 
 	_, err = scb.Model()
 	c.Assert(err, IsNil)
@@ -1542,13 +1542,13 @@ func (s *deviceMgrSerialSuite) TestStoreContextBackendDeviceSessionRequestParams
 	defer s.state.Unlock()
 
 	// set model as seeding would
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 
@@ -1562,7 +1562,7 @@ func (s *deviceMgrSerialSuite) TestStoreContextBackendDeviceSessionRequestParams
 	encDevKey, err := asserts.EncodePublicKey(devKey.PublicKey())
 	c.Check(err, IsNil)
 	seriala, err := s.storeSigning.Sign(asserts.SerialType, map[string]interface{}{
-		"brand-id":            constants.AccountId,
+		"brand-id":            constants.GetAccountId(),
 		"model":               "pc",
 		"serial":              "8989",
 		"device-key":          string(encDevKey),
@@ -1580,7 +1580,7 @@ func (s *deviceMgrSerialSuite) TestStoreContextBackendDeviceSessionRequestParams
 	devicestate.KeypairManager(s.mgr).Put(devKey)
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc",
 		Serial: "8989",
 		KeyID:  devKey.PublicKey().ID(),
@@ -1593,7 +1593,7 @@ func (s *deviceMgrSerialSuite) TestStoreContextBackendDeviceSessionRequestParams
 	err = asserts.SignatureCheck(sessReq, devKey.PublicKey())
 	c.Check(err, IsNil)
 
-	c.Check(sessReq.BrandID(), Equals, constants.AccountId)
+	c.Check(sessReq.BrandID(), Equals, constants.GetAccountId())
 	c.Check(sessReq.Model(), Equals, "pc")
 	c.Check(sessReq.Serial(), Equals, "8989")
 	c.Check(sessReq.Nonce(), Equals, "NONCE-1")
@@ -1646,7 +1646,7 @@ func (s *deviceMgrSerialSuite) TestInitialRegistrationContext(c *C) {
 	// have a model assertion
 	model, err := s.storeSigning.Sign(asserts.ModelType, map[string]interface{}{
 		"series":       "16",
-		"brand-id":     constants.AccountId,
+		"brand-id":     constants.GetAccountId(),
 		"model":        "pc",
 		"gadget":       "pc-gadget",
 		"kernel":       "kernel",
@@ -1657,7 +1657,7 @@ func (s *deviceMgrSerialSuite) TestInitialRegistrationContext(c *C) {
 	err = assertstate.Add(s.state, model)
 	c.Assert(err, IsNil)
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 
@@ -1671,7 +1671,7 @@ func (s *deviceMgrSerialSuite) TestInitialRegistrationContext(c *C) {
 	device, err := regCtx.Device()
 	c.Check(err, IsNil)
 	c.Check(device, DeepEquals, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 
@@ -1927,13 +1927,13 @@ func (s *deviceMgrSerialSuite) TestDeviceRegistrationNotInInstallMode(c *C) {
 	st := s.state
 	// setup state as will be done by first-boot
 	st.Lock()
-	s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc",
 	})
 	// mark it as seeded
@@ -1974,7 +1974,7 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationUC20Happy(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc-20", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc-20", map[string]interface{}{
 		"architecture": "amd64",
 		// UC20
 		"base": "core20",
@@ -1995,7 +1995,7 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationUC20Happy(c *C) {
 	})
 
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: constants.AccountId,
+		Brand: constants.GetAccountId(),
 		Model: "pc-20",
 	})
 
@@ -2027,7 +2027,7 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationUC20Happy(c *C) {
 
 	device, err := devicestatetest.Device(s.state)
 	c.Assert(err, IsNil)
-	c.Check(device.Brand, Equals, constants.AccountId)
+	c.Check(device.Brand, Equals, constants.GetAccountId())
 	c.Check(device.Model, Equals, "pc-20")
 	c.Check(device.Serial, Equals, "9999")
 
@@ -2041,7 +2041,7 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationUC20Happy(c *C) {
 	c.Check(ok, Equals, true)
 
 	a, err := s.db.Find(asserts.SerialType, map[string]string{
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "pc-20",
 		"serial":   "9999",
 	})
@@ -2065,13 +2065,13 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationUC20Happy(c *C) {
 	// a copy of model was saved there
 	_, err = savedb.Find(asserts.ModelType, map[string]string{
 		"series":   "16",
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "pc-20",
 	})
 	c.Assert(err, IsNil)
 	// a copy of serial was backed up there
 	_, err = savedb.Find(asserts.SerialType, map[string]string{
-		"brand-id": constants.AccountId,
+		"brand-id": constants.GetAccountId(),
 		"model":    "pc-20",
 		"serial":   "9999",
 	})

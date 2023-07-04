@@ -423,7 +423,7 @@ plugs:
 }
 
 func (s *baseDeclSuite) TestAutoConnectionSharedMemoryPrivate(c *C) {
-	slotDecl := s.mockSnapDecl(c, "snapd", constants.ProdIdSnapd, "canonical", "")
+	slotDecl := s.mockSnapDecl(c, "snapd", constants.GetProdId("Snapd"), "canonical", "")
 	appSlotDecl := s.mockSnapDecl(c, "slot-snap", "slot-snap-id", "pub1", "")
 	plugDecl := s.mockSnapDecl(c, "plug-snap", "plug-snap-id", "pub1", "")
 
@@ -918,7 +918,7 @@ type: os
 slots:
   shared-memory:
 `)
-	ic.SnapDeclaration = s.mockSnapDecl(c, "core", constants.ProdIdCore, "canonical", "")
+	ic.SnapDeclaration = s.mockSnapDecl(c, "core", constants.GetProdId("Core"), "canonical", "")
 	c.Assert(ic.Check(), IsNil)
 
 	ic = s.installSlotCand(c, "shared-memory", snap.TypeSnapd, `name: snapd
@@ -927,7 +927,7 @@ type: snapd
 slots:
   shared-memory:
 `)
-	ic.SnapDeclaration = s.mockSnapDecl(c, "snapd", constants.ProdIdSnapd, "canonical", "")
+	ic.SnapDeclaration = s.mockSnapDecl(c, "snapd", constants.GetProdId("Snapd"), "canonical", "")
 	c.Assert(ic.Check(), IsNil)
 }
 
@@ -1360,7 +1360,7 @@ plugs:
 }
 
 func (s *baseDeclSuite) TestConnectionSharedMemoryPrivate(c *C) {
-	slotDecl := s.mockSnapDecl(c, "snapd", constants.ProdIdSnapd, "canonical", "")
+	slotDecl := s.mockSnapDecl(c, "snapd", constants.GetProdId("Snapd"), "canonical", "")
 	appSlotDecl := s.mockSnapDecl(c, "slot-snap", "slot-snap-id", "pub1", "")
 	plugDecl := s.mockSnapDecl(c, "plug-snap", "plug-snap-id", "pub1", "")
 
@@ -1428,7 +1428,7 @@ type: base-declaration
 authority-id: %s
 series: 16
 revision: 0
-`, constants.AccountId))
+`, constants.GetAccountId()))
 }
 
 func (s *baseDeclSuite) TestDoesNotPanic(c *C) {

@@ -188,7 +188,7 @@ func checkGadgetOrKernel(st *state.State, snapInfo, curInfo *snap.Info, _ snap.C
 			return fmt.Errorf("internal error: cannot find snap declaration for %q: %v", snapInfo.InstanceName(), err)
 		}
 		publisher := snapDecl.PublisherID()
-		if publisher != constants.AccountId && publisher != model.BrandID() {
+		if publisher != constants.GetAccountId() && publisher != model.BrandID() {
 			return fmt.Errorf("cannot install %s %q published by %q for model by %q", kind, snapInfo.InstanceName(), publisher, model.BrandID())
 		}
 	} else {

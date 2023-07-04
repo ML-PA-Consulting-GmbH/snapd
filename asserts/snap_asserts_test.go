@@ -64,7 +64,7 @@ func (sds *snapDeclSuite) SetUpSuite(c *C) {
 
 func (sds *snapDeclSuite) TestDecodeOK(c *C) {
 	encoded := "type: snap-declaration\n" +
-		"authority-id: " + constants.AccountId + "\n" +
+		"authority-id: " + constants.GetAccountId() + "\n" +
 		"series: 16\n" +
 		"snap-id: snap-id-1\n" +
 		"snap-name: first\n" +
@@ -94,7 +94,7 @@ func (sds *snapDeclSuite) TestDecodeOK(c *C) {
 	c.Assert(err, IsNil)
 	c.Check(a.Type(), Equals, asserts.SnapDeclarationType)
 	snapDecl := a.(*asserts.SnapDeclaration)
-	c.Check(snapDecl.AuthorityID(), Equals, constants.AccountId)
+	c.Check(snapDecl.AuthorityID(), Equals, constants.GetAccountId())
 	c.Check(snapDecl.Timestamp(), Equals, sds.ts)
 	c.Check(snapDecl.Series(), Equals, "16")
 	c.Check(snapDecl.SnapID(), Equals, "snap-id-1")
@@ -113,7 +113,7 @@ func (sds *snapDeclSuite) TestDecodeOK(c *C) {
 
 func (sds *snapDeclSuite) TestDecodeOKWithRevisionAuthority(c *C) {
 	encoded := "type: snap-declaration\n" +
-		"authority-id: " + constants.AccountId + "\n" +
+		"authority-id: " + constants.GetAccountId() + "\n" +
 		"series: 16\n" +
 		"snap-id: snap-id-1\n" +
 		"snap-name: first\n" +
@@ -139,7 +139,7 @@ func (sds *snapDeclSuite) TestDecodeOKWithRevisionAuthority(c *C) {
 	c.Assert(err, IsNil)
 	c.Check(a.Type(), Equals, asserts.SnapDeclarationType)
 	snapDecl := a.(*asserts.SnapDeclaration)
-	c.Check(snapDecl.AuthorityID(), Equals, constants.AccountId)
+	c.Check(snapDecl.AuthorityID(), Equals, constants.GetAccountId())
 	c.Check(snapDecl.Timestamp(), Equals, sds.ts)
 	c.Check(snapDecl.Series(), Equals, "16")
 	c.Check(snapDecl.SnapID(), Equals, "snap-id-1")
@@ -906,7 +906,7 @@ func (sbs *snapBuildSuite) TestDecodeInvalid(c *C) {
 }
 
 func makeStoreAndCheckDB(c *C) (store *assertstest.StoreStack, checkDB *asserts.Database) {
-	store = assertstest.NewStoreStack(constants.AccountId, nil)
+	store = assertstest.NewStoreStack(constants.GetAccountId(), nil)
 	cfg := &asserts.DatabaseConfig{
 		Backstore:       asserts.NewMemoryBackstore(),
 		Trusted:         store.Trusted,
@@ -1006,7 +1006,7 @@ func (srs *snapRevSuite) makeValidEncoded() string {
 
 func makeSnapRevisionHeaders(overrides map[string]interface{}) map[string]interface{} {
 	headers := map[string]interface{}{
-		"authority-id":  constants.AccountId,
+		"authority-id":  constants.GetAccountId(),
 		"snap-sha3-384": blobSHA3_384,
 		"snap-id":       "snap-id-1",
 		"snap-size":     "123",
@@ -1615,7 +1615,7 @@ func (vs *validationSuite) TestValidationCheckWrongAuthority(c *C) {
 	prereqSnapDecl2(c, storeDB, db)
 
 	headers := vs.makeHeaders(map[string]interface{}{
-		"authority-id": constants.AccountId, // not the publisher
+		"authority-id": constants.GetAccountId(), // not the publisher
 	})
 	validation, err := storeDB.Sign(asserts.ValidationType, headers, nil, "")
 	c.Assert(err, IsNil)
@@ -1923,9 +1923,9 @@ func (s *baseDeclSuite) TestBuiltin(c *C) {
 
 	defer asserts.InitBuiltinBaseDeclaration(nil)
 
-	const headers = `
+	var headers = `
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 revision: 0
 plugs:
@@ -1946,7 +1946,7 @@ slots:
 	cont, _ := baseDecl.Signature()
 	c.Check(string(cont), Equals, strings.TrimSpace(headers))
 
-	c.Check(baseDecl.AuthorityID(), Equals, constants.AccountId)
+	c.Check(baseDecl.AuthorityID(), Equals, constants.GetAccountId())
 	c.Check(baseDecl.Series(), Equals, "16")
 	c.Check(baseDecl.PlugRule("network").AllowAutoConnection[0].SlotAttributes, Equals, asserts.AlwaysMatchAttributes)
 	c.Check(baseDecl.SlotRule("network").AllowInstallation[0].SlotSnapTypes, DeepEquals, []string{"core"})
@@ -1966,10 +1966,10 @@ func (s *baseDeclSuite) TestBuiltinInitErrors(c *C) {
 	}{
 		{"", `header entry missing ':' separator: ""`},
 		{"type: foo\n", `the builtin base-declaration "type" header is not set to expected value "base-declaration"`},
-		{"type: base-declaration", fmt.Sprintf(`the builtin base-declaration "authority-id" header is not set to expected value "%s"`, constants.AccountId)},
-		{fmt.Sprintf("type: base-declaration\nauthority-id: %s", constants.AccountId), `the builtin base-declaration "series" header is not set to expected value "16"`},
-		{fmt.Sprintf("type: base-declaration\nauthority-id: %s\nseries: 16\nrevision: zzz", constants.AccountId), `cannot assemble the builtin-base declaration: "revision" header is not an integer: zzz`},
-		{fmt.Sprintf("type: base-declaration\nauthority-id: %s\nseries: 16\nplugs: foo", constants.AccountId), `cannot assemble the builtin base-declaration: "plugs" header must be a map`},
+		{"type: base-declaration", fmt.Sprintf(`the builtin base-declaration "authority-id" header is not set to expected value "%s"`, constants.GetAccountId())},
+		{fmt.Sprintf("type: base-declaration\nauthority-id: %s", constants.GetAccountId()), `the builtin base-declaration "series" header is not set to expected value "16"`},
+		{fmt.Sprintf("type: base-declaration\nauthority-id: %s\nseries: 16\nrevision: zzz", constants.GetAccountId()), `cannot assemble the builtin-base declaration: "revision" header is not an integer: zzz`},
+		{fmt.Sprintf("type: base-declaration\nauthority-id: %s\nseries: 16\nplugs: foo", constants.GetAccountId()), `cannot assemble the builtin base-declaration: "plugs" header must be a map`},
 	}
 
 	for _, t := range tests {
@@ -2199,7 +2199,7 @@ func (sds *snapDevSuite) TestAuthorityIsNotPublisherButIsTrusted(c *C) {
 	}, nil, "")
 	c.Assert(err, IsNil)
 	// Just to be super sure ...
-	c.Assert(snapDev.HeaderString("authority-id"), Equals, constants.AccountId)
+	c.Assert(snapDev.HeaderString("authority-id"), Equals, constants.GetAccountId())
 	c.Assert(snapDev.HeaderString("publisher-id"), Equals, "dev-id1")
 
 	err = db.Check(snapDev)
@@ -2236,7 +2236,7 @@ func (sds *snapDevSuite) TestCheckNewPublisherAccountExists(c *C) {
 	}, nil, "")
 	c.Assert(err, IsNil)
 	// Just to be super sure ...
-	c.Assert(snapDev.HeaderString("authority-id"), Equals, constants.AccountId)
+	c.Assert(snapDev.HeaderString("authority-id"), Equals, constants.GetAccountId())
 	c.Assert(snapDev.HeaderString("publisher-id"), Equals, "dev-id2")
 
 	// There's no account for dev-id2 yet so it should fail.

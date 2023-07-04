@@ -75,7 +75,7 @@ func (s *cloudInitUC20Suite) SetUpTest(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc20-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc20-model", map[string]interface{}{
 		"display-name": "UC20 pc model",
 		"architecture": "amd64",
 		"base":         "core20",
@@ -95,7 +95,7 @@ func (s *cloudInitUC20Suite) SetUpTest(c *C) {
 			}},
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc20-model",
 		Serial: "serial",
 	})
@@ -222,14 +222,14 @@ func (s *cloudInitSuite) SetUpTest(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.GetAccountId(), "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  constants.AccountId,
+		Brand:  constants.GetAccountId(),
 		Model:  "pc-model",
 		Serial: "serial",
 	})

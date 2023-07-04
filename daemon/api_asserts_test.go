@@ -190,7 +190,7 @@ func (s *assertsSuite) TestAssertsFindManyAll(c *check.C) {
 	ids := []string{a1.(*asserts.Account).AccountID(), a2.(*asserts.Account).AccountID(), a3.(*asserts.Account).AccountID(), a4.(*asserts.Account).AccountID()}
 	sort.Strings(ids)
 
-	idsCheck := []string{"can0nical", constants.AccountId, "developer1-id", "generic"}
+	idsCheck := []string{"can0nical", constants.GetAccountId(), "developer1-id", "generic"}
 	sort.Strings(idsCheck)
 	c.Check(ids, check.DeepEquals, idsCheck)
 }
@@ -334,7 +334,7 @@ func (s *assertsSuite) TestAssertsFindManyJSONWithBody(c *check.C) {
 		c.Check(a.(map[string]interface{})["body"], check.HasLen, l)
 	}
 	sort.Strings(got)
-	gotCheck := []string{"can0nical/root", "can0nical/store", constants.AccountId + "/root", "generic/models"}
+	gotCheck := []string{"can0nical/root", "can0nical/store", constants.GetAccountId() + "/root", "generic/models"}
 	sort.Strings(gotCheck)
 	c.Check(got, check.DeepEquals, gotCheck)
 }

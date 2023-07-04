@@ -28,28 +28,28 @@ import (
 )
 
 func init() {
-	stagingTrustedAccount, err := asserts.Decode([]byte(constants.EncodedStagingTrustedAccount))
+	stagingTrustedAccount, err := asserts.Decode([]byte(constants.GetEncoded("StagingTrustedAccount")))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
 	}
-	stagingRootAccountKey, err := asserts.Decode([]byte(constants.EncodedStagingRootAccountKey))
+	stagingRootAccountKey, err := asserts.Decode([]byte(constants.GetEncoded("StagingRootAccountKey")))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
 	}
 	trustedStagingAssertions = []asserts.Assertion{stagingTrustedAccount, stagingRootAccountKey}
 
-	genericAccount, err := asserts.Decode([]byte(constants.EncodedStagingGenericAccount))
+	genericAccount, err := asserts.Decode([]byte(constants.GetEncoded("StagingGenericAccount")))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s account: %v`, err))
 	}
-	genericModelsAccountKey, err := asserts.Decode([]byte(constants.EncodedStagingGenericModelsAccountKey))
+	genericModelsAccountKey, err := asserts.Decode([]byte(constants.GetEncoded("StagingGenericModelsAccountKey")))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s "models" account-key: %v`, err))
 	}
 
 	genericStagingAssertions = []asserts.Assertion{genericAccount, genericModelsAccountKey}
 
-	a, err := asserts.Decode([]byte(constants.EncodedStagingGenericClassicModel))
+	a, err := asserts.Decode([]byte(constants.GetEncoded("StagingGenericClassicModel")))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s "generic-classic" model: %v`, err))
 	}

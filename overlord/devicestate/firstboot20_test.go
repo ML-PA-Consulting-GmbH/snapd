@@ -132,7 +132,7 @@ volumes:
 			// XXX make SnapManager.ensureVulnerableSnapConfineVersionsRemovedOnClassic happy
 			files = append(files, []string{"/usr/lib/snapd/info", "VERSION=2.55"})
 		}
-		s.MakeAssertedSnap(c, s.snapYaml(yamlKey), files, snap.R(1), constants.AccountId, s.StoreSigning.Database)
+		s.MakeAssertedSnap(c, s.snapYaml(yamlKey), files, snap.R(1), constants.GetAccountId(), s.StoreSigning.Database)
 	}
 
 	makeSnap("snapd")

@@ -33,11 +33,11 @@ var _ = Suite(&wellKnownSuite{})
 func (s wellKnownSuite) TestWellKnownSnapID(c *C) {
 	c.Check(naming.WellKnownSnapID("foo"), Equals, "")
 
-	c.Check(naming.WellKnownSnapID("snapd"), Equals, constants.ProdIdSnapd)
+	c.Check(naming.WellKnownSnapID("snapd"), Equals, constants.GetProdId("Snapd"))
 
-	c.Check(naming.WellKnownSnapID("core"), Equals, constants.ProdIdCore)
-	c.Check(naming.WellKnownSnapID("core18"), Equals, constants.ProdIdCore18)
-	c.Check(naming.WellKnownSnapID("core20"), Equals, constants.ProdIdCore20)
+	c.Check(naming.WellKnownSnapID("core"), Equals, constants.GetProdId("Core"))
+	c.Check(naming.WellKnownSnapID("core18"), Equals, constants.GetProdId("Core18"))
+	c.Check(naming.WellKnownSnapID("core20"), Equals, constants.GetProdId("Core20"))
 }
 
 func (s wellKnownSuite) TestWellKnownSnapIDStaging(c *C) {
@@ -45,10 +45,10 @@ func (s wellKnownSuite) TestWellKnownSnapIDStaging(c *C) {
 
 	c.Check(naming.WellKnownSnapID("baz"), Equals, "")
 
-	c.Check(naming.WellKnownSnapID("snapd"), Equals, constants.StagingIdSnapd)
+	c.Check(naming.WellKnownSnapID("snapd"), Equals, constants.GetStagingId("Snapd"))
 
-	c.Check(naming.WellKnownSnapID("core"), Equals, constants.StagingIdCore)
-	c.Check(naming.WellKnownSnapID("core18"), Equals, constants.StagingIdCore18)
+	c.Check(naming.WellKnownSnapID("core"), Equals, constants.GetStagingId("Core"))
+	c.Check(naming.WellKnownSnapID("core18"), Equals, constants.GetStagingId("Core18"))
 	// XXX no core20 uploaded to staging yet
 	c.Check(naming.WellKnownSnapID("core20"), Equals, "")
 }

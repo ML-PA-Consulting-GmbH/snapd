@@ -1145,7 +1145,7 @@ func (w *Writer) checkPublisher(sn *SeedSnap) error {
 		return err
 	}
 	publisher := snapDecl.PublisherID()
-	if publisher != w.model.BrandID() && publisher != constants.AccountId /*"canonical"*/ {
+	if publisher != w.model.BrandID() && publisher != constants.GetAccountId() /*"canonical"*/ {
 		return fmt.Errorf("cannot use %s %q published by %q for model by %q", kind, info.SnapName(), publisher, w.model.BrandID())
 	}
 	return nil

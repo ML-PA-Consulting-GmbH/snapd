@@ -26,18 +26,18 @@ import (
 
 var (
 	prodWellKnownSnapIDs = map[string]string{
-		"core":   constants.ProdIdCore,
-		"snapd":  constants.ProdIdSnapd,
-		"core18": constants.ProdIdCore18,
-		"core20": constants.ProdIdCore20,
-		"core22": constants.ProdIdCore22,
+		"core":   constants.GetProdId("Core"),
+		"snapd":  constants.GetProdId("Snapd"),
+		"core18": constants.GetProdId("Core18"),
+		"core20": constants.GetProdId("Core20"),
+		"core22": constants.GetProdId("Core22"),
 	}
 
 	stagingWellKnownSnapIDs = map[string]string{
-		"core":   constants.StagingIdCore,
-		"snapd":  constants.StagingIdSnapd,
-		"core18": constants.StagingIdCore18,
-		"core20": constants.StagingIdCore20,
+		"core":   constants.GetStagingId("Core"),
+		"snapd":  constants.GetStagingId("Snapd"),
+		"core18": constants.GetStagingId("Core18"),
+		"core20": constants.GetStagingId("Core20"),
 	}
 )
 

@@ -56,7 +56,7 @@ var _ = Suite(&policySuite{})
 func (s *policySuite) SetUpSuite(c *C) {
 	s.restoreSanitize = snap.MockSanitizePlugsSlots(func(snapInfo *snap.Info) {})
 	a, err := asserts.Decode([]byte(`type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 plugs:
   base-plug-allow: true
@@ -707,7 +707,7 @@ slots:
 `, nil)
 
 	a, err = asserts.Decode([]byte(`type: snap-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 snap-name: plug-snap
 snap-id: plugsnapidididididididididididid
@@ -794,7 +794,7 @@ AXNpZw==`))
 	s.plugDecl = a.(*asserts.SnapDeclaration)
 
 	a, err = asserts.Decode([]byte(`type: snap-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 snap-name: slot-snap
 snap-id: slotsnapidididididididididididid
@@ -894,7 +894,7 @@ slots:
 `, nil)
 
 	a, err = asserts.Decode([]byte(`type: snap-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 snap-name: random-snap
 snap-id: randomsnapididididididididid
@@ -1300,7 +1300,7 @@ slots:
 `, nil)
 
 	a, err := asserts.Decode([]byte(`type: snap-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 snap-name: same-pub-slot-snap
 snap-id: samepublslotsnapidididididididid
@@ -1359,7 +1359,7 @@ plugs:
 `, nil)
 
 	a, err := asserts.Decode([]byte(`type: snap-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 snap-name: same-pub-plug-snap
 snap-id: samepublplugsnapidididididididid
@@ -1574,7 +1574,7 @@ plugs:
 		installSnap := snaptest.MockInfo(c, t.installYaml, nil)
 
 		a, err := asserts.Decode([]byte(strings.Replace(`type: snap-declaration
-authority-id: `+constants.AccountId+`
+authority-id: `+constants.GetAccountId()+`
 series: 16
 snap-name: install-snap
 snap-id: installsnap6idididididididididid
@@ -1926,8 +1926,8 @@ AXNpZw==`))
 
 	a, err = asserts.Decode([]byte(`type: store
 store: substore1
-authority-id: ` + constants.AccountId + `
-operator-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
+operator-id: ` + constants.GetAccountId() + `
 friendly-stores:
   - a-store
   - store1
@@ -2165,7 +2165,7 @@ slots:
 		installSnap := snaptest.MockInfo(c, t.installYaml, nil)
 
 		a, err := asserts.Decode([]byte(strings.Replace(`type: snap-declaration
-authority-id: `+constants.AccountId+`
+authority-id: `+constants.GetAccountId()+`
 series: 16
 snap-name: install-snap
 snap-id: installsnap6idididididididididid
@@ -2415,7 +2415,7 @@ slots:
 		}
 
 		a, err := asserts.Decode([]byte(strings.Replace(`type: snap-declaration
-authority-id: `+constants.AccountId+`
+authority-id: `+constants.GetAccountId()+`
 series: 16
 snap-name: install-snap
 snap-id: installsnap6idididididididididid
@@ -2531,7 +2531,7 @@ func (s *policySuite) TestNameConstraintsAutoConnection(c *C) {
 //	          write: ...
 func (s *policySuite) TestSnapDeclListAttribWithBaseAllowInstallationFalse(c *C) {
 	baseDeclStr := `type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   base-allow-install-false:
@@ -2824,7 +2824,7 @@ plugs:
 		installSnap := snaptest.MockInfo(c, t.installYaml, nil)
 
 		snapDeclStr := strings.Replace(`type: snap-declaration
-authority-id: `+constants.AccountId+`
+authority-id: `+constants.GetAccountId()+`
 series: 16
 snap-name: install-snap
 snap-id: installsnap6idididididididididid
@@ -2855,7 +2855,7 @@ AXNpZw==`, "@plugsSlots@", strings.TrimSpace(t.snapDeclPlugsSlots), 1)
 
 func (s *policySuite) TestSuperprivilegedVsAllowedSystemSlotInterfaceAllowInstallation(c *C) {
 	baseDeclStr := `type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 slots:
   superprivileged-vs-allowed-system-slot:
@@ -2892,7 +2892,7 @@ slots:
 
 	// not ok without snap-declaration rule
 	a, err = asserts.Decode([]byte(`type: snap-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 snap-name: app-snap
 snap-id: appsnapid
@@ -2919,11 +2919,11 @@ slots:
   superprivileged-vs-allowed-system-slot:
 `, nil)
 	a, err = asserts.Decode([]byte(`type: snap-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 snap-name: snapd
-snap-id: ` + constants.ProdIdSnapd + `
-publisher-id: ` + constants.AccountId + `
+snap-id: ` + constants.GetProdId("Snapd") + `
+publisher-id: ` + constants.GetAccountId() + `
 timestamp: 2022-03-20T12:00:00Z
 sign-key-sha3-384: Jv8_JiHiIzJVcO9M55pPdqSDWUvuhfDIBJUS-3VW7F_idjix7Ffn5qMxB21ZQuij
 
@@ -2944,7 +2944,7 @@ func (s *policySuite) TestSuperprivilegedVsAllowedSystemPlugInterfaceAllowInstal
 	// this is unlikely to be used in practice as system snap so far
 	// have no plugs, but tested for symmetry/completeness
 	baseDeclStr := `type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 plugs:
   superprivileged-vs-allowed-system-plug:
@@ -2983,7 +2983,7 @@ plugs:
 
 	// not ok without snap-declaration rule
 	a, err = asserts.Decode([]byte(`type: snap-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + constants.GetAccountId() + `
 series: 16
 snap-name: app-snap
 snap-id: appsnapid

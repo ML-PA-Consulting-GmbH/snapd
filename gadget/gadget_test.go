@@ -166,7 +166,7 @@ defaults:
 
 var mockClassicGadgetCoreDefaultsYaml = []byte(`
 defaults:
-  ` + constants.ProdIdCore + `:
+  ` + constants.GetProdId("Core") + `:
     ssh:
       disable: true
 `)

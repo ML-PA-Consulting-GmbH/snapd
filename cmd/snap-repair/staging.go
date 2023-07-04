@@ -30,7 +30,7 @@ import (
 )
 
 func init() {
-	repairRootAccountKey, err := asserts.Decode([]byte(constants.EncodedStagingRepairRootAccountKey))
+	repairRootAccountKey, err := asserts.Decode([]byte(constants.GetEncoded("StagingRepairRootAccountKey")))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted account-key: %v", err))
 	}

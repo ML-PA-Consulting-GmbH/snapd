@@ -38,19 +38,19 @@ var (
 )
 
 func init() {
-	genericAccount, err := asserts.Decode([]byte(constants.EncodedGenericAccount))
+	genericAccount, err := asserts.Decode([]byte(constants.GetEncoded("GenericAccount")))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s account: %v`, err))
 	}
-	genericModelsAccountKey, err := asserts.Decode([]byte(constants.EncodedGenericModelsAccountKey))
+	genericModelsAccountKey, err := asserts.Decode([]byte(constants.GetEncoded("GenericModelsAccountKey")))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s "models" account-key: %v`, err))
 	}
 
 	genericAssertions = []asserts.Assertion{genericAccount, genericModelsAccountKey}
 
-	fmt.Sprintf("Decode assert: %s", constants.EncodedGenericClassicModel)
-	a, err := asserts.Decode([]byte(constants.EncodedGenericClassicModel))
+	fmt.Sprintf("Decode assert: %s", constants.GetEncoded("GenericClassicModel"))
+	a, err := asserts.Decode([]byte(constants.GetEncoded("GenericClassicModel")))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s "generic-classic" model: %v`, err))
 	}
