@@ -1,8 +1,8 @@
 # Configuration for mlpa local development
 
-BaseUrlSnapcraftDashboard: "http://127.0.0.1:3000/"
-BaseUrlSnapcraftDashboardStaging: "http://127.0.0.1:3000/"
-BaseUrlSnapcraftApi: "http://127.0.0.1:3000/"
+BaseUrlSnapcraftDashboard: http://127.0.0.1:3000/
+BaseUrlSnapcraftDashboardStaging: http://127.0.0.1:3000/
+BaseUrlSnapcraftApi: http://127.0.0.1:3000/
 BaseUrlSnapcraftStagingApi: "http://127.0.0.1:3000/"
 BaseUrlSnapcraftApiV2: "http://127.0.0.1:3000/"
 BaseUrlSnapcraftStagingApiV2: "http://127.0.0.1:3000/"

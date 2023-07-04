@@ -3,86 +3,240 @@ package constants
 import (
 	"fmt"
 	yaml "gopkg.in/yaml.v2"
-	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"sync"
 )
 
 type constants struct {
-	BaseUrlSnapcraftDashboard        string
-	BaseUrlSnapcraftDashboardStaging string
-	BaseUrlSnapcraftApi              string
-	BaseUrlSnapcraftStagingApi       string
-	BaseUrlSnapcraftApiV2            string
-	BaseUrlSnapcraftStagingApiV2     string
+	BaseUrlSnapcraftDashboard        string `yaml:"BaseUrlSnapcraftDashboard"`
+	BaseUrlSnapcraftDashboardStaging string `yaml:"BaseUrlSnapcraftDashboardStaging"`
+	BaseUrlSnapcraftApi              string `yaml:"BaseUrlSnapcraftApi"`
+	BaseUrlSnapcraftStagingApi       string `yaml:"BaseUrlSnapcraftStagingApi"`
+	BaseUrlSnapcraftApiV2            string `yaml:"BaseUrlSnapcraftApiV2"`
+	BaseUrlSnapcraftStagingApiV2     string `yaml:"BaseUrlSnapcraftStagingApiV2"`
 
-	AuthLocation        string
-	AuthLocationStaging string
+	AuthLocation        string `yaml:"AuthLocation"`
+	AuthLocationStaging string `yaml:"AuthLocationStaging"`
 
-	AccountId         string
-	HasGenericAccount bool
+	AccountId         string `yaml:"AccountId"`
+	HasGenericAccount bool   `yaml:"HasGenericAccount"`
 
-	ProdIdSnapd  string
-	ProdIdCore   string
-	ProdIdCore18 string
-	ProdIdCore20 string
-	ProdIdCore22 string
+	ProdIdSnapd  string `yaml:"ProdIdSnapd"`
+	ProdIdCore   string `yaml:"ProdIdCore"`
+	ProdIdCore18 string `yaml:"ProdIdCore18"`
+	ProdIdCore20 string `yaml:"ProdIdCore20"`
+	ProdIdCore22 string `yaml:"ProdIdCore22"`
 
-	StagingIdSnapd  string
-	StagingIdCore   string
-	StagingIdCore18 string
-	StagingIdCore20 string
-	StagingIdCore22 string
+	StagingIdSnapd  string `yaml:"StagingIdSnapd"`
+	StagingIdCore   string `yaml:"StagingIdCore"`
+	StagingIdCore18 string `yaml:"StagingIdCore18"`
+	StagingIdCore20 string `yaml:"StagingIdCore20"`
+	StagingIdCore22 string `yaml:"StagingIdCore22"`
 
-	EncodedRepairRootAccountKey           string
-	EncodedStagingRepairRootAccountKey    string
-	EncodedCanonicalAccount               string
-	EncodedCanonicalRootAccountKey        string
-	EncodedGenericAccount                 string
-	EncodedGenericModelsAccountKey        string
-	EncodedGenericClassicModel            string
-	EncodedStagingTrustedAccount          string
-	EncodedStagingRootAccountKey          string
-	EncodedStagingGenericAccount          string
-	EncodedStagingGenericModelsAccountKey string
-	EncodedStagingGenericClassicModel     string
+	EncodedRepairRootAccountKey           string `yaml:"EncodedRepairRootAccountKey"`
+	EncodedStagingRepairRootAccountKey    string `yaml:"EncodedStagingRepairRootAccountKey"`
+	EncodedCanonicalAccount               string `yaml:"EncodedCanonicalAccount"`
+	EncodedCanonicalRootAccountKey        string `yaml:"EncodedCanonicalRootAccountKey"`
+	EncodedGenericAccount                 string `yaml:"EncodedGenericAccount"`
+	EncodedGenericModelsAccountKey        string `yaml:"EncodedGenericModelsAccountKey"`
+	EncodedGenericClassicModel            string `yaml:"EncodedGenericClassicModel"`
+	EncodedStagingTrustedAccount          string `yaml:"EncodedStagingTrustedAccount"`
+	EncodedStagingRootAccountKey          string `yaml:"EncodedStagingRootAccountKey"`
+	EncodedStagingGenericAccount          string `yaml:"EncodedStagingGenericAccount"`
+	EncodedStagingGenericModelsAccountKey string `yaml:"EncodedStagingGenericModelsAccountKey"`
+	EncodedStagingGenericClassicModel     string `yaml:"EncodedStagingGenericClassicModel"`
 
-	EncodedRepairRootAccountKeyPublicKeySha3           string
-	EncodedStagingRepairRootAccountKeyPublicKeySha3    string
-	EncodedCanonicalAccountPublicKeySha3               string
-	EncodedCanonicalRootAccountKeyPublicKeySha3        string
-	EncodedGenericAccountPublicKeySha3                 string
-	EncodedGenericModelsAccountKeyPublicKeySha3        string
-	EncodedGenericClassicModelPublicKeySha3            string
-	EncodedStagingTrustedAccountPublicKeySha3          string
-	EncodedStagingRootAccountKeyPublicKeySha3          string
-	EncodedStagingGenericAccountPublicKeySha3          string
-	EncodedStagingGenericModelsAccountKeyPublicKeySha3 string
-	EncodedStagingGenericClassicModelPublicKeySha3     string
+	EncodedRepairRootAccountKeyPublicKeySha3           string `yaml:"EncodedRepairRootAccountKeyPublicKeySha3"`
+	EncodedStagingRepairRootAccountKeyPublicKeySha3    string `yaml:"EncodedStagingRepairRootAccountKeyPublicKeySha3"`
+	EncodedCanonicalAccountPublicKeySha3               string `yaml:"EncodedCanonicalAccountPublicKeySha3"`
+	EncodedCanonicalRootAccountKeyPublicKeySha3        string `yaml:"EncodedCanonicalRootAccountKeyPublicKeySha3"`
+	EncodedGenericAccountPublicKeySha3                 string `yaml:"EncodedGenericAccountPublicKeySha3"`
+	EncodedGenericModelsAccountKeyPublicKeySha3        string `yaml:"EncodedGenericModelsAccountKeyPublicKeySha3"`
+	EncodedGenericClassicModelPublicKeySha3            string `yaml:"EncodedGenericClassicModelPublicKeySha3"`
+	EncodedStagingTrustedAccountPublicKeySha3          string `yaml:"EncodedStagingTrustedAccountPublicKeySha3"`
+	EncodedStagingRootAccountKeyPublicKeySha3          string `yaml:"EncodedStagingRootAccountKeyPublicKeySha3"`
+	EncodedStagingGenericAccountPublicKeySha3          string `yaml:"EncodedStagingGenericAccountPublicKeySha3"`
+	EncodedStagingGenericModelsAccountKeyPublicKeySha3 string `yaml:"EncodedStagingGenericModelsAccountKeyPublicKeySha3"`
+	EncodedStagingGenericClassicModelPublicKeySha3     string `yaml:"EncodedStagingGenericClassicModelPublicKeySha3"`
 }
 
 var initOnce sync.Once
 var values constants
 
 func doInit() {
-	fmt.Println("Loading constants...")
-	snapDir, exists := os.LookupEnv("SNAP")
+	signedYaml := loadYaml()
+	plainYaml := verifySignature(signedYaml)
+	values = parseYaml(plainYaml)
+	validateValues(values)
+}
 
+func validateValues(values constants) {
+	if values.BaseUrlSnapcraftDashboard == "" {
+		panic("BaseUrlSnapcraftDashboard is empty")
+	}
+	if values.BaseUrlSnapcraftDashboardStaging == "" {
+		panic("BaseUrlSnapcraftDashboardStaging is empty")
+	}
+	if values.BaseUrlSnapcraftApi == "" {
+		panic("BaseUrlSnapcraftApi is empty")
+	}
+	if values.BaseUrlSnapcraftStagingApi == "" {
+		panic("BaseUrlSnapcraftStagingApi is empty")
+	}
+	if values.BaseUrlSnapcraftApiV2 == "" {
+		panic("BaseUrlSnapcraftApiV2 is empty")
+	}
+	if values.BaseUrlSnapcraftStagingApiV2 == "" {
+		panic("BaseUrlSnapcraftStagingApiV2 is empty")
+	}
+
+	if values.AuthLocation == "" {
+		panic("AuthLocation is empty")
+	}
+	if values.AuthLocationStaging == "" {
+		panic("AuthLocationStaging is empty")
+	}
+
+	if values.AccountId == "" {
+		panic("AccountId is empty")
+	}
+
+	if values.ProdIdSnapd == "" {
+		panic("ProdIdSnapd is empty")
+	}
+	if values.ProdIdCore == "" {
+		panic("ProdIdCore is empty")
+	}
+	if values.ProdIdCore18 == "" {
+		panic("ProdIdCore18 is empty")
+	}
+	if values.ProdIdCore20 == "" {
+		panic("ProdIdCore20 is empty")
+	}
+	//if values.ProdIdCore22 == "" {
+	//	panic("ProdIdCore22 is empty")
+	//}
+
+	if values.StagingIdSnapd == "" {
+		panic("StagingIdSnapd is empty")
+	}
+	if values.StagingIdCore == "" {
+		panic("StagingIdCore is empty")
+	}
+	if values.StagingIdCore18 == "" {
+		panic("StagingIdCore18 is empty")
+	}
+	//if values.StagingIdCore20 == "" {
+	//	panic("StagingIdCore20 is empty")
+	//}
+	//if values.StagingIdCore22 == "" {
+	//	panic("StagingIdCore22 is empty")
+	//}
+
+	if values.EncodedRepairRootAccountKey == "" {
+		panic("EncodedRepairRootAccountKey is empty")
+	}
+	values.EncodedRepairRootAccountKeyPublicKeySha3 = getSigningKey(values.EncodedRepairRootAccountKey)
+	if values.EncodedStagingRepairRootAccountKeyPublicKeySha3 == "" {
+		panic("EncodedStagingRepairRootAccountKeyPublicKeySha3 is empty")
+	}
+	values.EncodedStagingRepairRootAccountKeyPublicKeySha3 = getSigningKey(values.EncodedStagingRepairRootAccountKey)
+	if values.EncodedCanonicalAccount == "" {
+		panic("EncodedCanonicalAccount is empty")
+	}
+	values.EncodedCanonicalAccountPublicKeySha3 = getSigningKey(values.EncodedCanonicalAccount)
+	if values.EncodedCanonicalRootAccountKey == "" {
+		panic("EncodedCanonicalRootAccountKey is empty")
+	}
+	values.EncodedCanonicalRootAccountKeyPublicKeySha3 = getSigningKey(values.EncodedCanonicalRootAccountKey)
+	if values.EncodedGenericAccount == "" {
+		panic("EncodedGenericAccount is empty")
+	}
+	values.EncodedGenericAccountPublicKeySha3 = getSigningKey(values.EncodedGenericAccount)
+	if values.EncodedGenericModelsAccountKey == "" {
+		panic("EncodedGenericModelsAccountKey is empty")
+	}
+	values.EncodedGenericModelsAccountKeyPublicKeySha3 = getSigningKey(values.EncodedGenericModelsAccountKey)
+	if values.EncodedGenericClassicModel == "" {
+		panic("EncodedGenericClassicModel is empty")
+	}
+	values.EncodedGenericClassicModelPublicKeySha3 = getSigningKey(values.EncodedGenericClassicModel)
+	if values.EncodedStagingTrustedAccount == "" {
+		panic("EncodedStagingTrustedAccount is empty")
+	}
+	values.EncodedStagingTrustedAccountPublicKeySha3 = getSigningKey(values.EncodedStagingTrustedAccount)
+	if values.EncodedStagingRootAccountKey == "" {
+		panic("EncodedStagingRootAccountKey is empty")
+	}
+	values.EncodedStagingRootAccountKeyPublicKeySha3 = getSigningKey(values.EncodedStagingRootAccountKey)
+	if values.EncodedStagingGenericAccount == "" {
+		panic("EncodedStagingGenericAccount is empty")
+	}
+	values.EncodedStagingGenericAccountPublicKeySha3 = getSigningKey(values.EncodedStagingGenericAccount)
+	if values.EncodedStagingGenericModelsAccountKey == "" {
+		panic("EncodedStagingGenericModelsAccountKey is empty")
+	}
+	values.EncodedStagingGenericModelsAccountKeyPublicKeySha3 = getSigningKey(values.EncodedStagingGenericModelsAccountKey)
+	if values.EncodedStagingGenericClassicModel == "" {
+		panic("EncodedStagingGenericClassicModel is empty")
+	}
+	values.EncodedStagingGenericClassicModelPublicKeySha3 = getSigningKey(values.EncodedStagingGenericClassicModel)
+
+	values.EncodedRepairRootAccountKey = strings.TrimSpace(values.EncodedRepairRootAccountKey) + "\n"
+	values.EncodedStagingRepairRootAccountKey = strings.TrimSpace(values.EncodedStagingRepairRootAccountKey) + "\n"
+	values.EncodedCanonicalAccount = strings.TrimSpace(values.EncodedCanonicalAccount) + "\n"
+	values.EncodedCanonicalRootAccountKey = strings.TrimSpace(values.EncodedCanonicalRootAccountKey) + "\n"
+	values.EncodedGenericAccount = strings.TrimSpace(values.EncodedGenericAccount) + "\n"
+	values.EncodedGenericModelsAccountKey = strings.TrimSpace(values.EncodedGenericModelsAccountKey) + "\n"
+	values.EncodedGenericClassicModel = strings.TrimSpace(values.EncodedGenericClassicModel) + "\n"
+	values.EncodedStagingTrustedAccount = strings.TrimSpace(values.EncodedStagingTrustedAccount) + "\n"
+	values.EncodedStagingRootAccountKey = strings.TrimSpace(values.EncodedStagingRootAccountKey) + "\n"
+	values.EncodedStagingGenericAccount = strings.TrimSpace(values.EncodedStagingGenericAccount) + "\n"
+	values.EncodedStagingGenericModelsAccountKey = strings.TrimSpace(values.EncodedStagingGenericModelsAccountKey) + "\n"
+	values.EncodedStagingGenericClassicModel = strings.TrimSpace(values.EncodedStagingGenericClassicModel) + "\n"
+}
+
+func loadYaml() []byte {
+	snapDir, exists := os.LookupEnv("SNAP")
 	if !exists || snapDir == "" {
 		panic("$SNAP is empty, cannot initialize values.")
 	}
-
-	data, err := ioutil.ReadFile(path.Join(snapDir, "constants.yaml"))
+	signedYaml, err := os.ReadFile(path.Join(snapDir, "constants.yaml"))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to read constants.yaml: %v", err.Error()))
 	}
+	return signedYaml
+}
 
-	err = yaml.Unmarshal(data, &values)
-	if err != nil {
+func parseYaml(plainYaml []byte) constants {
+	res := constants{}
+	if err := yaml.Unmarshal(plainYaml, &res); err != nil {
 		panic(fmt.Sprintf("Failed to unmarshal constants.yaml: %v", err.Error()))
 	}
+	return res
+}
 
+func verifySignature(data []byte) []byte {
+	return []byte(strings.TrimSpace(string(data)))
+	//// TODO: process signed yaml
+	//sections := strings.Split(strings.TrimSpace(string(data)), "\n\n")
+	//body := strings.TrimSpace(strings.Join(sections[:len(sections)-1], "\n\n"))
+	//signature := sections[len(sections)-1]
+	//
+	//return data
+}
+
+func getSigningKey(assertion string) string {
+	lines := strings.Split(assertion, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "sign-key-sha3-384: ") {
+			return strings.TrimPrefix(line, "sign-key-sha3-384: ")
+		}
+	}
+	panic("Could not find sign-key-sha3-384 in assertion")
 }
 
 func GetBaseUrl(name string) string {
@@ -131,7 +285,7 @@ func GetHasGenericAccount() bool {
 
 func GetProdId(name string) string {
 	initOnce.Do(doInit)
-	switch name {
+	switch strings.ToLower(name) {
 	case "snapd":
 		return values.ProdIdSnapd
 	case "core":
@@ -149,7 +303,7 @@ func GetProdId(name string) string {
 
 func GetStagingId(name string) string {
 	initOnce.Do(doInit)
-	switch name {
+	switch strings.ToLower(name) {
 	case "snapd":
 		return values.StagingIdSnapd
 	case "core":
