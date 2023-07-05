@@ -48,9 +48,10 @@ type constants struct {
 	EncodedStagingGenericModelsAccountKey string `yaml:"EncodedStagingGenericModelsAccountKey"`
 	EncodedStagingGenericClassicModel     string `yaml:"EncodedStagingGenericClassicModel"`
 
-	EncodedRepairRootAccountKeyPublicKeySha3           string `yaml:"EncodedRepairRootAccountKeyPublicKeySha3"`
-	EncodedStagingRepairRootAccountKeyPublicKeySha3    string `yaml:"EncodedStagingRepairRootAccountKeyPublicKeySha3"`
-	EncodedCanonicalAccountPublicKeySha3               string `yaml:"EncodedCanonicalAccountPublicKeySha3"`
+	EncodedRepairRootAccountKeyPublicKeySha3        string `yaml:"EncodedRepairRootAccountKeyPublicKeySha3"`
+	EncodedStagingRepairRootAccountKeyPublicKeySha3 string `yaml:"EncodedStagingRepairRootAccountKeyPublicKeySha3"`
+	EncodedCanonicalAccountSignKeySha3              string `yaml:"EncodedCanonicalAccountSignKeySha3"`
+
 	EncodedCanonicalRootAccountKeyPublicKeySha3        string `yaml:"EncodedCanonicalRootAccountKeyPublicKeySha3"`
 	EncodedGenericAccountPublicKeySha3                 string `yaml:"EncodedGenericAccountPublicKeySha3"`
 	EncodedGenericModelsAccountKeyPublicKeySha3        string `yaml:"EncodedGenericModelsAccountKeyPublicKeySha3"`
@@ -138,51 +139,22 @@ func validateValues(values constants) {
 	if values.EncodedRepairRootAccountKey == "" {
 		panic("EncodedRepairRootAccountKey is empty")
 	}
-	values.EncodedRepairRootAccountKeyPublicKeySha3 = getSigningKey(values.EncodedRepairRootAccountKey)
+	values.EncodedRepairRootAccountKeyPublicKeySha3 = getPublicKey(values.EncodedRepairRootAccountKey)
+	if values.EncodedRepairRootAccountKeyPublicKeySha3 == "" {
+		panic("EncodedRepairRootAccountKeyPublicKeySha3 is empty")
+	}
+	values.EncodedStagingRepairRootAccountKeyPublicKeySha3 = getSigningKey(values.EncodedStagingRepairRootAccountKey)
 	if values.EncodedStagingRepairRootAccountKeyPublicKeySha3 == "" {
 		panic("EncodedStagingRepairRootAccountKeyPublicKeySha3 is empty")
 	}
-	values.EncodedStagingRepairRootAccountKeyPublicKeySha3 = getSigningKey(values.EncodedStagingRepairRootAccountKey)
-	if values.EncodedCanonicalAccount == "" {
-		panic("EncodedCanonicalAccount is empty")
+	values.EncodedCanonicalAccountSignKeySha3 = getSigningKey(values.EncodedCanonicalAccount)
+	if values.EncodedCanonicalAccountSignKeySha3 == "" {
+		panic("EncodedCanonicalAccountSignKeySha3 is empty")
 	}
-	values.EncodedCanonicalAccountPublicKeySha3 = getSigningKey(values.EncodedCanonicalAccount)
-	if values.EncodedCanonicalRootAccountKey == "" {
-		panic("EncodedCanonicalRootAccountKey is empty")
-	}
-	values.EncodedCanonicalRootAccountKeyPublicKeySha3 = getSigningKey(values.EncodedCanonicalRootAccountKey)
-	if values.EncodedGenericAccount == "" {
-		panic("EncodedGenericAccount is empty")
-	}
-	values.EncodedGenericAccountPublicKeySha3 = getSigningKey(values.EncodedGenericAccount)
-	if values.EncodedGenericModelsAccountKey == "" {
-		panic("EncodedGenericModelsAccountKey is empty")
-	}
-	values.EncodedGenericModelsAccountKeyPublicKeySha3 = getSigningKey(values.EncodedGenericModelsAccountKey)
-	if values.EncodedGenericClassicModel == "" {
+	values.EncodedGenericModelsAccountKeyPublicKeySha3 = getPublicKey(values.EncodedGenericModelsAccountKey)
+	if values.EncodedGenericModelsAccountKeyPublicKeySha3 == "" {
 		panic("EncodedGenericClassicModel is empty")
 	}
-	values.EncodedGenericClassicModelPublicKeySha3 = getSigningKey(values.EncodedGenericClassicModel)
-	if values.EncodedStagingTrustedAccount == "" {
-		panic("EncodedStagingTrustedAccount is empty")
-	}
-	values.EncodedStagingTrustedAccountPublicKeySha3 = getSigningKey(values.EncodedStagingTrustedAccount)
-	if values.EncodedStagingRootAccountKey == "" {
-		panic("EncodedStagingRootAccountKey is empty")
-	}
-	values.EncodedStagingRootAccountKeyPublicKeySha3 = getSigningKey(values.EncodedStagingRootAccountKey)
-	if values.EncodedStagingGenericAccount == "" {
-		panic("EncodedStagingGenericAccount is empty")
-	}
-	values.EncodedStagingGenericAccountPublicKeySha3 = getSigningKey(values.EncodedStagingGenericAccount)
-	if values.EncodedStagingGenericModelsAccountKey == "" {
-		panic("EncodedStagingGenericModelsAccountKey is empty")
-	}
-	values.EncodedStagingGenericModelsAccountKeyPublicKeySha3 = getSigningKey(values.EncodedStagingGenericModelsAccountKey)
-	if values.EncodedStagingGenericClassicModel == "" {
-		panic("EncodedStagingGenericClassicModel is empty")
-	}
-	values.EncodedStagingGenericClassicModelPublicKeySha3 = getSigningKey(values.EncodedStagingGenericClassicModel)
 
 	values.EncodedRepairRootAccountKey = strings.TrimSpace(values.EncodedRepairRootAccountKey) + "\n"
 	values.EncodedStagingRepairRootAccountKey = strings.TrimSpace(values.EncodedStagingRepairRootAccountKey) + "\n"
@@ -199,11 +171,13 @@ func validateValues(values constants) {
 }
 
 func loadYaml() []byte {
-	snapDir, exists := os.LookupEnv("SNAP")
-	if !exists || snapDir == "" {
-		panic("$SNAP is empty, cannot initialize values.")
+	snapYamlDir, exists := os.LookupEnv("SNAP")
+	if !exists || snapYamlDir == "" {
+		fmt.Println("WARNIN: $SNAP is empty, using /etc/snapd/constants.yaml for config")
+		snapYamlDir = "/etc/snapd/"
+		//panic("$SNAP is empty, cannot initialize values.")
 	}
-	signedYaml, err := os.ReadFile(path.Join(snapDir, "constants.yaml"))
+	signedYaml, err := os.ReadFile(path.Join(snapYamlDir, "constants.yaml"))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to read constants.yaml: %v", err.Error()))
 	}
@@ -228,6 +202,17 @@ func verifySignature(data []byte) []byte {
 	//return data
 }
 
+func getPublicKey(assertion string) string {
+	lines := strings.Split(assertion, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "public-key-sha3-384: ") {
+			return strings.TrimPrefix(line, "sign-key-sha3-384: ")
+		}
+	}
+	panic("Could not find public-key-sha3-384 in assertion: \n" + assertion)
+}
+
 func getSigningKey(assertion string) string {
 	lines := strings.Split(assertion, "\n")
 	for _, line := range lines {
@@ -236,7 +221,7 @@ func getSigningKey(assertion string) string {
 			return strings.TrimPrefix(line, "sign-key-sha3-384: ")
 		}
 	}
-	panic("Could not find sign-key-sha3-384 in assertion")
+	panic("Could not find sign-key-sha3-384 in assertion: \n" + assertion)
 }
 
 func GetBaseUrl(name string) string {
@@ -351,8 +336,8 @@ func GetEncoded(name string) string {
 		return values.EncodedRepairRootAccountKeyPublicKeySha3
 	case "StagingRepairRootAccountKeyPublicKeySha3":
 		return values.EncodedStagingRepairRootAccountKeyPublicKeySha3
-	case "CanonicalAccountPublicKeySha3":
-		return values.EncodedCanonicalAccountPublicKeySha3
+	case "CanonicalAccountSigningKeySha3":
+		return values.EncodedCanonicalAccountSignKeySha3
 	case "CanonicalRootAccountKeyPublicKeySha3":
 		return values.EncodedCanonicalRootAccountKeyPublicKeySha3
 	case "GenericAccountPublicKeySha3":
