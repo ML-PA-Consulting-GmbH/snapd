@@ -3,6 +3,7 @@ package constants
 import (
 	"fmt"
 	yaml "gopkg.in/yaml.v2"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -182,7 +183,7 @@ func loadYaml() []byte {
 		snapYamlDir = "/etc/snapd/"
 		//panic("$SNAP is empty, cannot initialize values.")
 	}
-	signedYaml, err := os.ReadFile(path.Join(snapYamlDir, "constants.yaml"))
+	signedYaml, err := ioutil.ReadFile(path.Join(snapYamlDir, "constants.yaml"))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to read constants.yaml: %v", err.Error()))
 	}
