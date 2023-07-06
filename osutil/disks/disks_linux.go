@@ -56,6 +56,7 @@ func MockUdevPropertiesForDevice(new func(string, string) (map[string]string, er
 	// for better testing we mock the udevadm command output so that we still
 	// test the parsing
 	udevadmProperties = func(typeOpt, dev string) ([]byte, error) {
+		var err error
 		props, err := new(typeOpt, dev)
 		if err != nil {
 			return []byte(err.Error()), err

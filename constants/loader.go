@@ -177,17 +177,19 @@ func validateValues(values *constants) {
 }
 
 func loadYaml() []byte {
+	paths := []string{"/run/mnt/kernel/constants.yaml"}
 	snapYamlDir, exists := os.LookupEnv("SNAP")
-	if !exists || snapYamlDir == "" {
-		fmt.Println("WARNIN: $SNAP is empty, using /etc/snapd/constants.yaml for config")
-		snapYamlDir = "/etc/snapd/"
-		//panic("$SNAP is empty, cannot initialize values.")
+	if exists && snapYamlDir != "" {
+		paths = append(paths, path.Join(snapYamlDir, "constants.yaml"))
 	}
-	signedYaml, err := ioutil.ReadFile(path.Join(snapYamlDir, "constants.yaml"))
-	if err != nil {
-		panic(fmt.Sprintf("Failed to read constants.yaml: %v", err.Error()))
+	paths = append(paths, "/etc/snapd/constants.yaml")
+	for _, path := range paths {
+		fmt.Printf("Trying to load %s\n", path)
+		if signedYaml, err := ioutil.ReadFile(path); err == nil {
+			return signedYaml
+		}
 	}
-	return signedYaml
+	panic(fmt.Sprintf("Failed to locate constants.yaml"))
 }
 
 func parseYaml(plainYaml []byte) constants {
