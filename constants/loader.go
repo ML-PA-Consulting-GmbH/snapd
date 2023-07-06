@@ -70,10 +70,10 @@ func doInit() {
 	signedYaml := loadYaml()
 	plainYaml := verifySignature(signedYaml)
 	values = parseYaml(plainYaml)
-	validateValues(values)
+	validateValues(&values)
 }
 
-func validateValues(values constants) {
+func validateValues(values *constants) {
 	if values.BaseUrlSnapcraftDashboard == "" {
 		panic("BaseUrlSnapcraftDashboard is empty")
 	}
@@ -129,6 +129,11 @@ func validateValues(values constants) {
 	if values.StagingIdCore18 == "" {
 		panic("StagingIdCore18 is empty")
 	}
+
+	// snapd tests require this to be empty
+	values.StagingIdCore20 = ""
+	values.StagingIdCore22 = ""
+
 	//if values.StagingIdCore20 == "" {
 	//	panic("StagingIdCore20 is empty")
 	//}
@@ -143,11 +148,11 @@ func validateValues(values constants) {
 	if values.EncodedRepairRootAccountKeyPublicKeySha3 == "" {
 		panic("EncodedRepairRootAccountKeyPublicKeySha3 is empty")
 	}
-	values.EncodedStagingRepairRootAccountKeyPublicKeySha3 = getSigningKey(values.EncodedStagingRepairRootAccountKey)
+	values.EncodedStagingRepairRootAccountKeyPublicKeySha3 = getSignKey(values.EncodedStagingRepairRootAccountKey)
 	if values.EncodedStagingRepairRootAccountKeyPublicKeySha3 == "" {
 		panic("EncodedStagingRepairRootAccountKeyPublicKeySha3 is empty")
 	}
-	values.EncodedCanonicalAccountSignKeySha3 = getSigningKey(values.EncodedCanonicalAccount)
+	values.EncodedCanonicalAccountSignKeySha3 = getSignKey(values.EncodedCanonicalAccount)
 	if values.EncodedCanonicalAccountSignKeySha3 == "" {
 		panic("EncodedCanonicalAccountSignKeySha3 is empty")
 	}
@@ -207,13 +212,13 @@ func getPublicKey(assertion string) string {
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "public-key-sha3-384: ") {
-			return strings.TrimPrefix(line, "sign-key-sha3-384: ")
+			return strings.TrimPrefix(line, "public-key-sha3-384: ")
 		}
 	}
 	panic("Could not find public-key-sha3-384 in assertion: \n" + assertion)
 }
 
-func getSigningKey(assertion string) string {
+func getSignKey(assertion string) string {
 	lines := strings.Split(assertion, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -336,7 +341,7 @@ func GetEncoded(name string) string {
 		return values.EncodedRepairRootAccountKeyPublicKeySha3
 	case "StagingRepairRootAccountKeyPublicKeySha3":
 		return values.EncodedStagingRepairRootAccountKeyPublicKeySha3
-	case "CanonicalAccountSigningKeySha3":
+	case "CanonicalAccountSignKeySha3":
 		return values.EncodedCanonicalAccountSignKeySha3
 	case "CanonicalRootAccountKeyPublicKeySha3":
 		return values.EncodedCanonicalRootAccountKeyPublicKeySha3

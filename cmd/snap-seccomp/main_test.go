@@ -41,6 +41,7 @@ import (
 )
 
 // Hook up check.v1 into the "go test" runner
+// if this fails, make sure, that you have installed "libc6-dev libc6-dev-i386 gcc-multilib" on your system
 func Test(t *testing.T) { TestingT(t) }
 
 type snapSeccompSuite struct {
