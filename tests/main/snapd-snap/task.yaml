@@ -86,21 +86,7 @@ prepare: |
         modprobe fuse
 
         echo "Install lxd"
-        snap install lxd --channel="$LXD_SNAP_CHANNEL"
-        tests.cleanup defer snap remove --purge lxd
-
-        echo "Setup the lxd snap"
-        snap set lxd waitready.timeout=240
-        lxd waitready
-        lxd init --auto
-
-        echo "Setting up proxy for lxc"
-        if [ -n "${http_proxy:-}" ]; then
-            lxd.lxc config set core.proxy_http "$http_proxy"
-        fi
-        if [ -n "${https_proxy:-}" ]; then
-            lxd.lxc config set core.proxy_https "$http_proxy"
-        fi
+        "$TESTSTOOLS"/lxd-state prepare-snap
 
         echo "Switch the core snap back due to spread system prepare shenanigans"
         # When we run spread, we will repack the core snap that is installed on
@@ -232,10 +218,6 @@ execute: |
 
     unsquashfs -ll snapd_spread-test.snap | MATCH libc.so
 
-    # TODO:apparmor-vendoring
-    # remove this "exit 0" once apparmor-vendoring is ready
-    exit 0
-
     echo "Ensure we have apparmor_parser"
     unsquashfs -ll snapd_spread-test.snap | MATCH usr/lib/snapd/apparmor_parser
 
@@ -256,6 +238,10 @@ execute: |
     echo "Ensure sandbox-features shows the internal apparmor_parser"
     snap debug sandbox-features --required apparmor:parser:snapd-internal
 
+    echo "Ensure we support posix mqueue and userns in the internal apparmor_parser"
+    snap debug sandbox-features --required apparmor:parser:mqueue
+    snap debug sandbox-features --required apparmor:parser:userns
+    
     echo "Then we should be able to compile policy using the internal apparmor_parser"
     /snap/snapd/current/usr/lib/snapd/apparmor_parser \
       --config-file /snap/snapd/current/usr/lib/snapd/apparmor/parser.conf \
@@ -311,8 +297,8 @@ execute: |
         # snap whilst waiting for apparmor_parser to finish, so avoid this
         # by only touching some of the interfaces overall - there also
         # seems to be another smaller leak on Bionic etc too so only do
-        # half the interfaces on other systems
-        if os.query is-xenial && [ "$((RANDOM % 8))" != 0 ] || [ "$((RANDOM % 2))" != 0 ]; then
+        # one third of the interfaces on other systems
+        if os.query is-xenial && [ "$((RANDOM % 8))" != 0 ] || [ "$((RANDOM % 3))" != 0 ]; then
             echo "skipping plug: $plugcmd"
             continue
         fi

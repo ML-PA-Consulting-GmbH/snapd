@@ -76,6 +76,26 @@ func LayoutFromYaml(newDir, gadgetYaml string, model gadget.Model) (*gadget.Laid
 	return MustLayOutSingleVolumeFromGadget(gadgetRoot, "", model)
 }
 
+func VolumeFromYaml(newDir, gadgetYaml string, model gadget.Model) (*gadget.Volume, error) {
+	gadgetRoot, err := WriteGadgetYaml(newDir, gadgetYaml)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := gadget.ReadInfo(gadgetRoot, model)
+	if err != nil {
+		return nil, err
+	}
+	if len(info.Volumes) != 1 {
+		return nil, fmt.Errorf("only single volumes supported in test helper")
+	}
+	for _, vol := range info.Volumes {
+		return vol, nil
+	}
+
+	panic("impossible logic error")
+}
+
 // MustLayOutSingleVolumeFromGadget takes a gadget rootdir and lays out the
 // partitions as specified. This function does not handle multiple volumes and
 // is meant for test helpers only. For runtime users, with multiple volumes
@@ -208,4 +228,14 @@ func MockGadgetPartitionedDisk(gadgetYaml, gadgetRoot string) (ginfo *gadget.Inf
 	restore = disks.MockDevicePathToDiskMapping(diskMapping)
 
 	return ginfo, laidVols, model, restore, nil
+}
+
+// SetEnclosingVolumeInStructs is a helper that sets the pointer to
+// the Volume in all VolumeStructure objects it contains.
+func SetEnclosingVolumeInStructs(vv map[string]*gadget.Volume) {
+	for _, v := range vv {
+		for sidx := range v.Structure {
+			v.Structure[sidx].EnclosingVolume = v
+		}
+	}
 }

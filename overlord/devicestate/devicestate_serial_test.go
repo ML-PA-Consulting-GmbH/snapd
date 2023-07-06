@@ -113,7 +113,13 @@ func (s *deviceMgrSerialSuite) mockServer(c *C, reqID string, bhv *devicestatete
 	bhv.SignSerial = s.signSerial
 	bhv.ExpectedCapabilities = "serial-stream"
 
-	return devicestatetest.MockDeviceService(c, bhv)
+	mockServer, extraCerts := devicestatetest.MockDeviceService(c, bhv)
+	fname := filepath.Join(dirs.SnapdStoreSSLCertsDir, "test-server-certs.pem")
+	err := os.MkdirAll(filepath.Dir(fname), 0755)
+	c.Assert(err, IsNil)
+	err = ioutil.WriteFile(fname, extraCerts, 0644)
+	c.Assert(err, IsNil)
+	return mockServer
 }
 
 func (s *deviceMgrSerialSuite) findBecomeOperationalChange(skipIDs ...string) *state.Change {
@@ -955,7 +961,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialCertExpired(c *C) {
 	}
 
 	c.Check(chg.Status(), Equals, state.ErrorStatus)
-	c.Assert(chg.Err(), ErrorMatches, `(?ms).*cannot retrieve request-id for making a request for a serial: Post \"?http://.*/request-id\"?: x509: certificate has expired or is not yet valid.*`)
+	c.Assert(chg.Err(), ErrorMatches, `(?ms).*cannot retrieve request-id for making a request for a serial: Post \"?https://.*/request-id\"?: x509: certificate has expired or is not yet valid.*`)
 
 	var nTentatives int
 	err := t.Get("pre-poll-tentatives", &nTentatives)
@@ -1142,35 +1148,45 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyPrepareDeviceHook(
 }
 
 func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyWithHookAndNewProxy(c *C) {
-	s.testFullDeviceRegistrationHappyWithHookAndProxy(c, true)
+	s.testFullDeviceRegistrationHappyWithHookAndProxy(c, "new-enough")
 }
 
 func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyWithHookAndOldProxy(c *C) {
-	s.testFullDeviceRegistrationHappyWithHookAndProxy(c, false)
+	s.testFullDeviceRegistrationHappyWithHookAndProxy(c, "old-proxy")
 }
 
-func (s *deviceMgrSerialSuite) testFullDeviceRegistrationHappyWithHookAndProxy(c *C, newEnough bool) {
+func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyWithHookAndBrokenProxy(c *C) {
+	s.testFullDeviceRegistrationHappyWithHookAndProxy(c, "error-from-proxy")
+}
+
+func (s *deviceMgrSerialSuite) testFullDeviceRegistrationHappyWithHookAndProxy(c *C, proxyBehavior string) {
 	r1 := devicestate.MockKeyLength(testKeyLength)
 	defer r1()
 
 	var reqID string
 	var storeVersion string
 	head := func(c *C, bhv *devicestatetest.DeviceServiceBehavior, w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Snap-Store-Version", storeVersion)
+		switch proxyBehavior {
+		case "error-from-proxy":
+			w.WriteHeader(500)
+		default:
+			w.Header().Set("Snap-Store-Version", storeVersion)
+		}
 	}
 	bhv := &devicestatetest.DeviceServiceBehavior{
 		Head: head,
 	}
 	svcPath := "/svc/"
-	if newEnough {
+	switch proxyBehavior {
+	case "new-enough":
 		reqID = "REQID-42"
 		storeVersion = "6"
 		bhv.PostPreflight = func(c *C, bhv *devicestatetest.DeviceServiceBehavior, w http.ResponseWriter, r *http.Request) {
-			c.Check(r.Header.Get("X-Snap-Device-Service-URL"), Matches, "http://[^/]*/bad/svc/")
+			c.Check(r.Header.Get("X-Snap-Device-Service-URL"), Matches, "https://[^/]*/bad/svc/")
 			c.Check(r.Header.Get("X-Extra-Header"), Equals, "extra")
 		}
 		svcPath = "/bad/svc/"
-	} else {
+	case "old-proxy", "error-from-proxy":
 		reqID = "REQID-41"
 		storeVersion = "5"
 		bhv.RequestIDURLPath = "/svc/request-id"
@@ -1178,6 +1194,8 @@ func (s *deviceMgrSerialSuite) testFullDeviceRegistrationHappyWithHookAndProxy(c
 		bhv.PostPreflight = func(c *C, bhv *devicestatetest.DeviceServiceBehavior, w http.ResponseWriter, r *http.Request) {
 			c.Check(r.Header.Get("X-Extra-Header"), Equals, "extra")
 		}
+	default:
+		c.Fatalf("unknown proxy behavior %v", proxyBehavior)
 	}
 
 	mockServer := s.mockServer(c, reqID, bhv)
@@ -1691,14 +1709,13 @@ func (s *deviceMgrSerialSuite) TestNewEnoughProxyParse(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	log, restore := logger.MockLogger()
-	defer restore()
 	os.Setenv("SNAPD_DEBUG", "1")
 	defer os.Unsetenv("SNAPD_DEBUG")
 
 	badURL := &url.URL{Opaque: "%a"} // url.Parse(badURL.String()) needs to fail, which isn't easy :-)
-	c.Check(devicestate.NewEnoughProxy(s.state, badURL, http.DefaultClient), Equals, false)
-	c.Check(log.String(), Matches, "(?m).* DEBUG: Cannot check whether proxy store supports a custom serial vault: parse .*")
+	newEnoughProxy, err := devicestate.NewEnoughProxy(s.state, badURL, http.DefaultClient)
+	c.Check(err, ErrorMatches, "cannot check whether proxy store supports a custom serial vault: parse .*")
+	c.Check(newEnoughProxy, Equals, false)
 }
 
 func (s *deviceMgrSerialSuite) TestNewEnoughProxy(c *C) {
@@ -1747,18 +1764,19 @@ func (s *deviceMgrSerialSuite) TestNewEnoughProxy(c *C) {
 	u, err := url.Parse(server.URL)
 	c.Assert(err, IsNil)
 	for _, expected := range expecteds {
-		log.Reset()
-		c.Check(devicestate.NewEnoughProxy(s.state, u, http.DefaultClient), Equals, false)
-		if len(expected) > 0 {
-			expected = "(?m).* DEBUG: Cannot check whether proxy store supports a custom serial vault: " + expected
+		newEnoughProxy, err := devicestate.NewEnoughProxy(s.state, u, http.DefaultClient)
+		if expected != "" {
+			expected = "cannot check whether proxy store supports a custom serial vault: " + expected
+			c.Check(err, ErrorMatches, expected)
 		}
-		c.Check(log.String(), Matches, expected)
+		c.Check(newEnoughProxy, Equals, false)
 	}
 	c.Check(n, Equals, len(expecteds))
 
 	// and success at last
-	log.Reset()
-	c.Check(devicestate.NewEnoughProxy(s.state, u, http.DefaultClient), Equals, true)
+	newEnoughProxy, err := devicestate.NewEnoughProxy(s.state, u, http.DefaultClient)
+	c.Check(err, IsNil)
+	c.Check(newEnoughProxy, Equals, true)
 	c.Check(log.String(), Equals, "")
 	c.Check(n, Equals, len(expecteds)+1)
 }

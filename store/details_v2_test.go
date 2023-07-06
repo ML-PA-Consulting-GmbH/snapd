@@ -63,8 +63,8 @@ var coreStoreJSON = `{
   "prices": {},
   "private": false,
   "publisher": {
-     "id": "canonical",
-     "username": "canonical",
+     "id": "` + constants.GetAccountId() + `",
+     "username": "` + constants.GetAccountId() + `",
      "display-name": "Canonical",
      "validation": "verified"
   },
@@ -84,6 +84,10 @@ var thingyStoreJSON = `{
     "amd64"
   ],
   "base": "base-18",
+  "categories": [
+    {"featured": true, "name": "featured"},
+    {"featured": false, "name": "productivity"}
+  ],
   "confinement": "strict",
   "contact": "https://thingy.com",
   "common-ids": ["org.thingy"],
@@ -161,7 +165,7 @@ func (s *detailsV2Suite) TestInfoFromStoreSnapSimpleAndLegacy(c *C) {
 		Architectures: []string{"amd64"},
 		SideInfo: snap.SideInfo{
 			RealName:            "core",
-			SnapID:              "99T7MUlRhtI3U0QFgl5mXXESAiSwt776",
+			SnapID:              constants.GetProdId("Core"),
 			Revision:            snap.R(3887),
 			LegacyEditedContact: "mailto:snappy-canonical-storeaccount@canonical.com",
 			EditedTitle:         "core",
@@ -175,8 +179,8 @@ func (s *detailsV2Suite) TestInfoFromStoreSnapSimpleAndLegacy(c *C) {
 		Version:     "16-2.30",
 		Confinement: snap.StrictConfinement,
 		Publisher: snap.StoreAccount{
-			ID:          "canonical",
-			Username:    "canonical",
+			ID:          constants.GetAccountId(),
+			Username:    constants.GetAccountId(),
 			DisplayName: "Canonical",
 			Validation:  "verified",
 		},
@@ -263,7 +267,11 @@ func (s *detailsV2Suite) TestInfoFromStoreSnap(c *C) {
 			{Type: "screenshot", URL: "https://dashboard.snapcraft.io/site_media/appmedia/2018/01/Thingy_01.png"},
 			{Type: "screenshot", URL: "https://dashboard.snapcraft.io/site_media/appmedia/2018/01/Thingy_02.png", Width: 600, Height: 200},
 		},
-		CommonIDs:      []string{"org.thingy"},
+		CommonIDs: []string{"org.thingy"},
+		Categories: []snap.CategoryInfo{
+			{Featured: true, Name: "featured"},
+			{Featured: false, Name: "productivity"},
+		},
 		StoreURL:       "https://snapcraft.io/thingy",
 		SnapProvenance: "prov",
 	})
@@ -397,6 +405,11 @@ func fillStruct(a interface{}, c *C) {
 			x = []storeSnapMedia{{
 				Type: "potato",
 				URL:  "http://example.com/foo.pot",
+			}}
+		case []storeSnapCategory:
+			x = []storeSnapCategory{{
+				Featured: false,
+				Name:     "foo",
 			}}
 		case map[string][]string:
 			x = map[string][]string{

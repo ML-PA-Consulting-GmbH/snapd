@@ -829,6 +829,7 @@ var (
 		"unity8-calendar":           {"app"},
 		"unity8-contacts":           {"app"},
 		"upower-observe":            {"app", "core"},
+		"userns":                    {"core"},
 		"wayland":                   {"app", "core"},
 		"x11":                       {"app", "core"},
 		// snowflakes
@@ -929,40 +930,62 @@ slots:
 `)
 	ic.SnapDeclaration = s.mockSnapDecl(c, "snapd", constants.GetProdId("Snapd"), "canonical", "")
 	c.Assert(ic.Check(), IsNil)
+
+	ic = s.installSlotCand(c, "udisks2", snap.TypeApp, `name: udisks2
+version: 0
+type: app
+slots:
+  udisks2:
+`)
+	err = ic.Check()
+	c.Assert(err, IsNil)
+
+	ic = s.installSlotCand(c, "udisks2", snap.TypeApp, `name: udisks2
+version: 0
+type: app
+slots:
+  udisks2:
+    udev-file: some/file
+`)
+	err = ic.Check()
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "installation not allowed by \"udisks2\" slot rule of interface \"udisks2\"")
 }
 
 func (s *baseDeclSuite) TestPlugInstallation(c *C) {
 	all := builtin.Interfaces()
 
 	restricted := map[string]bool{
-		"block-devices":         true,
-		"classic-support":       true,
-		"desktop-launch":        true,
-		"dm-crypt":              true,
-		"docker-support":        true,
-		"greengrass-support":    true,
-		"gpio-control":          true,
-		"ion-memory-control":    true,
-		"kernel-module-control": true,
-		"kernel-module-load":    true,
-		"kubernetes-support":    true,
-		"lxd-support":           true,
-		"microstack-support":    true,
-		"mount-control":         true,
-		"multipass-support":     true,
-		"packagekit-control":    true,
-		"personal-files":        true,
-		"polkit":                true,
-		"sd-control":            true,
-		"snap-refresh-control":  true,
-		"snap-themes-control":   true,
-		"snapd-control":         true,
-		"steam-support":         true,
-		"system-files":          true,
-		"tee":                   true,
-		"uinput":                true,
-		"unity8":                true,
-		"xilinx-dma":            true,
+		"block-devices":          true,
+		"classic-support":        true,
+		"desktop-launch":         true,
+		"dm-crypt":               true,
+		"docker-support":         true,
+		"greengrass-support":     true,
+		"gpio-control":           true,
+		"ion-memory-control":     true,
+		"kernel-module-control":  true,
+		"kernel-module-load":     true,
+		"kubernetes-support":     true,
+		"lxd-support":            true,
+		"microstack-support":     true,
+		"mount-control":          true,
+		"multipass-support":      true,
+		"nvidia-drivers-support": true,
+		"packagekit-control":     true,
+		"personal-files":         true,
+		"polkit":                 true,
+		"sd-control":             true,
+		"snap-refresh-control":   true,
+		"snap-themes-control":    true,
+		"snapd-control":          true,
+		"steam-support":          true,
+		"system-files":           true,
+		"tee":                    true,
+		"uinput":                 true,
+		"unity8":                 true,
+		"userns":                 true,
+		"xilinx-dma":             true,
 	}
 
 	for _, iface := range all {
@@ -1110,7 +1133,6 @@ func (s *baseDeclSuite) TestConnectionImplicitOnClassicOrAppSnap(c *C) {
 		"network-manager": true,
 		"ofono":           true,
 		"pulseaudio":      true,
-		"upower-observe":  true,
 	}
 
 	for _, iface := range all {
@@ -1183,42 +1205,44 @@ func (s *baseDeclSuite) TestValidity(c *C) {
 	// given how the rules work this can be delicate,
 	// listed here to make sure that was a conscious decision
 	bothSides := map[string]bool{
-		"block-devices":         true,
-		"audio-playback":        true,
-		"classic-support":       true,
-		"core-support":          true,
-		"custom-device":         true,
-		"desktop-launch":        true,
-		"dm-crypt":              true,
-		"docker-support":        true,
-		"greengrass-support":    true,
-		"gpio-control":          true,
-		"ion-memory-control":    true,
-		"kernel-module-control": true,
-		"kernel-module-load":    true,
-		"kubernetes-support":    true,
-		"lxd-support":           true,
-		"microstack-support":    true,
-		"mount-control":         true,
-		"multipass-support":     true,
-		"packagekit-control":    true,
-		"personal-files":        true,
-		"pkcs11":                true,
-		"posix-mq":              true,
-		"polkit":                true,
-		"sd-control":            true,
-		"shared-memory":         true,
-		"snap-refresh-control":  true,
-		"snap-themes-control":   true,
-		"snapd-control":         true,
-		"steam-support":         true,
-		"system-files":          true,
-		"tee":                   true,
-		"udisks2":               true,
-		"uinput":                true,
-		"unity8":                true,
-		"wayland":               true,
-		"xilinx-dma":            true,
+		"block-devices":          true,
+		"audio-playback":         true,
+		"classic-support":        true,
+		"core-support":           true,
+		"custom-device":          true,
+		"desktop-launch":         true,
+		"dm-crypt":               true,
+		"docker-support":         true,
+		"greengrass-support":     true,
+		"gpio-control":           true,
+		"ion-memory-control":     true,
+		"kernel-module-control":  true,
+		"kernel-module-load":     true,
+		"kubernetes-support":     true,
+		"lxd-support":            true,
+		"microstack-support":     true,
+		"mount-control":          true,
+		"multipass-support":      true,
+		"nvidia-drivers-support": true,
+		"packagekit-control":     true,
+		"personal-files":         true,
+		"pkcs11":                 true,
+		"posix-mq":               true,
+		"polkit":                 true,
+		"sd-control":             true,
+		"shared-memory":          true,
+		"snap-refresh-control":   true,
+		"snap-themes-control":    true,
+		"snapd-control":          true,
+		"steam-support":          true,
+		"system-files":           true,
+		"tee":                    true,
+		"udisks2":                true,
+		"uinput":                 true,
+		"unity8":                 true,
+		"userns":                 true,
+		"wayland":                true,
+		"xilinx-dma":             true,
 	}
 
 	for _, iface := range all {
