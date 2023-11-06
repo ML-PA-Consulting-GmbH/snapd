@@ -10,7 +10,9 @@ import (
 	"sync"
 )
 
-type constants struct {
+const dynamicLoading = "dynamic"
+
+type constantsDynamic struct {
 	BaseUrlSnapcraftDashboard        string `yaml:"BaseUrlSnapcraftDashboard"`
 	BaseUrlSnapcraftDashboardStaging string `yaml:"BaseUrlSnapcraftDashboardStaging"`
 	BaseUrlSnapcraftApi              string `yaml:"BaseUrlSnapcraftApi"`
@@ -65,16 +67,124 @@ type constants struct {
 }
 
 var initOnce sync.Once
-var values constants
+var values constantsDynamic
 
 func doInit() {
 	signedYaml := loadYaml()
-	plainYaml := verifySignature(signedYaml)
-	values = parseYaml(plainYaml)
+	if signedYaml == nil {
+		fmt.Printf("Failed to locate constants.yaml - trying to run with compile time constants\n")
+		values = constantsDynamic{}
+	} else {
+		plainYaml := verifySignature(signedYaml)
+		values = parseYaml(plainYaml)
+	}
+	if BaseUrlSnapcraftDashboard != dynamicLoading {
+		values.BaseUrlSnapcraftDashboard = BaseUrlSnapcraftDashboard
+	}
+	if BaseUrlSnapcraftDashboardStaging != dynamicLoading {
+		values.BaseUrlSnapcraftDashboardStaging = BaseUrlSnapcraftDashboardStaging
+	}
+	if BaseUrlSnapcraftApi != dynamicLoading {
+		values.BaseUrlSnapcraftApi = BaseUrlSnapcraftApi
+	}
+	if BaseUrlSnapcraftStagingApi != dynamicLoading {
+		values.BaseUrlSnapcraftStagingApi = BaseUrlSnapcraftStagingApi
+	}
+	if BaseUrlSnapcraftApiV2 != dynamicLoading {
+		values.BaseUrlSnapcraftApiV2 = BaseUrlSnapcraftApiV2
+	}
+	if BaseUrlSnapcraftStagingApiV2 != dynamicLoading {
+		values.BaseUrlSnapcraftStagingApiV2 = BaseUrlSnapcraftStagingApiV2
+	}
+	if AuthLocation != dynamicLoading {
+		values.AuthLocation = AuthLocation
+	}
+	if AuthLocationStaging != dynamicLoading {
+		values.AuthLocationStaging = AuthLocationStaging
+	}
+	if AccountId != dynamicLoading {
+		values.AccountId = AccountId
+	}
+	if HasGenericAccount != dynamicLoading {
+		values.HasGenericAccount = HasGenericAccount == "true"
+	}
+	if ProdIdSnapd != dynamicLoading {
+		values.ProdIdSnapd = ProdIdSnapd
+	}
+	if ProdIdCore != dynamicLoading {
+		values.ProdIdCore = ProdIdCore
+	}
+	if ProdIdCore18 != dynamicLoading {
+		values.ProdIdCore18 = ProdIdCore18
+	}
+	if ProdIdCore20 != dynamicLoading {
+		values.ProdIdCore20 = ProdIdCore20
+	}
+	if ProdIdCore22 != dynamicLoading {
+		values.ProdIdCore22 = ProdIdCore22
+	}
+	if StagingIdSnapd != dynamicLoading {
+		values.StagingIdSnapd = StagingIdSnapd
+	}
+	if StagingIdCore != dynamicLoading {
+		values.StagingIdCore = StagingIdCore
+	}
+	if StagingIdCore18 != dynamicLoading {
+		values.StagingIdCore18 = StagingIdCore18
+	}
+	if StagingIdCore20 != dynamicLoading {
+		values.StagingIdCore20 = StagingIdCore20
+	}
+	if StagingIdCore22 != dynamicLoading {
+		values.StagingIdCore22 = StagingIdCore22
+	}
+	if EncodedRepairRootAccountKey != dynamicLoading {
+		values.EncodedRepairRootAccountKey = EncodedRepairRootAccountKey
+	}
+	if EncodedStagingRepairRootAccountKey != dynamicLoading {
+		values.EncodedStagingRepairRootAccountKey = EncodedStagingRepairRootAccountKey
+	}
+	if EncodedCanonicalAccount != dynamicLoading {
+		values.EncodedCanonicalAccount = EncodedCanonicalAccount
+	}
+	if EncodedCanonicalRootAccountKey != dynamicLoading {
+		values.EncodedCanonicalRootAccountKey = EncodedCanonicalRootAccountKey
+	}
+	if EncodedGenericAccount != dynamicLoading {
+		values.EncodedGenericAccount = EncodedGenericAccount
+	}
+	if EncodedGenericModelsAccountKey != dynamicLoading {
+		values.EncodedGenericModelsAccountKey = EncodedGenericModelsAccountKey
+	}
+	if EncodedGenericClassicModel != dynamicLoading {
+		values.EncodedGenericClassicModel = EncodedGenericClassicModel
+	}
+	if EncodedStagingTrustedAccount != dynamicLoading {
+		values.EncodedStagingTrustedAccount = EncodedStagingTrustedAccount
+	}
+	if EncodedStagingRootAccountKey != dynamicLoading {
+		values.EncodedStagingRootAccountKey = EncodedStagingRootAccountKey
+	}
+	if EncodedStagingGenericAccount != dynamicLoading {
+		values.EncodedStagingGenericAccount = EncodedStagingGenericAccount
+	}
+	if EncodedStagingGenericModelsAccountKey != dynamicLoading {
+		values.EncodedStagingGenericModelsAccountKey = EncodedStagingGenericModelsAccountKey
+	}
+	if EncodedStagingGenericClassicModel != dynamicLoading {
+		values.EncodedStagingGenericClassicModel = EncodedStagingGenericClassicModel
+	}
+	if EncodedRepairRootAccountKeyPublicKeySha3 != dynamicLoading {
+		values.EncodedRepairRootAccountKeyPublicKeySha3 = EncodedRepairRootAccountKeyPublicKeySha3
+	}
+	if EncodedCanonicalAccountSignKeySha3 != dynamicLoading {
+		values.EncodedCanonicalAccountSignKeySha3 = EncodedCanonicalAccountSignKeySha3
+	}
+
 	validateValues(&values)
 }
 
-func validateValues(values *constants) {
+func validateValues(values *constantsDynamic) {
 	if values.BaseUrlSnapcraftDashboard == "" {
 		panic("BaseUrlSnapcraftDashboard is empty")
 	}
@@ -189,11 +299,12 @@ func loadYaml() []byte {
 			return signedYaml
 		}
 	}
-	panic(fmt.Sprintf("Failed to locate constants.yaml"))
+	//panic(fmt.Sprintf("Failed to locate constants.yaml"))
+	return nil
 }
 
-func parseYaml(plainYaml []byte) constants {
-	res := constants{}
+func parseYaml(plainYaml []byte) constantsDynamic {
+	res := constantsDynamic{}
 	if err := yaml.Unmarshal(plainYaml, &res); err != nil {
 		panic(fmt.Sprintf("Failed to unmarshal constants.yaml: %v", err.Error()))
 	}

@@ -53,12 +53,13 @@ const (
 	AuthLocationStaging              = "localhost"
 
 	AccountId         = "mlpa"
-	HasGenericAccount = false
-	ProdIdSnapd       = "7e27ae608c6f4af8b67b7daaf253315f"
-	ProdIdCore        = "7198e7ece05f4b21890bb6dc9c0b84d7"
-	ProdIdCore18      = "9abe90244cde44c495f86a92ff6ced91"
-	ProdIdCore20      = "9a07654bbf514ec7b38136c7c659fb6d"
-	ProdIdCore22      = "3ca6dede5e2f489c9eea42becf138448"
+	HasGenericAccount = "false"
+
+	ProdIdSnapd  = "7e27ae608c6f4af8b67b7daaf253315f"
+	ProdIdCore   = "7198e7ece05f4b21890bb6dc9c0b84d7"
+	ProdIdCore18 = "9abe90244cde44c495f86a92ff6ced91"
+	ProdIdCore20 = "9a07654bbf514ec7b38136c7c659fb6d"
+	ProdIdCore22 = "3ca6dede5e2f489c9eea42becf138448"
 
 	StagingIdSnapd  = "7e27ae608c6f4af8b67b7daaf253315f"
 	StagingIdCore   = "7198e7ece05f4b21890bb6dc9c0b84d7"
