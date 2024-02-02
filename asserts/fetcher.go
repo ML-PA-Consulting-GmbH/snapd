@@ -63,6 +63,10 @@ func NewFetcher(trustedDB RODatabase, retrieve func(*Ref) (Assertion, error), sa
 func (f *fetcher) chase(ref *Ref, a Assertion) error {
 	// check if ref points to predefined assertion, in which case
 	// there is nothing to do
+	const prefix = "asserts/fetcher.go:(fetcher)chase: "
+	if ref.Type != nil && ref.PrimaryKey != nil && len(ref.PrimaryKey) >= 1 {
+		fmt.Printf("%s assertion-type='%s', key='%s'\n", prefix, ref.Type.Name, ref.PrimaryKey[0])
+	}
 	_, err := ref.Resolve(f.db.FindPredefined)
 	if err == nil {
 		return nil
@@ -71,12 +75,16 @@ func (f *fetcher) chase(ref *Ref, a Assertion) error {
 		return err
 	}
 	u := ref.Unique()
+	fmt.Printf("%s '%s': ", prefix, u)
 	switch f.fetched[u] {
 	case fetchSaved:
+		fmt.Printf("already saved\n")
 		return nil // nothing to do
 	case fetchRetrieved:
+		fmt.Printf("already retrieved\n")
 		return fmt.Errorf("circular assertions are not expected: %s", ref)
 	}
+	fmt.Printf("fetching\n")
 	if a == nil {
 		retrieved, err := f.retrieve(ref)
 		if err != nil {
