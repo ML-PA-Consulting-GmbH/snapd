@@ -1620,7 +1620,7 @@ func resolveUpdate(oldVol *PartiallyLaidOutVolume, newVol *LaidOutVolume, policy
 		if update, filter := policy(&oldStruct, &newStruct); update {
 			// Ensure content is resolved and filtered. Filtering
 			// is required for e.g. KernelUpdatePolicy, see above.
-			resolvedContent, err := resolveVolumeContent(newGadgetRootDir, newKernelRootDir, kernelInfo, &newStruct, filter)
+			resolvedContent, err := resolveVolumeContent(newGadgetRootDir, newKernelRootDir, kernelInfo, newStruct.VolumeStructure, filter)
 			if err != nil {
 				return nil, err
 			}
