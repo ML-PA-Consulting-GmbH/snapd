@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/snapcore/snapd/constants"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
