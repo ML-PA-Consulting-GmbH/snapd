@@ -201,6 +201,7 @@ func (s *apiBaseSuite) SetUpTest(c *check.C) {
 	s.SysctlBufs = nil
 
 	dirs.SetRootDir(c.MkDir())
+	s.AddCleanup(func() { dirs.SetRootDir("") })
 	err := os.MkdirAll(filepath.Dir(dirs.SnapStateFile), 0755)
 	restore := osutil.MockMountInfo("")
 	s.AddCleanup(restore)
@@ -216,6 +217,7 @@ func (s *apiBaseSuite) SetUpTest(c *check.C) {
 	s.vars = nil
 	s.user = nil
 	s.d = nil
+	s.ctx = nil
 	s.currentSnaps = nil
 	s.actions = nil
 	s.authUser = nil
@@ -233,14 +235,6 @@ func (s *apiBaseSuite) SetUpTest(c *check.C) {
 
 	s.Brands = assertstest.NewSigningAccounts(s.StoreSigning)
 	s.Brands.Register("my-brand", brandPrivKey, nil)
-}
-
-func (s *apiBaseSuite) TearDownTest(c *check.C) {
-	s.d = nil
-	s.ctx = nil
-
-	dirs.SetRootDir("")
-	s.BaseTest.TearDownTest(c)
 }
 
 func (s *apiBaseSuite) mockModel(st *state.State, model *asserts.Model) {
@@ -275,14 +269,14 @@ func (s *apiBaseSuite) daemonWithStore(c *check.C, sto snapstate.StoreService) *
 	// mark as already seeded
 	st.Lock()
 	st.Set("seeded", true)
+	// and registered
+	s.mockModel(st, nil)
 	st.Unlock()
 	c.Assert(d.Overlord().StartUp(), check.IsNil)
 
 	st.Lock()
 	defer st.Unlock()
 	snapstate.ReplaceStore(st, sto)
-	// registered
-	s.mockModel(st, nil)
 
 	// don't actually try to talk to the store on snapstate.Ensure
 	// needs doing after the call to devicestate.Manager (which
@@ -346,7 +340,7 @@ func (s *apiBaseSuite) asUserAuth(c *check.C, req *http.Request) {
 	if s.authUser == nil {
 		st := s.d.Overlord().State()
 		st.Lock()
-		u, err := auth.NewUser(st, auth.NewUserData{
+		u, err := auth.NewUser(st, auth.NewUserParams{
 			Username:   "username",
 			Email:      "email@test.com",
 			Macaroon:   "macaroon",
@@ -400,7 +394,7 @@ func (s *apiBaseSuite) mkInstalledDesktopFile(c *check.C, name, content string) 
 	df := filepath.Join(dirs.SnapDesktopFilesDir, name)
 	err := os.MkdirAll(filepath.Dir(df), 0755)
 	c.Assert(err, check.IsNil)
-	err = ioutil.WriteFile(df, []byte(content), 0644)
+	err = os.WriteFile(df, []byte(content), 0644)
 	c.Assert(err, check.IsNil)
 	return df
 }
@@ -475,7 +469,7 @@ version: %s
 	metadir := filepath.Join(snapInfo.MountDir(), "meta")
 	guidir := filepath.Join(metadir, "gui")
 	c.Assert(os.MkdirAll(guidir, 0755), check.IsNil)
-	c.Check(ioutil.WriteFile(filepath.Join(guidir, "icon.svg"), []byte("yadda icon"), 0644), check.IsNil)
+	c.Check(os.WriteFile(filepath.Join(guidir, "icon.svg"), []byte("yadda icon"), 0644), check.IsNil)
 
 	if d == nil {
 		return snapInfo

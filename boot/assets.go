@@ -274,8 +274,8 @@ type TrustedAssetsInstallObserver struct {
 // measured as part of the secure boot or the bootloader configuration.
 //
 // Implements gadget.ContentObserver.
-func (o *TrustedAssetsInstallObserver) Observe(op gadget.ContentOperation, affectedStruct *gadget.LaidOutStructure, root, relativeTarget string, data *gadget.ContentChange) (gadget.ContentChangeAction, error) {
-	if affectedStruct.Role != gadget.SystemBoot {
+func (o *TrustedAssetsInstallObserver) Observe(op gadget.ContentOperation, partRole, root, relativeTarget string, data *gadget.ContentChange) (gadget.ContentChangeAction, error) {
+	if partRole != gadget.SystemBoot {
 		// only care about system-boot
 		return gadget.ChangeApply, nil
 	}
@@ -430,7 +430,21 @@ type TrustedAssetsUpdateObserver struct {
 	seedManagedAssets []string
 	seedChangedAssets []*trackedAsset
 
-	modeenv *Modeenv
+	modeenv       *Modeenv
+	modeenvLocked bool
+}
+
+// Done must be called when done with the observer if any of the
+// gadget.ContenUpdateObserver methods might have been called.
+func (o *TrustedAssetsUpdateObserver) Done() {
+	if o.modeenvLocked {
+		o.modeenvUnlock()
+	}
+}
+
+func (o *TrustedAssetsUpdateObserver) modeenvUnlock() {
+	modeenvUnlock()
+	o.modeenvLocked = false
 }
 
 func trustedAndManagedAssetsOfBootloader(bl bootloader.Bootloader) (trustedAssets, managedAssets []string, err error) {
@@ -469,19 +483,20 @@ func gadgetMaybeTrustedBootloaderAndAssets(gadgetDir, rootDir string, opts *boot
 // bootloader binaries, or preserves managed assets such as boot configuration.
 //
 // Implements gadget.ContentUpdateObserver.
-func (o *TrustedAssetsUpdateObserver) Observe(op gadget.ContentOperation, affectedStruct *gadget.LaidOutStructure, root, relativeTarget string, data *gadget.ContentChange) (gadget.ContentChangeAction, error) {
+func (o *TrustedAssetsUpdateObserver) Observe(op gadget.ContentOperation, partRole, root, relativeTarget string, data *gadget.ContentChange) (gadget.ContentChangeAction, error) {
 	var whichBootloader bootloader.Bootloader
 	var whichTrustedAssets []string
 	var whichManagedAssets []string
 	var err error
 	var isRecovery bool
 
-	switch affectedStruct.Role {
+	logger.Debugf("observing role %q (root %q, target %q", partRole, root, relativeTarget)
+	switch partRole {
 	case gadget.SystemBoot:
 		whichBootloader = o.bootBootloader
 		whichTrustedAssets = o.bootTrustedAssets
 		whichManagedAssets = o.bootManagedAssets
-	case gadget.SystemSeed:
+	case gadget.SystemSeed, gadget.SystemSeedNull:
 		whichBootloader = o.seedBootloader
 		whichTrustedAssets = o.seedTrustedAssets
 		whichManagedAssets = o.seedManagedAssets
@@ -512,8 +527,12 @@ func (o *TrustedAssetsUpdateObserver) Observe(op gadget.ContentOperation, affect
 	}
 	if o.modeenv == nil {
 		// we've hit a trusted asset, so a modeenv is needed now too
+		modeenvLock()
+		o.modeenvLocked = true
 		o.modeenv, err = ReadModeenv("")
 		if err != nil {
+			// for test convenience
+			o.modeenvUnlock()
 			return gadget.ChangeAbort, fmt.Errorf("cannot load modeenv: %v", err)
 		}
 	}
@@ -673,7 +692,7 @@ func (o *TrustedAssetsUpdateObserver) BeforeWrite() error {
 		return nil
 	}
 	const expectReseal = true
-	if err := resealKeyToModeenv(dirs.GlobalRootDir, o.modeenv, expectReseal); err != nil {
+	if err := resealKeyToModeenv(dirs.GlobalRootDir, o.modeenv, expectReseal, nil); err != nil {
 		return err
 	}
 	return nil
@@ -739,7 +758,7 @@ func (o *TrustedAssetsUpdateObserver) Canceled() error {
 	}
 
 	const expectReseal = true
-	if err := resealKeyToModeenv(dirs.GlobalRootDir, o.modeenv, expectReseal); err != nil {
+	if err := resealKeyToModeenv(dirs.GlobalRootDir, o.modeenv, expectReseal, nil); err != nil {
 		return fmt.Errorf("while canceling gadget update: %v", err)
 	}
 	return nil

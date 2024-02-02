@@ -1,4 +1,5 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
+//go:build !nomanagers
 
 /*
  * Copyright (C) 2021 Canonical Ltd
@@ -21,8 +22,6 @@ package configcore
 
 import (
 	"strings"
-
-	"github.com/snapcore/snapd/overlord/configstate/config"
 )
 
 func init() {
@@ -37,11 +36,11 @@ func earlyUsersSettingsFilter(values, early map[string]interface{}) {
 	}
 }
 
-func validateUsersSettings(tr config.Conf) error {
+func validateUsersSettings(tr RunTransaction) error {
 	return validateBoolFlag(tr, "users.create.automatic")
 }
 
-func handleUserSettings(tr config.Conf, opts *fsOnlyContext) error {
+func handleUserSettings(tr RunTransaction, opts *fsOnlyContext) error {
 	output, err := coreCfg(tr, "users.create.automatic")
 	if err != nil {
 		return nil

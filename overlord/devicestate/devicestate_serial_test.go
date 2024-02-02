@@ -20,15 +20,17 @@
 package devicestate_test
 
 import (
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"github.com/snapcore/snapd/constants"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"syscall"
 	"time"
 
@@ -111,7 +113,13 @@ func (s *deviceMgrSerialSuite) mockServer(c *C, reqID string, bhv *devicestatete
 	bhv.SignSerial = s.signSerial
 	bhv.ExpectedCapabilities = "serial-stream"
 
-	return devicestatetest.MockDeviceService(c, bhv)
+	mockServer, extraCerts := devicestatetest.MockDeviceService(c, bhv)
+	fname := filepath.Join(dirs.SnapdStoreSSLCertsDir, "test-server-certs.pem")
+	err := os.MkdirAll(filepath.Dir(fname), 0755)
+	c.Assert(err, IsNil)
+	err = os.WriteFile(fname, extraCerts, 0644)
+	c.Assert(err, IsNil)
+	return mockServer
 }
 
 func (s *deviceMgrSerialSuite) findBecomeOperationalChange(skipIDs ...string) *state.Change {
@@ -678,7 +686,7 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialIdempotentAfterGotSerial(c *C)
 		"model":    "pc",
 		"serial":   "9999",
 	})
-	c.Assert(asserts.IsNotFound(err), Equals, true)
+	c.Assert(errors.Is(err, &asserts.NotFoundError{}), Equals, true)
 
 	s.state.Unlock()
 	s.se.Ensure()
@@ -847,30 +855,55 @@ func (s *deviceMgrSerialSuite) TestDoRequestSerialNoReachableDNS(c *C) {
 }
 
 func (s *deviceMgrSerialSuite) testDoRequestSerialKeepsRetrying(c *C, rt http.RoundTripper) {
+	chg, t := s.makeRequestChangeWithTransport(c, rt)
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	// ensure we keep trying even if we are well above maxTentative
+	for i := 0; i < 10; i++ {
+		s.state.Unlock()
+		s.se.Ensure()
+		s.se.Wait()
+		s.state.Lock()
+
+		c.Check(chg.Status(), Equals, state.DoingStatus)
+		c.Assert(chg.Err(), IsNil)
+	}
+
+	c.Check(chg.Status(), Equals, state.DoingStatus)
+
+	var nTentatives int
+	err := t.Get("pre-poll-tentatives", &nTentatives)
+	c.Assert(err, IsNil)
+	c.Check(nTentatives, Equals, 0)
+}
+
+func (s *deviceMgrSerialSuite) makeRequestChangeWithTransport(c *C, rt http.RoundTripper) (*state.Change, *state.Task) {
 	privKey, _ := assertstest.GenerateKey(testKeyLength)
 
 	// immediate
 	r := devicestate.MockRetryInterval(0)
-	defer r()
+	s.AddCleanup(r)
 
 	// set a low maxRetry value
 	r = devicestate.MockMaxTentatives(3)
-	defer r()
+	s.AddCleanup(r)
 
 	mockServer := s.mockServer(c, "REQID-1", nil)
-	defer mockServer.Close()
+	s.AddCleanup(mockServer.Close)
 
 	restore := devicestate.MockBaseStoreURL(mockServer.URL)
-	defer restore()
+	s.AddCleanup(restore)
 
 	restore = devicestate.MockRepeatRequestSerial("after-add-serial")
-	defer restore()
+	s.AddCleanup(restore)
 
 	restore = devicestate.MockHttputilNewHTTPClient(func(opts *httputil.ClientOptions) *http.Client {
 		c.Check(opts.ProxyConnectHeader, NotNil)
 		return &http.Client{Transport: rt}
 	})
-	defer restore()
+	s.AddCleanup(restore)
 
 	// setup state as done by first-boot/Ensure/doGenerateDeviceKey
 	s.state.Lock()
@@ -898,23 +931,44 @@ func (s *deviceMgrSerialSuite) testDoRequestSerialKeepsRetrying(c *C, rt http.Ro
 	// avoid full seeding
 	s.seeding()
 
-	// ensure we keep trying even if we are well above maxTentative
-	for i := 0; i < 10; i++ {
+	return chg, t
+}
+
+type simulateCertExpiredErrorRoundTripper struct{}
+
+func (s *simulateCertExpiredErrorRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	return nil, x509.CertificateInvalidError{
+		Reason: x509.Expired,
+	}
+}
+
+func (s *deviceMgrSerialSuite) TestDoRequestSerialCertExpired(c *C) {
+	chg, t := s.makeRequestChangeWithTransport(c, &simulateCertExpiredErrorRoundTripper{})
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	// keep trying well beyond the 21 retry attempts we do
+	for i := 0; i < 100; i++ {
 		s.state.Unlock()
 		s.se.Ensure()
 		s.se.Wait()
 		s.state.Lock()
 
-		c.Check(chg.Status(), Equals, state.DoingStatus)
-		c.Check(chg.Err(), IsNil)
+		if chg.Status() == state.ErrorStatus {
+			break
+		}
 	}
 
-	c.Check(chg.Status(), Equals, state.DoingStatus)
+	c.Check(chg.Status(), Equals, state.ErrorStatus)
+	c.Assert(chg.Err(), ErrorMatches, `(?ms).*cannot retrieve request-id for making a request for a serial: Post \"?https://.*/request-id\"?: x509: certificate has expired or is not yet valid.*`)
 
 	var nTentatives int
 	err := t.Get("pre-poll-tentatives", &nTentatives)
 	c.Assert(err, IsNil)
-	c.Check(nTentatives, Equals, 0)
+	// this is one above maxTentativesCertExpired (35)
+	c.Check(nTentatives, Equals, 21)
+
 }
 
 func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationPollHappy(c *C) {
@@ -1094,35 +1148,45 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyPrepareDeviceHook(
 }
 
 func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyWithHookAndNewProxy(c *C) {
-	s.testFullDeviceRegistrationHappyWithHookAndProxy(c, true)
+	s.testFullDeviceRegistrationHappyWithHookAndProxy(c, "new-enough")
 }
 
 func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyWithHookAndOldProxy(c *C) {
-	s.testFullDeviceRegistrationHappyWithHookAndProxy(c, false)
+	s.testFullDeviceRegistrationHappyWithHookAndProxy(c, "old-proxy")
 }
 
-func (s *deviceMgrSerialSuite) testFullDeviceRegistrationHappyWithHookAndProxy(c *C, newEnough bool) {
+func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyWithHookAndBrokenProxy(c *C) {
+	s.testFullDeviceRegistrationHappyWithHookAndProxy(c, "error-from-proxy")
+}
+
+func (s *deviceMgrSerialSuite) testFullDeviceRegistrationHappyWithHookAndProxy(c *C, proxyBehavior string) {
 	r1 := devicestate.MockKeyLength(testKeyLength)
 	defer r1()
 
 	var reqID string
 	var storeVersion string
 	head := func(c *C, bhv *devicestatetest.DeviceServiceBehavior, w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Snap-Store-Version", storeVersion)
+		switch proxyBehavior {
+		case "error-from-proxy":
+			w.WriteHeader(500)
+		default:
+			w.Header().Set("Snap-Store-Version", storeVersion)
+		}
 	}
 	bhv := &devicestatetest.DeviceServiceBehavior{
 		Head: head,
 	}
 	svcPath := "/svc/"
-	if newEnough {
+	switch proxyBehavior {
+	case "new-enough":
 		reqID = "REQID-42"
 		storeVersion = "6"
 		bhv.PostPreflight = func(c *C, bhv *devicestatetest.DeviceServiceBehavior, w http.ResponseWriter, r *http.Request) {
-			c.Check(r.Header.Get("X-Snap-Device-Service-URL"), Matches, "http://[^/]*/bad/svc/")
+			c.Check(r.Header.Get("X-Snap-Device-Service-URL"), Matches, "https://[^/]*/bad/svc/")
 			c.Check(r.Header.Get("X-Extra-Header"), Equals, "extra")
 		}
 		svcPath = "/bad/svc/"
-	} else {
+	case "old-proxy", "error-from-proxy":
 		reqID = "REQID-41"
 		storeVersion = "5"
 		bhv.RequestIDURLPath = "/svc/request-id"
@@ -1130,6 +1194,8 @@ func (s *deviceMgrSerialSuite) testFullDeviceRegistrationHappyWithHookAndProxy(c
 		bhv.PostPreflight = func(c *C, bhv *devicestatetest.DeviceServiceBehavior, w http.ResponseWriter, r *http.Request) {
 			c.Check(r.Header.Get("X-Extra-Header"), Equals, "extra")
 		}
+	default:
+		c.Fatalf("unknown proxy behavior %v", proxyBehavior)
 	}
 
 	mockServer := s.mockServer(c, reqID, bhv)
@@ -1591,6 +1657,27 @@ func (s *deviceMgrSerialSuite) TestStoreContextBackendProxyStore(c *C) {
 	c.Assert(sto.URL().String(), Equals, mockServer.URL)
 }
 
+func (s *deviceMgrSerialSuite) TestStoreContextBackendStoreAccess(c *C) {
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	scb := s.mgr.StoreContextBackend()
+
+	// nothing in the state
+	_, err := scb.StoreOffline()
+	c.Check(err, testutil.ErrorIs, state.ErrNoState)
+
+	// set the store access to offline
+	tr := config.NewTransaction(s.state)
+	err = tr.Set("core", "store.access", "offline")
+	tr.Commit()
+	c.Assert(err, IsNil)
+
+	offline, err := scb.StoreOffline()
+	c.Check(err, IsNil)
+	c.Check(offline, Equals, true)
+}
+
 func (s *deviceMgrSerialSuite) TestInitialRegistrationContext(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
@@ -1643,14 +1730,13 @@ func (s *deviceMgrSerialSuite) TestNewEnoughProxyParse(c *C) {
 	s.state.Lock()
 	defer s.state.Unlock()
 
-	log, restore := logger.MockLogger()
-	defer restore()
 	os.Setenv("SNAPD_DEBUG", "1")
 	defer os.Unsetenv("SNAPD_DEBUG")
 
 	badURL := &url.URL{Opaque: "%a"} // url.Parse(badURL.String()) needs to fail, which isn't easy :-)
-	c.Check(devicestate.NewEnoughProxy(s.state, badURL, http.DefaultClient), Equals, false)
-	c.Check(log.String(), Matches, "(?m).* DEBUG: Cannot check whether proxy store supports a custom serial vault: parse .*")
+	newEnoughProxy, err := devicestate.NewEnoughProxy(s.state, badURL, http.DefaultClient)
+	c.Check(err, ErrorMatches, "cannot check whether proxy store supports a custom serial vault: parse .*")
+	c.Check(newEnoughProxy, Equals, false)
 }
 
 func (s *deviceMgrSerialSuite) TestNewEnoughProxy(c *C) {
@@ -1699,18 +1785,19 @@ func (s *deviceMgrSerialSuite) TestNewEnoughProxy(c *C) {
 	u, err := url.Parse(server.URL)
 	c.Assert(err, IsNil)
 	for _, expected := range expecteds {
-		log.Reset()
-		c.Check(devicestate.NewEnoughProxy(s.state, u, http.DefaultClient), Equals, false)
-		if len(expected) > 0 {
-			expected = "(?m).* DEBUG: Cannot check whether proxy store supports a custom serial vault: " + expected
+		newEnoughProxy, err := devicestate.NewEnoughProxy(s.state, u, http.DefaultClient)
+		if expected != "" {
+			expected = "cannot check whether proxy store supports a custom serial vault: " + expected
+			c.Check(err, ErrorMatches, expected)
 		}
-		c.Check(log.String(), Matches, expected)
+		c.Check(newEnoughProxy, Equals, false)
 	}
 	c.Check(n, Equals, len(expecteds))
 
 	// and success at last
-	log.Reset()
-	c.Check(devicestate.NewEnoughProxy(s.state, u, http.DefaultClient), Equals, true)
+	newEnoughProxy, err := devicestate.NewEnoughProxy(s.state, u, http.DefaultClient)
+	c.Check(err, IsNil)
+	c.Check(newEnoughProxy, Equals, true)
 	c.Check(log.String(), Equals, "")
 	c.Check(n, Equals, len(expecteds)+1)
 }
@@ -1919,6 +2006,8 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationUC20Happy(c *C) {
 
 	r2 := devicestate.MockBaseStoreURL(mockServer.URL)
 	defer r2()
+
+	s.setUC20PCModelInState(c)
 
 	// setup state as will be done by first-boot
 	s.state.Lock()
@@ -2189,7 +2278,7 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationBlockedByNoRegister(c *
 
 	// create /run/snapd/noregister
 	c.Assert(os.MkdirAll(dirs.SnapRunDir, 0755), IsNil)
-	c.Assert(ioutil.WriteFile(filepath.Join(dirs.SnapRunDir, "noregister"), nil, 0644), IsNil)
+	c.Assert(os.WriteFile(filepath.Join(dirs.SnapRunDir, "noregister"), nil, 0644), IsNil)
 
 	// attempt to run the whole device registration process
 	s.state.Unlock()
@@ -2320,4 +2409,195 @@ func (s *deviceMgrSerialSuite) TestDeviceSerialRestoreHappy(c *C) {
 	// and something was logged
 	c.Check(log.String(), testutil.Contains,
 		fmt.Sprintf("restored serial serial-1234 for my-brand/pc-20 signed with key %v", devKey.PublicKey().ID()))
+}
+
+func (s *deviceMgrSerialSuite) TestShouldRequestSerial(c *C) {
+	type testCase struct {
+		deviceServiceAccess string
+		deviceServiceURL    string
+		storeAccess         string
+		gadgetName          string
+		expected            bool
+	}
+
+	testCases := []testCase{
+		{
+			storeAccess:         "",
+			gadgetName:          "",
+			deviceServiceAccess: "",
+			deviceServiceURL:    "",
+			expected:            true,
+		},
+		{
+			storeAccess:         "offline",
+			gadgetName:          "",
+			deviceServiceAccess: "",
+			deviceServiceURL:    "",
+			expected:            false,
+		},
+		{
+			storeAccess:         "",
+			gadgetName:          "gadget",
+			deviceServiceAccess: "offline",
+			deviceServiceURL:    "",
+			expected:            false,
+		},
+		{
+			storeAccess:         "",
+			gadgetName:          "gadget",
+			deviceServiceAccess: "",
+			deviceServiceURL:    "",
+			expected:            true,
+		},
+		{
+			storeAccess:         "offline",
+			gadgetName:          "gadget",
+			deviceServiceAccess: "",
+			deviceServiceURL:    "https://example.com",
+			expected:            true,
+		},
+		{
+			storeAccess:         "offline",
+			gadgetName:          "gadget",
+			deviceServiceAccess: "",
+			deviceServiceURL:    "",
+			expected:            false,
+		},
+		{
+			storeAccess:         "offline",
+			gadgetName:          "gadget",
+			deviceServiceAccess: "",
+			deviceServiceURL:    "https://example.com",
+			expected:            true,
+		},
+	}
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	for i, t := range testCases {
+		tr := config.NewTransaction(s.state)
+		err := tr.Set("core", "store.access", t.storeAccess)
+		c.Assert(err, IsNil)
+
+		if t.gadgetName != "" {
+			err = tr.Set(t.gadgetName, "device-service.access", t.deviceServiceAccess)
+			c.Assert(err, IsNil)
+			err = tr.Set(t.gadgetName, "device-service.url", t.deviceServiceURL)
+			c.Assert(err, IsNil)
+		}
+		tr.Commit()
+
+		shouldRequest, err := devicestate.ShouldRequestSerial(s.state, t.gadgetName)
+		c.Check(err, IsNil)
+		c.Check(shouldRequest, Equals, t.expected, Commentf("testcase %d: %+v", i, t))
+	}
+}
+
+func (s *deviceMgrSerialSuite) TestDeviceManagerFullAccess(c *C) {
+	s.state.Lock()
+	devicestatetest.SetDevice(s.state, &auth.DeviceState{
+		Brand: "canonical",
+		Model: "pc",
+	})
+
+	s.makeModelAssertionInState(c, "canonical", "pc", map[string]interface{}{
+		"architecture": "amd64",
+		"kernel":       "pc-kernel",
+		"gadget":       "pc",
+	})
+
+	devicestatetest.MockGadget(c, s.state, "pc", snap.R(2), nil)
+	s.state.Set("seeded", true)
+	s.state.Unlock()
+
+	err := s.mgr.Ensure()
+	c.Assert(err, IsNil)
+
+	s.state.Lock()
+	change := s.findBecomeOperationalChange()
+	tasks := change.Tasks()
+	s.state.Unlock()
+
+	sort.Slice(tasks, func(l, r int) bool {
+		return tasks[l].Kind() < tasks[r].Kind()
+	})
+
+	// since device-service.access is unset, then both tasks should be queued
+	c.Assert(tasks, HasLen, 2)
+	c.Check(tasks[0].Kind(), Equals, "generate-device-key")
+	c.Check(tasks[1].Kind(), Equals, "request-serial")
+}
+
+func (s *deviceMgrSerialSuite) TestDeviceManagerNoAccessHasKeyID(c *C) {
+	s.state.Lock()
+	devicestatetest.SetDevice(s.state, &auth.DeviceState{
+		Brand: "canonical",
+		Model: "pc",
+		KeyID: "key-id",
+	})
+
+	s.makeModelAssertionInState(c, "canonical", "pc", map[string]interface{}{
+		"architecture": "amd64",
+		"kernel":       "pc-kernel",
+		"gadget":       "pc",
+	})
+
+	devicestatetest.MockGadget(c, s.state, "pc", snap.R(2), nil)
+	s.state.Set("seeded", true)
+
+	tr := config.NewTransaction(s.state)
+	err := tr.Set("pc", "device-service.access", "offline")
+	c.Assert(err, IsNil)
+	tr.Commit()
+
+	s.state.Unlock()
+
+	err = s.mgr.Ensure()
+	c.Assert(err, IsNil)
+
+	s.state.Lock()
+	change := s.findBecomeOperationalChange()
+	s.state.Unlock()
+
+	// since device-service.access=offline and the device key ID not set, then
+	// no tasks should have been queued
+	c.Assert(change, IsNil)
+}
+
+func (s *deviceMgrSerialSuite) TestDeviceManagerNoAccessNoKeyID(c *C) {
+	s.state.Lock()
+	devicestatetest.SetDevice(s.state, &auth.DeviceState{
+		Brand: "canonical",
+		Model: "pc",
+	})
+
+	s.makeModelAssertionInState(c, "canonical", "pc", map[string]interface{}{
+		"architecture": "amd64",
+		"kernel":       "pc-kernel",
+		"gadget":       "pc",
+	})
+
+	devicestatetest.MockGadget(c, s.state, "pc", snap.R(2), nil)
+	s.state.Set("seeded", true)
+
+	tr := config.NewTransaction(s.state)
+	err := tr.Set("pc", "device-service.access", "offline")
+	c.Assert(err, IsNil)
+	tr.Commit()
+
+	s.state.Unlock()
+
+	err = s.mgr.Ensure()
+	c.Assert(err, IsNil)
+
+	s.state.Lock()
+	change := s.findBecomeOperationalChange()
+	tasks := change.Tasks()
+	s.state.Unlock()
+
+	// since device-service.access=offline and the device key ID is not set,
+	// then the "generate-device-key" task should be queued
+	c.Assert(tasks, HasLen, 1)
+	c.Check(tasks[0].Kind(), Equals, "generate-device-key")
 }

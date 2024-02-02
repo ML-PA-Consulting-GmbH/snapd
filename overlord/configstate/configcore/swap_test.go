@@ -21,7 +21,6 @@ package configcore_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -49,13 +48,13 @@ func (s *swapCfgSuite) SetUpTest(c *C) {
 	err := os.MkdirAll(filepath.Join(dirs.GlobalRootDir, "/etc/"), 0755)
 	c.Assert(err, IsNil)
 
-	err = ioutil.WriteFile(filepath.Join(dirs.GlobalRootDir, "/etc/environment"), nil, 0644)
+	err = os.WriteFile(filepath.Join(dirs.GlobalRootDir, "/etc/environment"), nil, 0644)
 	c.Assert(err, IsNil)
 }
 
 func (s *swapCfgSuite) TestConfigureSwapSizeOnlyWhenChanged(c *C) {
 	// set it to 1M initially
-	err := configcore.Run(coreDev, &mockConf{
+	err := configcore.FilesystemOnlyRun(coreDev, &mockConf{
 		state: s.state,
 		changes: map[string]interface{}{
 			"swap.size": "1048576",
@@ -76,7 +75,7 @@ SIZE=1
 	s.systemctlArgs = nil
 
 	// running it with the same changes as conf results in no calls to systemd
-	err = configcore.Run(coreDev, &mockConf{
+	err = configcore.FilesystemOnlyRun(coreDev, &mockConf{
 		state: s.state,
 		conf: map[string]interface{}{
 			"swap.size": "1048576",
@@ -96,7 +95,7 @@ SIZE=1
 
 func (s *swapCfgSuite) TestConfigureSwapSize(c *C) {
 	// set it to 1M initially
-	err := configcore.Run(coreDev, &mockConf{
+	err := configcore.FilesystemOnlyRun(coreDev, &mockConf{
 		state: s.state,
 		changes: map[string]interface{}{
 			"swap.size": "1048576",
@@ -117,7 +116,7 @@ SIZE=1
 	s.systemctlArgs = nil
 
 	// now change it to empty
-	err = configcore.Run(coreDev, &mockConf{
+	err = configcore.FilesystemOnlyRun(coreDev, &mockConf{
 		state: s.state,
 		conf: map[string]interface{}{
 			"swap.size": "1048576",
@@ -221,7 +220,7 @@ func (s *swapCfgSuite) TestSwapSizeFilesystemOnlyApplyExistingConfig(c *C) {
 	err := os.MkdirAll(filepath.Dir(s.configSwapFile), 0755)
 	c.Assert(err, IsNil)
 
-	err = ioutil.WriteFile(s.configSwapFile, []byte(`FILE=/var/tmp/other-swapfile.swp
+	err = os.WriteFile(s.configSwapFile, []byte(`FILE=/var/tmp/other-swapfile.swp
 SIZE=0`), 0644)
 	c.Assert(err, IsNil)
 

@@ -1,7 +1,7 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 
 /*
- * Copyright (C) 2015-2021 Canonical Ltd
+ * Copyright (C) 2015-2022 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -22,7 +22,7 @@ package devicestate_test
 import (
 	"fmt"
 	"github.com/snapcore/snapd/constants"
-	"io/ioutil"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -41,12 +41,14 @@ import (
 	"github.com/snapcore/snapd/bootloader/bootloadertest"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/gadget"
+	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/overlord"
 	"github.com/snapcore/snapd/overlord/assertstate"
 	"github.com/snapcore/snapd/overlord/auth"
 	"github.com/snapcore/snapd/overlord/configstate"
 	"github.com/snapcore/snapd/overlord/configstate/config"
+	"github.com/snapcore/snapd/overlord/configstate/configcore"
 	"github.com/snapcore/snapd/overlord/devicestate"
 	"github.com/snapcore/snapd/overlord/devicestate/devicestatetest"
 	"github.com/snapcore/snapd/overlord/hookstate"
@@ -142,6 +144,9 @@ func (t *firstBootBaseTest) startOverlord(c *C) {
 	t.overlord = ovld
 	t.AddCleanup(func() {
 		devicestate.EarlyConfig = nil
+		if t.overlord == nil {
+			return
+		}
 		t.overlord.Stop()
 		t.overlord = nil
 	})
@@ -249,18 +254,19 @@ func (s *firstBoot16Suite) TestPopulateFromSeedOnClassicNoop(c *C) {
 	restore := release.MockOnClassic(true)
 	defer restore()
 
+	err := os.Remove(filepath.Join(dirs.SnapSeedDir, "assertions"))
+	c.Assert(err, IsNil)
+
 	s.startOverlord(c)
 	st := s.overlord.State()
 	st.Lock()
 	defer st.Unlock()
 
-	err := os.Remove(filepath.Join(dirs.SnapSeedDir, "assertions"))
-	c.Assert(err, IsNil)
-
-	_, _, err = devicestate.PreloadGadget(s.overlord.DeviceManager())
+	mgr := s.overlord.DeviceManager()
+	_, _, err = devicestate.EarlyPreloadGadget(mgr)
 	c.Check(err, testutil.ErrorIs, state.ErrNoState)
 
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(mgr, s.perfTimings)
 	c.Assert(err, IsNil)
 	checkTrivialSeeding(c, tsAll)
 
@@ -299,10 +305,11 @@ func (s *firstBoot16Suite) TestPopulateFromSeedOnClassicNoSeedYaml(c *C) {
 	st.Lock()
 	defer st.Unlock()
 
-	_, _, err = devicestate.PreloadGadget(ovld.DeviceManager())
+	mgr := ovld.DeviceManager()
+	_, _, err = devicestate.EarlyPreloadGadget(mgr)
 	c.Check(err, testutil.ErrorIs, state.ErrNoState)
 
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(mgr, s.perfTimings)
 	c.Assert(err, IsNil)
 	checkTrivialSeeding(c, tsAll)
 
@@ -326,13 +333,13 @@ func (s *firstBoot16Suite) TestPopulateFromSeedOnClassicEmptySeedYaml(c *C) {
 	s.WriteAssertions("model.asserts", assertsChain...)
 
 	// create an empty seed.yaml
-	err = ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), nil, 0644)
+	err = os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), nil, 0644)
 	c.Assert(err, IsNil)
 
 	st.Lock()
 	defer st.Unlock()
 
-	_, err = devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	_, err = devicestate.PopulateStateFromSeedImpl(ovld.DeviceManager(), s.perfTimings)
 	c.Assert(err, ErrorMatches, "cannot proceed, no snaps to seed")
 	st.Unlock()
 	st.Lock()
@@ -344,12 +351,12 @@ func (s *firstBoot16Suite) TestPopulateFromSeedOnClassicNoSeedYamlWithCloudInsta
 	restore := release.MockOnClassic(true)
 	defer restore()
 
-	s.startOverlord(c)
-	st := s.overlord.State()
-
 	// add the model assertion and its chain
 	assertsChain := s.makeModelAssertionChain(c, "my-model-classic", nil)
 	s.WriteAssertions("model.asserts", assertsChain...)
+
+	s.startOverlord(c)
+	st := s.overlord.State()
 
 	// write cloud instance data
 	const instData = `{
@@ -363,13 +370,13 @@ func (s *firstBoot16Suite) TestPopulateFromSeedOnClassicNoSeedYamlWithCloudInsta
 }`
 	err := os.MkdirAll(filepath.Dir(dirs.CloudInstanceDataFile), 0755)
 	c.Assert(err, IsNil)
-	err = ioutil.WriteFile(dirs.CloudInstanceDataFile, []byte(instData), 0600)
+	err = os.WriteFile(dirs.CloudInstanceDataFile, []byte(instData), 0600)
 	c.Assert(err, IsNil)
 
 	st.Lock()
 	defer st.Unlock()
 
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, IsNil)
 	checkTrivialSeeding(c, tsAll)
 
@@ -419,7 +426,7 @@ func (s *firstBoot16Suite) TestPopulateFromSeedErrorsOnState(c *C) {
 	defer st.Unlock()
 	st.Set("seeded", true)
 
-	_, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	_, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, ErrorMatches, "cannot populate state: already seeded")
 	// note, cannot use st.Tasks() here as it filters out tasks with no change
 	c.Check(st.TaskCount(), Equals, 0)
@@ -499,7 +506,7 @@ func checkSeedTasks(c *C, tsAll []*state.TaskSet) {
 	c.Check(markSeededTask.WaitTasks(), testutil.Contains, otherTask)
 }
 
-func (s *firstBoot16BaseTest) makeSeedChange(c *C, st *state.State, opts *devicestate.PopulateStateFromSeedOptions,
+func (s *firstBoot16BaseTest) makeSeedChange(c *C, st *state.State,
 	checkTasks func(c *C, tsAll []*state.TaskSet), checkOrder func(c *C, tsAll []*state.TaskSet, snaps ...string)) (*state.Change, *asserts.Model) {
 
 	coreFname, kernelFname, gadgetFname := s.makeCoreSnaps(c, "")
@@ -549,14 +556,19 @@ snaps:
    unasserted: true
    file: %s
 `, coreFname, kernelFname, gadgetFname, fooFname, filepath.Base(targetSnapFile2)))
-	err = ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err = os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
+	if st == nil {
+		s.startOverlord(c)
+		st = s.overlord.State()
+	}
+
 	st.Lock()
 	defer st.Unlock()
 
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, opts, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, IsNil)
 
 	// now run the change and check the result
@@ -584,12 +596,11 @@ func (s *firstBoot16Suite) TestPopulateFromSeedHappy(c *C) {
 	bloader.SetBootKernel("pc-kernel_1.snap")
 	bloader.SetBootBase("core_1.snap")
 
-	s.startOverlord(c)
-	st := s.overlord.State()
-	chg, model := s.makeSeedChange(c, st, nil, checkSeedTasks, checkOrder)
+	chg, model := s.makeSeedChange(c, nil, checkSeedTasks, checkOrder)
 	err := s.overlord.Settle(settleTimeout)
 	c.Assert(err, IsNil)
 
+	st := chg.State()
 	st.Lock()
 	defer st.Unlock()
 
@@ -697,8 +708,9 @@ func (s *firstBoot16Suite) TestPopulateFromSeedMissingBootloader(c *C) {
 
 	hookMgr, err := hookstate.Manager(st, o.TaskRunner())
 	c.Assert(err, IsNil)
-	_, err = devicestate.Manager(st, hookMgr, o.TaskRunner(), nil)
+	deviceMgr, err := devicestate.Manager(st, hookMgr, o.TaskRunner(), nil)
 	c.Assert(err, IsNil)
+	o.AddManager(deviceMgr)
 
 	st.Lock()
 	assertstate.ReplaceDB(st, db.(*asserts.Database))
@@ -706,7 +718,9 @@ func (s *firstBoot16Suite) TestPopulateFromSeedMissingBootloader(c *C) {
 
 	o.AddManager(o.TaskRunner())
 
-	chg, _ := s.makeSeedChange(c, st, nil, checkSeedTasks, checkOrder)
+	s.overlord = o
+
+	chg, _ := s.makeSeedChange(c, st, checkSeedTasks, checkOrder)
 
 	se := o.StateEngine()
 	// we cannot use Settle because the Change will not become Clean
@@ -760,7 +774,7 @@ snaps:
  - name: bar
    file: %s
 `, coreFname, kernelFname, gadgetFname, fooFname, barFname))
-	err := ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
@@ -769,7 +783,7 @@ snaps:
 	st.Lock()
 	defer st.Unlock()
 
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, IsNil)
 	// use the expected kind otherwise settle with start another one
 	chg := st.NewChange("seed", "run the populate from seed changes")
@@ -866,7 +880,7 @@ snaps:
  - name: foo
    file: %s
 `, coreFname, kernelFname, gadgetFname, fooFname))
-	err := ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
@@ -875,7 +889,8 @@ snaps:
 	st.Lock()
 	defer st.Unlock()
 
-	dev, gi, err := devicestate.PreloadGadget(s.overlord.DeviceManager())
+	mgr := s.overlord.DeviceManager()
+	dev, gi, err := devicestate.EarlyPreloadGadget(mgr)
 	c.Assert(err, IsNil)
 	c.Check(gi.Defaults, HasLen, 4)
 	c.Check(dev.RunMode(), Equals, true)
@@ -883,7 +898,7 @@ snaps:
 	c.Check(dev.HasModeenv(), Equals, false)
 	c.Check(dev.Kernel(), Equals, "pc-kernel")
 
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(mgr, s.perfTimings)
 	c.Assert(err, IsNil)
 
 	checkSeedTasks(c, tsAll)
@@ -912,7 +927,7 @@ snaps:
 	defer rhk()
 
 	// ensure we have something that captures the core config
-	restore := configstate.MockConfigcoreRun(func(sysconfig.Device, config.Conf) error {
+	restore := configstate.MockConfigcoreRun(func(sysconfig.Device, configcore.RunTransaction) error {
 		configured = append(configured, "configcore")
 		return nil
 	})
@@ -1023,7 +1038,7 @@ snaps:
  - name: foo
    file: %s
 `, coreFname, kernelFname, gadgetFname, fooFname))
-	err := ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
@@ -1031,7 +1046,7 @@ snaps:
 	st := s.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, IsNil)
 
 	checkSeedTasks(c, tsAll)
@@ -1111,7 +1126,7 @@ func (s *firstBoot16Suite) TestImportAssertionsFromSeedClassicModelMismatch(c *C
 	defer st.Unlock()
 
 	isCoreBoot := true
-	_, err = devicestate.ImportAssertionsFromSeed(st, "", isCoreBoot)
+	_, err = devicestate.ImportAssertionsFromSeed(ovld.DeviceManager(), isCoreBoot)
 	c.Assert(err, ErrorMatches, "cannot seed a classic system with an all-snaps model")
 }
 
@@ -1133,7 +1148,7 @@ func (s *firstBoot16Suite) TestImportAssertionsFromSeedClassicWithModes(c *C) {
 	defer st.Unlock()
 
 	isCoreBoot := true
-	_, err = devicestate.ImportAssertionsFromSeed(st, "", isCoreBoot)
+	_, err = devicestate.ImportAssertionsFromSeed(ovld.DeviceManager(), isCoreBoot)
 	c.Assert(err, IsNil)
 }
 
@@ -1152,7 +1167,7 @@ func (s *firstBoot16Suite) TestImportAssertionsFromSeedAllSnapsModelMismatch(c *
 	defer st.Unlock()
 
 	isCoreBoot := true
-	_, err = devicestate.ImportAssertionsFromSeed(st, "", isCoreBoot)
+	_, err = devicestate.ImportAssertionsFromSeed(ovld.DeviceManager(), isCoreBoot)
 	c.Assert(err, ErrorMatches, "cannot seed an all-snaps system with a classic model")
 }
 
@@ -1193,66 +1208,6 @@ func (s *firstBoot16Suite) TestLoadDeviceSeed(c *C) {
 	c.Check(as, DeepEquals, deviceSeed.Model())
 }
 
-func (s *firstBoot16Suite) TestLoadDeviceSeedCaching(c *C) {
-	ovld, err := overlord.New(nil)
-	defer ovld.Stop()
-	c.Assert(err, IsNil)
-	st := ovld.State()
-
-	// add a bunch of assertions (model assertion and its chain)
-	assertsChain := s.makeModelAssertionChain(c, "my-model", nil)
-	for i, as := range assertsChain {
-		fname := strconv.Itoa(i)
-		if as.Type() == asserts.ModelType {
-			fname = "model"
-		}
-		s.WriteAssertions(fname, as)
-	}
-
-	// load them
-	st.Lock()
-	defer st.Unlock()
-
-	deviceSeed, err := devicestate.LoadDeviceSeed(st, "")
-	c.Assert(err, IsNil)
-
-	c.Check(deviceSeed.Model().Model(), Equals, "my-model")
-
-	// break the seed
-	modelAway := filepath.Join(c.MkDir(), "model")
-	modelFn := filepath.Join(s.AssertsDir(), "model")
-	err = os.Rename(modelFn, modelAway)
-	c.Assert(err, IsNil)
-
-	// result is still cached
-	deviceSeed, err = devicestate.LoadDeviceSeed(st, "")
-	c.Assert(err, IsNil)
-
-	c.Check(deviceSeed.Model().Model(), Equals, "my-model")
-
-	// unload cached result
-	devicestate.UnloadDeviceSeed(st)
-
-	// error now
-	_, err1 := devicestate.LoadDeviceSeed(st, "")
-	c.Assert(err1, ErrorMatches, "seed must have a model assertion")
-
-	// refix the seed
-	err = os.Rename(modelAway, modelFn)
-	c.Assert(err, IsNil)
-
-	// error is also cached
-	_, err = devicestate.LoadDeviceSeed(st, "")
-	c.Assert(err, Equals, err1)
-
-	// unload cached error
-	devicestate.UnloadDeviceSeed(st)
-
-	// soundness check: loading works again
-	_, err = devicestate.LoadDeviceSeed(st, "")
-	c.Assert(err, IsNil)
-}
-
 func (s *firstBoot16Suite) TestImportAssertionsFromSeedHappy(c *C) {
 	ovld, err := overlord.New(nil)
 	defer ovld.Stop()
@@ -1274,7 +1229,7 @@ func (s *firstBoot16Suite) TestImportAssertionsFromSeedHappy(c *C) {
 	defer st.Unlock()
 
 	isCoreBoot := true
-	deviceSeed, err := devicestate.ImportAssertionsFromSeed(st, "", isCoreBoot)
+	deviceSeed, err := devicestate.ImportAssertionsFromSeed(ovld.DeviceManager(), isCoreBoot)
 	c.Assert(err, IsNil)
 	c.Assert(deviceSeed, NotNil)
 
@@ -1301,11 +1256,6 @@ func (s *firstBoot16Suite) TestImportAssertionsFromSeedHappy(c *C) {
 }
 
 func (s *firstBoot16Suite) TestImportAssertionsFromSeedMissingSig(c *C) {
-	s.startOverlord(c)
-	st := s.overlord.State()
-	st.Lock()
-	defer st.Unlock()
-
 	// write out only the model assertion
 	assertsChain := s.makeModelAssertionChain(c, "my-model", nil)
 	for _, as := range assertsChain {
@@ -1315,19 +1265,19 @@ func (s *firstBoot16Suite) TestImportAssertionsFromSeedMissingSig(c *C) {
 		}
 	}
 
-	// try import and verify that its rejects because other assertions are
-	// missing
-	isCoreBoot := true
-	_, err := devicestate.ImportAssertionsFromSeed(st, "", isCoreBoot)
-	c.Assert(err, ErrorMatches, "cannot resolve prerequisite assertion: account-key .*")
-}
-
-func (s *firstBoot16Suite) TestImportAssertionsFromSeedTwoModelAsserts(c *C) {
 	s.startOverlord(c)
 	st := s.overlord.State()
 	st.Lock()
 	defer st.Unlock()
 
+	// try import and verify that its rejects because other assertions are
+	// missing
+	isCoreBoot := true
+	_, err := devicestate.ImportAssertionsFromSeed(s.overlord.DeviceManager(), isCoreBoot)
+	c.Assert(err, ErrorMatches, "cannot resolve prerequisite assertion: account-key .*")
+}
+
+func (s *firstBoot16Suite) TestImportAssertionsFromSeedTwoModelAsserts(c *C) {
 	// write out two model assertions
 	model := s.Brands.Model("my-brand", "my-model", modelHeaders("my-model"))
 	s.WriteAssertions("model", model)
@@ -1335,10 +1285,15 @@ func (s *firstBoot16Suite) TestImportAssertionsFromSeedTwoModelAsserts(c *C) {
 	model2 := s.Brands.Model("my-brand", "my-second-model", modelHeaders("my-second-model"))
 	s.WriteAssertions("model2", model2)
 
+	s.startOverlord(c)
+	st := s.overlord.State()
+	st.Lock()
+	defer st.Unlock()
+
 	// try import and verify that its rejects because other assertions are
 	// missing
 	isCoreBoot := true
-	_, err := devicestate.ImportAssertionsFromSeed(st, "", isCoreBoot)
+	_, err := devicestate.ImportAssertionsFromSeed(s.overlord.DeviceManager(), isCoreBoot)
 	c.Assert(err, ErrorMatches, "cannot have multiple model assertions in seed")
 }
 
@@ -1358,7 +1313,7 @@ func (s *firstBoot16Suite) TestImportAssertionsFromSeedNoModelAsserts(c *C) {
 	// try import and verify that its rejects because other assertions are
 	// missing
 	isCoreBoot := true
-	_, err := devicestate.ImportAssertionsFromSeed(st, "", isCoreBoot)
+	_, err := devicestate.ImportAssertionsFromSeed(s.overlord.DeviceManager(), isCoreBoot)
 	c.Assert(err, ErrorMatches, "seed must have a model assertion")
 }
 
@@ -1461,7 +1416,7 @@ snaps:
  - name: pc
    file: %s
 `, snapdFname, core18Fname, kernelFname, gadgetFname))
-	err := ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
@@ -1469,7 +1424,7 @@ snaps:
 	st := s.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, IsNil)
 
 	checkOrder(c, tsAll, "snapd", "pc-kernel", "core18", "pc")
@@ -1584,7 +1539,7 @@ snaps:
  - name: other-base
    file: %s
 `, snapdFname, core18Fname, kernelFname, gadgetFname, snapFname, baseFname))
-	err := ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
@@ -1592,7 +1547,7 @@ snaps:
 	st := s.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, IsNil)
 
 	checkOrder(c, tsAll, "snapd", "pc-kernel", "core18", "pc", "other-base", "snap-req-other-base")
@@ -1621,7 +1576,7 @@ snaps:
  - name: pc
    file: %s
 `, snapdFname, core18Fname, kernelFname, gadgetFname))
-	err := ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
@@ -1630,7 +1585,7 @@ snaps:
 	st.Lock()
 	defer st.Unlock()
 
-	_, err = devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	_, err = devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, ErrorMatches, `cannot use gadget snap because its base "core" is different from model base "core18"`)
 	// note, cannot use st.Tasks() here as it filters out tasks with no change
 	c.Check(st.TaskCount(), Equals, 0)
@@ -1688,7 +1643,7 @@ snaps:
  - name: gtk-common-themes
    file: %s
 `, coreFname, kernelFname, gadgetFname, calcFname, themesFname))
-	err := ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
@@ -1697,7 +1652,7 @@ snaps:
 	st.Lock()
 	defer st.Unlock()
 
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, IsNil)
 	// use the expected kind otherwise settle with start another one
 	chg := st.NewChange("seed", "run the populate from seed changes")
@@ -1726,6 +1681,103 @@ snaps:
 	c.Check(hasConn, Equals, true)
 	c.Check(conn.(map[string]interface{})["auto"], Equals, true)
 	c.Check(conn.(map[string]interface{})["interface"], Equals, "content")
+}
+
+func (s *firstBoot16Suite) TestPopulateFromSeedAlternativeContentProviderAndOrder(c *C) {
+	logbuf, restore := logger.MockLogger()
+	defer restore()
+
+	bloader := boottest.MockUC16Bootenv(bootloadertest.Mock("mock", c.MkDir()))
+	bootloader.Force(bloader)
+	defer bootloader.Force(nil)
+	bloader.SetBootKernel("pc-kernel_1.snap")
+	bloader.SetBootBase("core_1.snap")
+
+	coreFname, kernelFname, gadgetFname := s.makeCoreSnaps(c, "")
+
+	// a snap that uses content providers
+	snapYaml := `name: gnome-calculator
+version: 1.0
+plugs:
+ gtk-3-themes:
+  interface: content
+  default-provider: gtk-common-themes
+  target: $SNAP/data-dir/themes
+`
+	calcFname, calcDecl, calcRev := s.MakeAssertedSnap(c, snapYaml, nil, snap.R(128), "developerid")
+	s.WriteAssertions("calc.asserts", s.devAcct, calcRev, calcDecl)
+
+	// put a 2nd firstboot snap into the SnapBlobDir
+	snapYaml = `name: gtk-common-themes-alt
+version: 1.0
+slots:
+ gtk-3-themes:
+  interface: content
+  source:
+   read:
+    - $SNAP/share/themes/Adawaita
+`
+	themesFname, themesDecl, themesRev := s.MakeAssertedSnap(c, snapYaml, nil, snap.R(65), "developerid")
+	s.WriteAssertions("themes.asserts", s.devAcct, themesDecl, themesRev)
+
+	// add a model assertion and its chain
+	assertsChain := s.makeModelAssertionChain(c, "my-model", nil)
+	s.WriteAssertions("model.asserts", assertsChain...)
+
+	// create a seed.yaml
+	content := []byte(fmt.Sprintf(`
+snaps:
+ - name: core
+   file: %s
+ - name: pc-kernel
+   file: %s
+ - name: pc
+   file: %s
+ - name: gnome-calculator
+   file: %s
+ - name: gtk-common-themes-alt
+   file: %s
+`, coreFname, kernelFname, gadgetFname, calcFname, themesFname))
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	c.Assert(err, IsNil)
+
+	// run the firstboot stuff
+	s.startOverlord(c)
+	st := s.overlord.State()
+	st.Lock()
+	defer st.Unlock()
+
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
+	c.Assert(err, IsNil)
+	// use the expected kind otherwise settle with start another one
+	chg := st.NewChange("seed", "run the populate from seed changes")
+	for _, ts := range tsAll {
+		chg.AddAll(ts)
+	}
+	c.Assert(st.Changes(), HasLen, 1)
+
+	// avoid device reg
+	chg1 := st.NewChange("become-operational", "init device")
+	chg1.SetStatus(state.DoingStatus)
+
+	st.Unlock()
+	err = s.overlord.Settle(settleTimeout)
+	st.Lock()
+
+	c.Assert(chg.Err(), IsNil)
+	c.Assert(err, IsNil)
+
+	// verify the result
+	var conns map[string]interface{}
+	err = st.Get("conns", &conns)
+	c.Assert(err, IsNil)
+	c.Check(conns, HasLen, 1)
+	conn, hasConn := conns["gnome-calculator:gtk-3-themes gtk-common-themes-alt:gtk-3-themes"]
+	c.Check(hasConn, Equals, true)
+	c.Check(conn.(map[string]interface{})["auto"], Equals, true)
+	c.Check(conn.(map[string]interface{})["interface"], Equals, "content")
+
+	c.Check(logbuf.String(), Matches, `(?sm).*seed prerequisites: snap "gnome-calculator" requires a provider for content "gtk-3-themes", a candidate slot is available \(gtk-common-themes-alt:gtk-3-themes\) but not the default-provider, ensure a single auto-connection \(or possibly a connection\) is in-place.*`)
 }
 
 func (s *firstBoot16Suite) TestPopulateFromSeedMissingBase(c *C) {
@@ -1761,14 +1813,14 @@ snaps:
    file: %s
 `, coreFname, kernelFname, gadgetFname, localFname))
 
-	c.Assert(ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644), IsNil)
+	c.Assert(os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644), IsNil)
 
 	// run the firstboot stuff
 	s.startOverlord(c)
 	st := s.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	_, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	_, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, ErrorMatches, `cannot use snap "local": base "foo" is missing`)
 }
 
@@ -1809,7 +1861,7 @@ snaps:
  - name: core18
    file: %s
 `, snapdFname, fooFname, core18Fname))
-	err := ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
@@ -1817,7 +1869,7 @@ snaps:
 	st := s.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, IsNil)
 
 	checkOrder(c, tsAll, "snapd", "core18", "foo")
@@ -1895,7 +1947,7 @@ snaps:
  - name: core18
    file: %s
 `, snapdFname, core18Fname))
-	err := ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
@@ -1903,7 +1955,7 @@ snaps:
 	st := s.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	_, err = devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	_, err = devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, NotNil)
 	// note, cannot use st.Tasks() here as it filters out tasks with no change
 	c.Check(st.TaskCount(), Equals, 0)
@@ -1950,7 +2002,7 @@ snaps:
  - name: pc
    file: %s
 `, snapdFname, fooFname, core18Fname, gadgetFname))
-	err := ioutil.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
 	c.Assert(err, IsNil)
 
 	// run the firstboot stuff
@@ -1958,7 +2010,7 @@ snaps:
 	st := s.overlord.State()
 	st.Lock()
 	defer st.Unlock()
-	tsAll, err := devicestate.PopulateStateFromSeedImpl(st, nil, s.perfTimings)
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
 	c.Assert(err, IsNil)
 
 	checkOrder(c, tsAll, "snapd", "core18", "pc", "foo")
@@ -2077,4 +2129,364 @@ func (s *firstBoot16Suite) TestCriticalTaskEdgesForPreseedMissing(c *C) {
 	ts.MarkEdge(t3, snapstate.HooksEdge)
 	_, _, _, err = devicestate.CriticalTaskEdges(ts)
 	c.Assert(err, NotNil)
+}
+
+func (s *firstBoot16Suite) TestPopulateFromSeedWithConnectHook(c *C) {
+	restore := release.MockOnClassic(true)
+	defer restore()
+
+	hooksCalled := []*hookstate.Context{}
+	restore = hookstate.MockRunHook(func(ctx *hookstate.Context, tomb *tomb.Tomb) ([]byte, error) {
+		ctx.Lock()
+		defer ctx.Unlock()
+
+		hooksCalled = append(hooksCalled, ctx)
+		return nil, nil
+	})
+	defer restore()
+
+	core18Fname, snapdFname, _, _ := s.makeCore18Snaps(c, &core18SnapsOpts{
+		classic: true,
+	})
+
+	snapFilesWithHook := [][]string{
+		{"bin/bar", ``},
+		{"meta/hooks/connect-plug-network", ``},
+	}
+
+	// put a firstboot snap into the SnapBlobDir
+	snapYaml := `name: foo
+base: core18
+version: 1.0
+plugs:
+ shared-data-plug:
+  interface: content
+  target: import
+  content: mylib
+apps:
+ bar:
+  command: bin/bar
+  plugs: [network]
+`
+	fooFname, fooDecl, fooRev := s.MakeAssertedSnap(c, snapYaml, snapFilesWithHook, snap.R(128), "developerid")
+	s.WriteAssertions("foo.asserts", s.devAcct, fooRev, fooDecl)
+
+	// put a 2nd firstboot snap into the SnapBlobDir
+	snapYaml = `name: bar
+base: core18
+version: 1.0
+slots:
+ shared-data-slot:
+  interface: content
+  content: mylib
+  read:
+   - /
+apps:
+ bar:
+  command: bin/bar
+`
+	snapFiles := [][]string{
+		{"bin/bar", ``},
+	}
+	barFname, barDecl, barRev := s.MakeAssertedSnap(c, snapYaml, snapFiles, snap.R(65), "developerid")
+	s.WriteAssertions("bar.asserts", s.devAcct, barDecl, barRev)
+
+	// add a model assertion and its chain
+	assertsChain := s.makeModelAssertionChain(c, "my-model-classic", nil)
+	s.WriteAssertions("model.asserts", assertsChain...)
+
+	// create a seed.yaml
+	content := []byte(fmt.Sprintf(`
+snaps:
+ - name: snapd
+   file: %s
+ - name: core18
+   file: %s
+ - name: foo
+   file: %s
+ - name: bar
+   file: %s
+`, snapdFname, core18Fname, fooFname, barFname))
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	c.Assert(err, IsNil)
+
+	// run the firstboot stuff
+	s.startOverlord(c)
+	st := s.overlord.State()
+	st.Lock()
+	defer st.Unlock()
+
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
+	c.Assert(err, IsNil)
+	// use the expected kind otherwise settle with start another one
+	chg := st.NewChange("seed", "run the populate from seed changes")
+	for _, ts := range tsAll {
+		chg.AddAll(ts)
+	}
+	c.Assert(st.Changes(), HasLen, 1)
+
+	checkOrder(c, tsAll, "snapd", "core18", "foo", "bar")
+
+	mockServer := s.mockServer(c, "REQID-1")
+	defer mockServer.Close()
+
+	restore = devicestate.MockBaseStoreURL(mockServer.URL)
+	defer restore()
+
+	st.Unlock()
+	err = s.overlord.Settle(settleTimeout)
+	st.Lock()
+	c.Check(err, IsNil)
+	c.Check(chg.Err(), IsNil)
+
+	// at this point the system is "restarting", pretend the restart has
+	// happened
+	c.Assert(chg.Status(), Equals, state.DoingStatus)
+	restart.MockPending(st, restart.RestartUnset)
+	st.Unlock()
+	err = s.overlord.Settle(settleTimeout)
+	st.Lock()
+	c.Assert(err, IsNil)
+	c.Assert(chg.Status(), Equals, state.DoneStatus, Commentf("%s", chg.Err()))
+
+	c.Assert(hooksCalled, HasLen, 1)
+	c.Check(hooksCalled[0].HookName(), Equals, "connect-plug-network")
+
+	// verify that connections was made
+	var conns map[string]interface{}
+	c.Assert(st.Get("conns", &conns), IsNil)
+	c.Assert(conns, DeepEquals, map[string]interface{}{
+		"foo:network snapd:network": map[string]interface{}{
+			"auto": true, "interface": "network"},
+		"foo:shared-data-plug bar:shared-data-slot": map[string]interface{}{
+			"auto": true, "interface": "content",
+			"plug-static": map[string]interface{}{
+				"content": "mylib", "target": "import",
+			},
+			"slot-static": map[string]interface{}{
+				"content": "mylib",
+				"read": []interface{}{
+					"/",
+				},
+			},
+		},
+	})
+}
+
+func (s *firstBoot16Suite) mockServer(c *C, reqID string) *httptest.Server {
+	bhv := &devicestatetest.DeviceServiceBehavior{
+		ReqID:                reqID,
+		SignSerial:           s.signSerial,
+		ExpectedCapabilities: "serial-stream",
+	}
+
+	mockServer, extraCerts := devicestatetest.MockDeviceService(c, bhv)
+	fname := filepath.Join(dirs.SnapdStoreSSLCertsDir, "test-server-certs.pem")
+	err := os.MkdirAll(filepath.Dir(fname), 0755)
+	c.Assert(err, IsNil)
+	err = os.WriteFile(fname, extraCerts, 0644)
+	c.Assert(err, IsNil)
+	return mockServer
+}
+
+func (s *firstBoot16Suite) signSerial(c *C, bhv *devicestatetest.DeviceServiceBehavior, headers map[string]interface{}, body []byte) (serial asserts.Assertion, ancillary []asserts.Assertion, err error) {
+	signing := assertstest.NewStoreStack(constants.AccountId, nil)
+	a, err := signing.Sign(asserts.SerialType, headers, body, "")
+	return a, nil, err
+}
+
+func (s *firstBoot16Suite) testPopulateFromSeedCore18ValidationSetTracking(c *C, vsAsserts []asserts.Assertion, vsHeaders []interface{}) *state.Change {
+	var sysdLog [][]string
+	systemctlRestorer := systemd.MockSystemctl(func(cmd ...string) ([]byte, error) {
+		sysdLog = append(sysdLog, cmd)
+		return []byte("ActiveState=inactive\n"), nil
+	})
+	defer systemctlRestorer()
+
+	bloader := boottest.MockUC16Bootenv(bootloadertest.Mock("mock", c.MkDir()))
+	bootloader.Force(bloader)
+	defer bootloader.Force(nil)
+	bloader.SetBootKernel("pc-kernel_1.snap")
+	bloader.SetBootBase("core18_1.snap")
+
+	s.WriteAssertions("developer.account", s.devAcct)
+
+	core18Fname, snapdFname, kernelFname, gadgetFname := s.makeCore18Snaps(c, &core18SnapsOpts{})
+
+	// add a model assertion and its chain
+	assertsChain := s.makeModelAssertionChain(c, "my-model", map[string]interface{}{"base": "core18", "validation-sets": vsHeaders})
+	s.WriteAssertions("model.asserts", assertsChain...)
+
+	// write validation set assertions
+	for i, a := range vsAsserts {
+		s.WriteAssertions(fmt.Sprintf("vs-%d.validation-set", i), a)
+	}
+
+	// create a seed.yaml
+	content := []byte(fmt.Sprintf(`
+snaps:
+ - name: snapd
+   file: %s
+ - name: core18
+   file: %s
+ - name: pc-kernel
+   file: %s
+ - name: pc
+   file: %s
+`, snapdFname, core18Fname, kernelFname, gadgetFname))
+	err := os.WriteFile(filepath.Join(dirs.SnapSeedDir, "seed.yaml"), content, 0644)
+	c.Assert(err, IsNil)
+
+	// run the firstboot stuff
+	s.startOverlord(c)
+	st := s.overlord.State()
+	st.Lock()
+	defer st.Unlock()
+
+	tsAll, err := devicestate.PopulateStateFromSeedImpl(s.overlord.DeviceManager(), s.perfTimings)
+	c.Assert(err, IsNil)
+
+	// ensure the validation-set tracking task is present
+	tsEnd := tsAll[len(tsAll)-1]
+	c.Assert(tsEnd.Tasks(), HasLen, 2)
+	t := tsEnd.Tasks()[0]
+	c.Check(t.Kind(), Equals, "enforce-validation-sets")
+
+	expectedSeqs := make(map[string]int)
+	expectedVss := make(map[string][]string)
+	for _, vs := range vsHeaders {
+		hdrs := vs.(map[string]interface{})
+		seq, err := strconv.Atoi(hdrs["sequence"].(string))
+		c.Assert(err, IsNil)
+		key := fmt.Sprintf("%s/%s", hdrs["account-id"].(string), hdrs["name"].(string))
+		expectedSeqs[key] = seq
+		expectedVss[key] = []string{release.Series, hdrs["account-id"].(string), hdrs["name"].(string), hdrs["sequence"].(string)}
+	}
+
+	// verify that the correct data is provided to the task
+	var pinnedSeqs map[string]int
+	err = t.Get("pinned-sequence-numbers", &pinnedSeqs)
+	c.Assert(err, IsNil)
+	c.Check(pinnedSeqs, DeepEquals, expectedSeqs)
+	var vsKeys map[string][]string
+	err = t.Get("validation-set-keys", &vsKeys)
+	c.Assert(err, IsNil)
+	c.Check(vsKeys, DeepEquals, expectedVss)
+
+	// use the expected kind otherwise settle with start another one
+	chg := st.NewChange("seed", "run the populate from seed changes")
+	for _, ts := range tsAll {
+		chg.AddAll(ts)
+	}
+	c.Assert(st.Changes(), HasLen, 1)
+
+	checkOrder(c, tsAll, "snapd", "pc-kernel", "core18", "pc")
+
+	st.Unlock()
+	err = s.overlord.Settle(settleTimeout)
+	st.Lock()
+	c.Check(err, IsNil)
+	c.Check(chg.Err(), IsNil)
+
+	// at this point the system is "restarting", pretend the restart has
+	// happened
+	c.Assert(chg.Status(), Equals, state.DoingStatus)
+	restart.MockPending(st, restart.RestartUnset)
+	st.Unlock()
+	err = s.overlord.Settle(settleTimeout)
+	st.Lock()
+	c.Assert(err, IsNil)
+	return chg
+}
+
+func (s *firstBoot16Suite) TestPopulateFromSeedCore18ValidationSetTrackingHappy(c *C) {
+	a, err := s.StoreSigning.Sign(asserts.ValidationSetType, map[string]interface{}{
+		"type":         "validation-set",
+		"authority-id": constants.AccountId,
+		"series":       "16",
+		"account-id":   constants.AccountId,
+		"name":         "base-set",
+		"sequence":     "1",
+		"snaps": []interface{}{
+			map[string]interface{}{
+				"name":     "pc-kernel",
+				"id":       s.AssertedSnapID("pc-kernel"),
+				"presence": "required",
+				"revision": "1",
+			},
+			map[string]interface{}{
+				"name":     "pc",
+				"id":       s.AssertedSnapID("pc"),
+				"presence": "required",
+				"revision": "1",
+			},
+		},
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	}, nil, "")
+	c.Assert(err, IsNil)
+
+	headers := map[string]interface{}{
+		"account-id": constants.AccountId,
+		"name":       "base-set",
+		"sequence":   "1",
+		"mode":       "enforce",
+	}
+	chg := s.testPopulateFromSeedCore18ValidationSetTracking(c, []asserts.Assertion{a}, []interface{}{headers})
+
+	s.overlord.State().Lock()
+	defer s.overlord.State().Unlock()
+	c.Assert(chg.Status(), Equals, state.DoneStatus, Commentf("%s", chg.Err()))
+
+	// Ensure that we are now tracking the validation-set
+	var tr assertstate.ValidationSetTracking
+	err = assertstate.GetValidationSet(s.overlord.State(), constants.AccountId, "base-set", &tr)
+	c.Assert(err, IsNil)
+	c.Check(tr, DeepEquals, assertstate.ValidationSetTracking{
+		AccountID: constants.AccountId,
+		Name:      "base-set",
+		Mode:      assertstate.Enforce,
+		Current:   1,
+		PinnedAt:  1,
+	})
+}
+
+func (s *firstBoot16Suite) TestPopulateFromSeedCore18ValidationSetTrackingUnmetCriteria(c *C) {
+	a, err := s.StoreSigning.Sign(asserts.ValidationSetType, map[string]interface{}{
+		"type":         "validation-set",
+		"authority-id": constants.AccountId,
+		"series":       "16",
+		"account-id":   constants.AccountId,
+		"name":         "base-set",
+		"sequence":     "1",
+		"snaps": []interface{}{
+			map[string]interface{}{
+				"name":     "pc-kernel",
+				"id":       s.AssertedSnapID("pc-kernel"),
+				"presence": "required",
+				// Set required revision of pc-kernel to 7, this should make it fail
+				"revision": "7",
+			},
+			map[string]interface{}{
+				"name":     "pc",
+				"id":       s.AssertedSnapID("pc"),
+				"presence": "required",
+				"revision": "1",
+			},
+		},
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	}, nil, "")
+	c.Assert(err, IsNil)
+
+	headers := map[string]interface{}{
+		"account-id": constants.AccountId,
+		"name":       "base-set",
+		"sequence":   "1",
+		"mode":       "enforce",
+	}
+	chg := s.testPopulateFromSeedCore18ValidationSetTracking(c, []asserts.Assertion{a}, []interface{}{headers})
+
+	s.overlord.State().Lock()
+	defer s.overlord.State().Unlock()
+	c.Assert(chg.Status(), Equals, state.ErrorStatus)
+	c.Check(chg.Err().Error(), testutil.Contains, "pc-kernel (required at revision 7 by sets "+constants.AccountId+"/base-set))")
 }

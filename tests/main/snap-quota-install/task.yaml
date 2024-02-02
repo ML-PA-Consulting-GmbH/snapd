@@ -3,10 +3,12 @@ summary: Test for assigning quota group on snap install.
 details: |
   Test support for assigning a snap quota group on install of a snap
 
+# In arm devices using ubuntu core, memory quota cannot be used because
+# memory cgroup is disabled
+systems: [-ubuntu-core-*-arm-*]
+
 prepare: |
   snap pack "$TESTSLIB"/snaps/basic
-  snap set system experimental.quota-groups=true
-  tests.cleanup defer snap unset system experimental.quota-groups
 
 execute: |
   if os.query is-trusty || os.query is-amazon-linux || os.query is-centos 7 || os.query is-xenial || os.query is-core16; then
@@ -26,10 +28,12 @@ execute: |
   echo "Installing hello-world and assigning it quota group group-one"
   snap install hello-world --quota-group group-one
   
+  # We expect that group-one will use memory, but we do not care how much memory
+  # it's using, so we just accept whatever (if any) memory in use.
   echo "Checking that all quotas can be listed"
   snap quotas | cat -n > quotas.txt
   MATCH "     1\s+Quota\s+Parent\s+Constraints\s+Current$" < quotas.txt
-  MATCH "     2\s+group-one\s+memory=400MB\s*$" < quotas.txt
+  MATCH "     2\s+group-one\s+memory=400MB(\s*|\s*memory=[0-9.a-zA-Z]+)\s*$" < quotas.txt
   
   echo "Checking quota group details"
   snap quota group-one | cat -n > details.txt

@@ -35,6 +35,7 @@ import (
 	"gopkg.in/tomb.v2"
 
 	"github.com/snapcore/snapd/asserts"
+	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/httputil"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/overlord/assertstate"
@@ -123,37 +124,32 @@ func (m *DeviceManager) doGenerateDeviceKey(t *state.Task, _ *tomb.Tomb) error {
 	return nil
 }
 
-func newEnoughProxy(st *state.State, proxyURL *url.URL, client *http.Client) bool {
+func newEnoughProxy(st *state.State, proxyURL *url.URL, client *http.Client) (bool, error) {
 	st.Unlock()
 	defer st.Lock()
 
-	const prefix = "Cannot check whether proxy store supports a custom serial vault"
+	const prefix = "cannot check whether proxy store supports a custom serial vault"
 
 	req, err := http.NewRequest("HEAD", proxyURL.String(), nil)
 	if err != nil {
-		// can't really happen unless proxyURL is somehow broken
-		logger.Debugf(prefix+": %v", err)
-		return false
+		return false, fmt.Errorf(prefix+": %v", err)
 	}
 	req.Header.Set("User-Agent", snapdenv.UserAgent())
 	resp, err := client.Do(req)
 	if err != nil {
 		// some sort of network or protocol error
-		logger.Debugf(prefix+": %v", err)
-		return false
+		return false, fmt.Errorf(prefix+": %v", err)
 	}
 	resp.Body.Close()
 	if resp.StatusCode != 200 {
-		logger.Debugf(prefix+": Head request returned %s.", resp.Status)
-		return false
+		return false, fmt.Errorf(prefix+": Head request returned %s.", resp.Status)
 	}
 	verstr := resp.Header.Get("Snap-Store-Version")
 	ver, err := strconv.Atoi(verstr)
 	if err != nil {
-		logger.Debugf(prefix+": Bogus Snap-Store-Version header %q.", verstr)
-		return false
+		return false, fmt.Errorf(prefix+": Bogus Snap-Store-Version header %q.", verstr)
 	}
-	return ver >= 6
+	return ver >= 6, nil
 }
 
 func (cfg *serialRequestConfig) setURLs(proxyURL, svcURL *url.URL) {
@@ -336,11 +332,6 @@ func prepareSerialRequest(t *state.Task, regCtx registrationContext, privKey ass
 
 	resp, err := client.Do(req)
 	if err != nil {
-		if !httputil.ShouldRetryError(err) {
-			// a non temporary net error fully errors out and triggers a retry
-			// retries
-			return "", fmt.Errorf("cannot retrieve request-id for making a request for a serial: %v", err)
-		}
 		if httputil.NoNetwork(err) {
 			// If there is no network there is no need to count
 			// this as a tentatives attempt. If we do it this
@@ -358,6 +349,30 @@ func prepareSerialRequest(t *state.Task, regCtx registrationContext, privKey ass
 			// device
 			noNetworkRetryInterval := retryInterval / 2
 			return "", &state.Retry{After: noNetworkRetryInterval}
+		}
+		if httputil.IsCertExpiredOrNotValidYetError(err) {
+			// If the cert is expired/not-valid yet that
+			// most likely means that the devices has no
+			// ntp-synced time yet. We will retry for up
+			// to 2048s (timesyncd.conf(5) says the
+			// maximum poll time is 2048s which is
+			// 34min8s). With retry of 60s the below adds
+			// up to 37.5m.
+			switch {
+			case nTentatives <= 5:
+				return "", &state.Retry{After: retryInterval / 2}
+			case nTentatives <= 10:
+				return "", &state.Retry{After: retryInterval}
+			case nTentatives <= 15:
+				return "", &state.Retry{After: retryInterval * 2}
+			case nTentatives <= 20:
+				return "", &state.Retry{After: retryInterval * 4}
+			}
+		}
+		if !httputil.ShouldRetryError(err) {
+			// a non temporary net error fully errors out and triggers a retry
+			// retries
+			return "", fmt.Errorf("cannot retrieve request-id for making a request for a serial: %v", err)
 		}
 
 		return "", retryErr(t, nTentatives, "cannot retrieve request-id for making a request for a serial: %v", err)
@@ -499,12 +514,26 @@ func getSerial(t *state.Task, regCtx registrationContext, privKey asserts.Privat
 	}
 
 	st := t.State()
+
+	shouldRequest, err := shouldRequestSerial(st, regCtx.GadgetForSerialRequestConfig())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !shouldRequest {
+		t.Logf("skipping getting serial, store is marked as offline")
+		return nil, nil, nil
+	}
+
 	proxyConf := proxyconf.New(st)
 	client := httputilNewHTTPClient(&httputil.ClientOptions{
 		Timeout:            30 * time.Second,
 		MayLogBody:         true,
 		Proxy:              proxyConf.Conf,
 		ProxyConnectHeader: http.Header{"User-Agent": []string{snapdenv.UserAgent()}},
+		ExtraSSLCerts: &httputil.ExtraSSLCertsFromDir{
+			Dir: dirs.SnapdStoreSSLCertsDir,
+		},
 	})
 
 	cfg, err := getSerialRequestConfig(t, regCtx, client)
@@ -637,14 +666,68 @@ func getSerialRequestConfig(t *state.Task, regCtx registrationContext, client *h
 		}
 	}
 
-	if proxyURL != nil && svcURL != nil && !newEnoughProxy(st, proxyURL, client) {
-		logger.Noticef("Proxy store does not support custom serial vault; ignoring the proxy")
-		proxyURL = nil
+	if proxyURL != nil && svcURL != nil {
+		newEnough, err := newEnoughProxy(st, proxyURL, client)
+		if err != nil {
+			// Ignore the proxy on any error for
+			// compatibility with previous versions of
+			// snapd.
+			//
+			// TODO: provide a way for the users to specify
+			// if they want to use the proxy store for their
+			// device-service.url or not. This needs design.
+			// (see LP:#2023166)
+			logger.Noticef("cannot reach proxy store: %v; ignore the proxy", err)
+			proxyURL = nil
+		}
+		if !newEnough {
+			logger.Noticef("Proxy store does not support custom serial vault; ignoring the proxy")
+			proxyURL = nil
+		}
 	}
 
 	cfg.setURLs(proxyURL, svcURL)
 
 	return &cfg, nil
+}
+
+func shouldRequestSerial(s *state.State, gadgetName string) (bool, error) {
+	tr := config.NewTransaction(s)
+
+	var storeAccess string
+	if err := tr.GetMaybe("core", "store.access", &storeAccess); err != nil {
+		return false, err
+	}
+
+	// if there isn't a gadget, just use store.access to determine if we should
+	// request
+	if gadgetName == "" {
+		return storeAccess != "offline", nil
+	}
+
+	var deviceServiceAccess string
+	if err := tr.GetMaybe(gadgetName, "device-service.access", &deviceServiceAccess); err != nil {
+		return false, err
+	}
+
+	// if we have a gadget and device-service.access is set to offline, then we
+	// will not request a serial
+	if deviceServiceAccess == "offline" {
+		return false, nil
+	}
+
+	var deviceServiceURL string
+	if err := tr.GetMaybe(gadgetName, "device-service.url", &deviceServiceURL); err != nil {
+		return false, err
+	}
+
+	// if we'd be using the fallback device-service.url (which is the store),
+	// then use store.access to determine if we should request
+	if deviceServiceURL == "" {
+		return storeAccess != "offline", nil
+	}
+
+	return true, nil
 }
 
 func (m *DeviceManager) doRequestSerial(t *state.Task, _ *tomb.Tomb) error {
@@ -681,7 +764,7 @@ func (m *DeviceManager) doRequestSerial(t *state.Task, _ *tomb.Tomb) error {
 		"model":               device.Model,
 		"device-key-sha3-384": privKey.PublicKey().ID(),
 	})
-	if err != nil && !asserts.IsNotFound(err) {
+	if err != nil && !errors.Is(err, &asserts.NotFoundError{}) {
 		return err
 	}
 

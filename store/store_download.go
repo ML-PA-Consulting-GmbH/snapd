@@ -32,7 +32,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -162,10 +161,6 @@ func (s *Store) cdnHeader() (string, error) {
 		return "none", nil
 	}
 
-	if s.dauthCtx == nil {
-		return "", nil
-	}
-
 	// set Snap-CDN from cloud instance information
 	// if available
 
@@ -173,25 +168,7 @@ func (s *Store) cdnHeader() (string, error) {
 	// where we first to send this header and if the
 	// operation fails that way to even get the connection
 	// then we retry without sending this?
-
-	cloudInfo, err := s.dauthCtx.CloudInfo()
-	if err != nil {
-		return "", err
-	}
-
-	if cloudInfo != nil {
-		cdnParams := []string{fmt.Sprintf("cloud-name=%q", cloudInfo.Name)}
-		if cloudInfo.Region != "" {
-			cdnParams = append(cdnParams, fmt.Sprintf("region=%q", cloudInfo.Region))
-		}
-		if cloudInfo.AvailabilityZone != "" {
-			cdnParams = append(cdnParams, fmt.Sprintf("availability-zone=%q", cloudInfo.AvailabilityZone))
-		}
-
-		return strings.Join(cdnParams, " "), nil
-	}
-
-	return "", nil
+	return s.buildLocationString()
 }
 
 type HashError struct {
@@ -206,7 +183,7 @@ func (e HashError) Error() string {
 
 type DownloadOptions struct {
 	RateLimit           int64
-	IsAutoRefresh       bool
+	Scheduled           bool
 	LeavePartialOnError bool
 }
 
@@ -215,11 +192,18 @@ type DownloadOptions struct {
 // The file is saved in temporary storage, and should be removed
 // after use to prevent the disk from running out of space.
 func (s *Store) Download(ctx context.Context, name string, targetPath string, downloadInfo *snap.DownloadInfo, pbar progress.Meter, user *auth.UserState, dlOpts *DownloadOptions) error {
+	// most other store network operations use s.endpointURL, which returns an
+	// error if the store is offline. this doesn't, so we need to explicitly
+	// check.
+	if err := s.checkStoreOnline(); err != nil {
+		return err
+	}
+
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 		return err
 	}
 
-	if err := s.cacher.Get(downloadInfo.Sha3_384, targetPath); err == nil {
+	if s.cacher.Get(downloadInfo.Sha3_384, targetPath) {
 		logger.Debugf("Cache hit for SHA3_384 …%.5s.", downloadInfo.Sha3_384)
 		return nil
 	}
@@ -328,7 +312,7 @@ func downloadReqOpts(storeURL *url.URL, cdnHeader string, opts *DownloadOptions)
 	if cdnHeader != "" {
 		reqOptions.ExtraHeaders["Snap-CDN"] = cdnHeader
 	}
-	if opts != nil && opts.IsAutoRefresh {
+	if opts != nil && opts.Scheduled {
 		reqOptions.ExtraHeaders["Snap-Refresh-Reason"] = "scheduled"
 	}
 
@@ -495,6 +479,17 @@ func downloadImpl(ctx context.Context, name, sha3_384, downloadURL string, user 
 		}
 		var resp *http.Response
 		cli := s.newHTTPClient(nil)
+		oldCheckRedirect := cli.CheckRedirect
+		if oldCheckRedirect == nil {
+			panic("internal error: the httputil.NewHTTPClient-produced http.Client must have CheckRedirect defined")
+		}
+		cli.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			// remove user/device auth headers from being sent in "CDN" redirects
+			// see also: https://bugs.launchpad.net/snapd/+bug/2027993
+			// TODO: do we need to remove other identifying headers?
+			dropAuthorization(req, &AuthorizeOptions{deviceAuth: true, apiLevel: reqOptions.APILevel})
+			return oldCheckRedirect(req, via)
+		}
 		resp, finalErr = s.doRequest(downloadCtx, cli, reqOptions, user)
 		if cancelled(downloadCtx) {
 			return fmt.Errorf("the download has been cancelled: %s", downloadCtx.Err())
@@ -600,6 +595,13 @@ func downloadImpl(ctx context.Context, name, sha3_384, downloadURL string, user 
 
 // DownloadStream will copy the snap from the request to the io.Reader
 func (s *Store) DownloadStream(ctx context.Context, name string, downloadInfo *snap.DownloadInfo, resume int64, user *auth.UserState) (io.ReadCloser, int, error) {
+	// most other store network operations use s.endpointURL, which returns an
+	// error if the store is offline. this doesn't, so we need to explicitly
+	// check.
+	if err := s.checkStoreOnline(); err != nil {
+		return nil, 0, err
+	}
+
 	// XXX: coverage of this is rather poor
 	if path := s.cacher.GetPath(downloadInfo.Sha3_384); path != "" {
 		logger.Debugf("Cache hit for SHA3_384 …%.5s.", downloadInfo.Sha3_384)

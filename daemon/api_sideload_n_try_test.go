@@ -211,7 +211,7 @@ func (s *sideloadSuite) sideloadCheck(c *check.C, content string, head map[strin
 		return state.NewTaskSet(t), nil
 	})()
 
-	defer daemon.MockSnapstateInstallPath(func(s *state.State, si *snap.SideInfo, path, name, channel string, flags snapstate.Flags) (*state.TaskSet, *snap.Info, error) {
+	defer daemon.MockSnapstateInstallPath(func(s *state.State, si *snap.SideInfo, path, name, channel string, flags snapstate.Flags, prqt snapstate.PrereqTracker) (*state.TaskSet, *snap.Info, error) {
 		c.Check(flags, check.DeepEquals, expectedFlags)
 
 		c.Check(path, testutil.FileEquals, "xyzzy")
@@ -367,7 +367,7 @@ version: 1`, nil)
 	c.Assert(err, check.IsNil)
 	req.Header.Set("Content-Type", "multipart/thing; boundary=--hello--")
 
-	defer daemon.MockSnapstateInstallPath(func(s *state.State, si *snap.SideInfo, path, name, channel string, flags snapstate.Flags) (*state.TaskSet, *snap.Info, error) {
+	defer daemon.MockSnapstateInstallPath(func(s *state.State, si *snap.SideInfo, path, name, channel string, flags snapstate.Flags, prqt snapstate.PrereqTracker) (*state.TaskSet, *snap.Info, error) {
 		c.Check(flags, check.Equals, snapstate.Flags{RemoveSnapPath: true, Transaction: client.TransactionPerSnap})
 		c.Check(si, check.DeepEquals, &snap.SideInfo{
 			RealName: "foo",
@@ -461,7 +461,7 @@ func (s *sideloadSuite) TestSideloadSnapChangeConflict(c *check.C) {
 		return &snap.Info{SuggestedName: "foo"}, nil
 	})()
 
-	defer daemon.MockSnapstateInstallPath(func(s *state.State, si *snap.SideInfo, path, name, channel string, flags snapstate.Flags) (*state.TaskSet, *snap.Info, error) {
+	defer daemon.MockSnapstateInstallPath(func(s *state.State, si *snap.SideInfo, path, name, channel string, flags snapstate.Flags, prqt snapstate.PrereqTracker) (*state.TaskSet, *snap.Info, error) {
 		return nil, nil, &snapstate.ChangeConflictError{Snap: "foo"}
 	})()
 
@@ -704,14 +704,13 @@ func (s *sideloadSuite) TestSideloadManySnaps(c *check.C) {
 	s.markSeeded(d)
 	expectedFlags := &snapstate.Flags{RemoveSnapPath: true, DevMode: true, Transaction: client.TransactionAllSnaps}
 
-	restore := daemon.MockSnapstateInstallPathMany(func(_ context.Context, s *state.State, infos []*snap.SideInfo, paths []string, userID int, flags *snapstate.Flags) ([]*state.TaskSet, error) {
+	restore := daemon.MockSnapstateInstallPathMany(func(_ context.Context, s *state.State, infos []*snap.SideInfo, tmpPaths []string, userID int, flags *snapstate.Flags) ([]*state.TaskSet, error) {
 		c.Check(flags, check.DeepEquals, expectedFlags)
 		c.Check(userID, check.Not(check.Equals), 0)
 
 		var tss []*state.TaskSet
-		for i, path := range paths {
-			si := infos[i]
-			c.Check(path, testutil.FileEquals, si.RealName)
+		for i, si := range infos {
+			c.Check(tmpPaths[i], testutil.FileEquals, si.RealName)
 
 			ts := state.NewTaskSet(s.NewTask("fake-install-snap", fmt.Sprintf("Doing a fake install of %q", si.RealName)))
 			tss = append(tss, ts)
@@ -882,7 +881,7 @@ func (s *sideloadSuite) TestSideloadManySnapsAsserted(c *check.C) {
 
 		var tss []*state.TaskSet
 		for i, si := range infos {
-			c.Check(si, check.DeepEquals, &snap.SideInfo{
+			c.Check(*si, check.DeepEquals, snap.SideInfo{
 				RealName: snaps[i],
 				SnapID:   snaps[i] + "-id",
 				Revision: snap.R(41),
@@ -1007,7 +1006,7 @@ func (s *trySuite) TestTrySnap(c *check.C) {
 	snapYaml := filepath.Join(tryDir, "meta", "snap.yaml")
 	err = os.MkdirAll(filepath.Dir(snapYaml), 0755)
 	c.Assert(err, check.IsNil)
-	err = ioutil.WriteFile(snapYaml, []byte("name: foo\nversion: 1.0\n"), 0644)
+	err = os.WriteFile(snapYaml, []byte("name: foo\nversion: 1.0\n"), 0644)
 	c.Assert(err, check.IsNil)
 
 	reqForFlags := func(f snapstate.Flags) *http.Request {

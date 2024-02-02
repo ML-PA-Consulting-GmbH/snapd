@@ -20,7 +20,6 @@
 package polkit_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -56,11 +55,6 @@ func (s *backendSuite) SetUpTest(c *C) {
 	s.Backend = &polkit.Backend{}
 	s.BackendSuite.SetUpTest(c)
 	c.Assert(s.Repo.AddBackend(s.Backend), IsNil)
-
-	// Prepare a directory for polkit policy files.
-	// NOTE: Normally this is a part of the OS snap.
-	err := os.MkdirAll(dirs.SnapPolkitPolicyDir, 0700)
-	c.Assert(err, IsNil)
 }
 
 func (s *backendSuite) TearDownTest(c *C) {
@@ -108,18 +102,21 @@ func (s *backendSuite) TestNoPolicyFiles(c *C) {
 		c.Check(policy, testutil.FileAbsent)
 		s.RemoveSnap(c, snapInfo)
 	}
+	c.Check(dirs.SnapPolkitPolicyDir, testutil.FileAbsent)
 }
 
 func (s *backendSuite) TestUnexpectedPolicyFilesremoved(c *C) {
+	err := os.MkdirAll(dirs.SnapPolkitPolicyDir, 0700)
+	c.Assert(err, IsNil)
 	policyFile := filepath.Join(dirs.SnapPolkitPolicyDir, "snap.samba.interface.something.policy")
 
 	for _, opts := range testedConfinementOpts {
-		c.Assert(ioutil.WriteFile(policyFile, []byte("<policyconfig/>"), 0644), IsNil)
+		c.Assert(os.WriteFile(policyFile, []byte("<policyconfig/>"), 0644), IsNil)
 		// Installing snap removes unexpected policy files
 		snapInfo := s.InstallSnap(c, opts, "", ifacetest.SambaYamlV1, 0)
 		c.Check(policyFile, testutil.FileAbsent)
 
-		c.Assert(ioutil.WriteFile(policyFile, []byte("<policyconfig/>"), 0644), IsNil)
+		c.Assert(os.WriteFile(policyFile, []byte("<policyconfig/>"), 0644), IsNil)
 		// Removing snap also removes unexpected policy files
 		s.RemoveSnap(c, snapInfo)
 		c.Check(policyFile, testutil.FileAbsent)

@@ -21,7 +21,6 @@ package main_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -151,8 +150,9 @@ int main(int argc, char** argv)
     // There might be architecture-specific requirements. see "man syscall"
     // for details.
     syscall_ret = syscall(l[0], l[1], l[2], l[3], l[4], l[5], l[6]);
-    // 911 is our mocked errno
-    if (syscall_ret < 0 && errno == 911) {
+    // 911 is our mocked errno for implicit denials via unlisted syscalls and
+    // 999 is explicit denial
+    if (syscall_ret < 0 && (errno == 911 || errno == 999)) {
         ret = 10;
     }
     syscall(SYS_exit, ret, 0, 0, 0, 0, 0);
@@ -161,11 +161,12 @@ int main(int argc, char** argv)
 `)
 
 func (s *snapSeccompSuite) SetUpSuite(c *C) {
-	main.MockErrnoOnDenial(911)
+	main.MockErrnoOnImplicitDenial(911)
+	main.MockErrnoOnExplicitDenial(999)
 
 	// build seccomp-load helper
 	s.seccompBpfLoader = filepath.Join(c.MkDir(), "seccomp_bpf_loader")
-	err := ioutil.WriteFile(s.seccompBpfLoader+".c", seccompBpfLoaderContent, 0644)
+	err := os.WriteFile(s.seccompBpfLoader+".c", seccompBpfLoaderContent, 0644)
 	c.Assert(err, IsNil)
 	cmd := exec.Command("gcc", "-Werror", "-Wall", s.seccompBpfLoader+".c", "-o", s.seccompBpfLoader)
 	cmd.Stdout = os.Stdout
@@ -175,7 +176,7 @@ func (s *snapSeccompSuite) SetUpSuite(c *C) {
 
 	// build syscall-runner helper
 	s.seccompSyscallRunner = filepath.Join(c.MkDir(), "seccomp_syscall_runner")
-	err = ioutil.WriteFile(s.seccompSyscallRunner+".c", seccompSyscallRunnerContent, 0644)
+	err = os.WriteFile(s.seccompSyscallRunner+".c", seccompSyscallRunnerContent, 0644)
 	c.Assert(err, IsNil)
 
 	cmd = exec.Command("gcc", "-std=c99", "-Werror", "-Wall", "-static", s.seccompSyscallRunner+".c", "-o", s.seccompSyscallRunner, "-Wl,-static", "-static-libgcc")
@@ -218,9 +219,9 @@ func (s *snapSeccompSuite) SetUpSuite(c *C) {
 // Full testing of applied policy is done elsewhere via spread tests.
 //
 // Note that we skip testing prctl(PR_SET_ENDIAN) - it causes havoc when
-// it is run. We will also need to skip: fadvise64_64,
-//   ftruncate64, posix_fadvise, pread64, pwrite64, readahead,
-//   sync_file_range, and truncate64.
+// it is run. We will also need to skip: fadvise64_64, ftruncate64,
+// posix_fadvise, pread64, pwrite64, readahead,	sync_file_range, and truncate64.
+//
 // Once we start using those. See `man syscall`
 func (s *snapSeccompSuite) runBpf(c *C, seccompWhitelist, bpfInput string, expected int) {
 	// Common syscalls we need to allow for a minimal statically linked
@@ -369,14 +370,16 @@ func (s *snapSeccompSuite) TestUnrestricted(c *C) {
 // the rule into a bpf program and then running that program on a virtual bpf
 // machine and comparing the bpf machine output to the specified expected
 // output and seccomp operation. Eg:
-//    {"<rule>", "<mocked kernel input>", <seccomp result>}
+//
+//	{"<rule>", "<mocked kernel input>", <seccomp result>}
 //
 // Eg to test that the rule 'read >=2' is allowed with 'read(2)' and 'read(3)'
 // and denied with 'read(1)' and 'read(0)', add the following tests:
-//    {"read >=2", "read;native;2", Allow},
-//    {"read >=2", "read;native;3", Allow},
-//    {"read >=2", "read;native;1", main.SeccompRetKill},
-//    {"read >=2", "read;native;0", main.SeccompRetKill},
+//
+//	{"read >=2", "read;native;2", Allow},
+//	{"read >=2", "read;native;3", Allow},
+//	{"read >=2", "read;native;1", main.SeccompRetKill},
+//	{"read >=2", "read;native;0", main.SeccompRetKill},
 func (s *snapSeccompSuite) TestCompile(c *C) {
 
 	for _, t := range []struct {
@@ -447,6 +450,12 @@ func (s *snapSeccompSuite) TestCompile(c *C) {
 		{"ioctl - TIOCSTI", "ioctl;native;-,TIOCSTI", Allow},
 		{"ioctl - TIOCSTI", "ioctl;native;-,99", Deny},
 		{"ioctl - !TIOCSTI", "ioctl;native;-,TIOCSTI", Deny},
+		{"~ioctl - TIOCSTI", "ioctl;native;-,TIOCSTI", Deny},
+		// also check we can deny multiple uses of ioctl but still allow
+		// others
+		{"~ioctl - TIOCSTI\n~ioctl - TIOCLINUX\nioctl - !TIOCSTI", "ioctl;native;-,TIOCSTI", Deny},
+		{"~ioctl - TIOCSTI\n~ioctl - TIOCLINUX\nioctl - !TIOCSTI", "ioctl;native;-,TIOCLINUX", Deny},
+		{"~ioctl - TIOCSTI\n~ioctl - TIOCLINUX\nioctl - !TIOCSTI", "ioctl;native;-,TIOCGWINSZ", Allow},
 
 		// test_bad_seccomp_filter_args_clone
 		{"setns - CLONE_NEWNET", "setns;native;-,99", Deny},

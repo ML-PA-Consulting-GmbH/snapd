@@ -1,7 +1,7 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 
 /*
- * Copyright (C) 2014-2020 Canonical Ltd
+ * Copyright (C) 2014-2023 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,7 +21,6 @@ package seedwriter
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -43,6 +42,8 @@ type policy16 struct {
 
 	needsCore   []string
 	needsCore16 []string
+
+	snapdUsedOnClassic bool
 }
 
 func (pol *policy16) allowsDangerousFeatures() error {
@@ -57,6 +58,11 @@ func (pol *policy16) checkDefaultChannel(channel.Channel) error {
 
 func (pol *policy16) checkSnapChannel(_ channel.Channel, whichSnap string) error {
 	// Core 16 has no constraints on snap channel overrides
+	return nil
+}
+
+func (pol *policy16) checkClassicSnap(_ *SeedSnap) error {
+	// Core 16/18 have no constraints on classic snaps
 	return nil
 }
 
@@ -110,11 +116,6 @@ func (pol *policy16) checkBase(info *snap.Info, modes []string, availableByMode 
 	return fmt.Errorf("cannot add snap %q without also adding its base %q explicitly", info.SnapName(), info.Base)
 }
 
-func (pol *policy16) checkAvailable(snapRef naming.SnapRef, modes []string, availableByMode map[string]*naming.SnapSet) bool {
-	availableSnaps := availableByMode["run"]
-	return availableSnaps.Contains(snapRef)
-}
-
 func (pol *policy16) needsImplicitSnaps(availableByMode map[string]*naming.SnapSet) (bool, error) {
 	availableSnaps := availableByMode["run"]
 	// do we need to add implicitly either snapd (or core)
@@ -142,7 +143,7 @@ func (pol *policy16) implicitSnaps(availableByMode map[string]*naming.SnapSet) [
 	if len(pol.needsCore) != 0 && !availableSnaps.Contains(naming.Snap("core")) {
 		return []*asserts.ModelSnap{makeSystemSnap("core")}
 	}
-	if pol.model.Classic() && !availableSnaps.Empty() {
+	if pol.model.Classic() && !availableSnaps.Empty() && !availableSnaps.Contains(naming.Snap("snapd")) {
 		return []*asserts.ModelSnap{makeSystemSnap("snapd")}
 	}
 	return nil
@@ -154,6 +155,40 @@ func (pol *policy16) implicitExtraSnaps(availableByMode map[string]*naming.SnapS
 		return []*OptionsSnap{{Name: "core"}}
 	}
 	return nil
+}
+
+func (pol *policy16) recordSnapNameUsage(snapName string) {
+	if !pol.model.Classic() {
+		// nothing to record
+		return
+	}
+	pol.snapdUsedOnClassic = snapName == "snapd"
+}
+
+func (pol *policy16) isSystemSnapCandidate(sn *SeedSnap) bool {
+	if sn.modelSnap != nil {
+		sysSnap := pol.systemSnap()
+		if sysSnap != nil && sn.modelSnap.SnapType == sysSnap.SnapType {
+			return true
+		}
+		if sn.modelSnap.SnapType == "snapd" {
+			return true
+		}
+	}
+	if pol.model.Classic() {
+		if pol.snapdUsedOnClassic {
+			return sn.SnapName() == "snapd"
+		} else {
+			return sn.SnapName() == "core"
+		}
+	}
+	return false
+}
+
+func (pol *policy16) ignoreUndeterminedSystemSnap() bool {
+	// there are some corner cases where we possibly supported just using
+	// the deb for classic
+	return pol.model.Classic()
 }
 
 type tree16 struct {
@@ -194,7 +229,7 @@ func (tr *tree16) writeAssertions(db asserts.RODatabase, modelRefs []*asserts.Re
 			if err != nil {
 				return fmt.Errorf("internal error: lost saved assertion")
 			}
-			if err = ioutil.WriteFile(filepath.Join(seedAssertsDir, afn), asserts.Encode(a), 0644); err != nil {
+			if err = os.WriteFile(filepath.Join(seedAssertsDir, afn), asserts.Encode(a), 0644); err != nil {
 				return err
 			}
 		}
@@ -206,13 +241,13 @@ func (tr *tree16) writeAssertions(db asserts.RODatabase, modelRefs []*asserts.Re
 	}
 
 	for _, sn := range snapsFromModel {
-		if err := writeByRefs(sn.ARefs); err != nil {
+		if err := writeByRefs(sn.aRefs); err != nil {
 			return err
 		}
 	}
 
 	for _, sn := range extraSnaps {
-		if err := writeByRefs(sn.ARefs); err != nil {
+		if err := writeByRefs(sn.aRefs); err != nil {
 			return err
 		}
 	}
@@ -246,7 +281,6 @@ func (tr *tree16) writeMeta(snapsFromModel []*SeedSnap, extraSnaps []*SeedSnap) 
 			File:    filepath.Base(sn.Path),
 			DevMode: info.NeedsDevMode(),
 			Classic: info.NeedsClassic(),
-			// TODO: set this only if the snap has no links?
 			Contact: info.Contact(),
 			// no assertions for this snap were put in the seed
 			Unasserted: unasserted,

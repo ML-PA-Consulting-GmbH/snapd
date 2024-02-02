@@ -266,6 +266,7 @@ func (s *refreshHintsTestSuite) TestRefreshHintsStoresRefreshCandidates(c *C) {
 	c.Assert(candidates, HasLen, 2)
 	cand1 := candidates["some-snap"]
 	c.Assert(cand1, NotNil)
+
 	c.Check(cand1.InstanceName(), Equals, "some-snap")
 	c.Check(cand1.SnapBase(), Equals, "some-base")
 	c.Check(cand1.Type(), Equals, snap.TypeApp)
@@ -284,11 +285,12 @@ func (s *refreshHintsTestSuite) TestRefreshHintsStoresRefreshCandidates(c *C) {
 	err = snapstate.Get(s.state, "some-snap", &snapst1)
 	c.Assert(err, IsNil)
 
-	sup, snapst, err := cand1.SnapSetupForUpdate(s.state, nil, 0, nil)
+	sup, snapst, err := cand1.SnapSetupForUpdate(s.state, nil, 0, nil, nil)
 	c.Assert(err, IsNil)
 	c.Check(sup, DeepEquals, &snapstate.SnapSetup{
-		Base: "some-base",
-		Type: "app",
+		Base:    "some-base",
+		Type:    "app",
+		Version: "2",
 		SideInfo: &snap.SideInfo{
 			RealName: "some-snap",
 			Revision: snap.R(1),
@@ -309,10 +311,11 @@ func (s *refreshHintsTestSuite) TestRefreshHintsStoresRefreshCandidates(c *C) {
 	err = snapstate.Get(s.state, "other-snap", &snapst2)
 	c.Assert(err, IsNil)
 
-	sup, snapst, err = cand2.SnapSetupForUpdate(s.state, nil, 0, nil)
+	sup, snapst, err = cand2.SnapSetupForUpdate(s.state, nil, 0, nil, nil)
 	c.Assert(err, IsNil)
 	c.Check(sup, DeepEquals, &snapstate.SnapSetup{
-		Type: "app",
+		Type:    "app",
+		Version: "v1",
 		SideInfo: &snap.SideInfo{
 			RealName: "other-snap",
 			Revision: snap.R(2),
@@ -417,6 +420,9 @@ func (s *refreshHintsTestSuite) TestPruneRefreshCandidatesIncorrectFormat(c *C) 
 
 func (s *refreshHintsTestSuite) TestRefreshHintsNotApplicableWrongArch(c *C) {
 	s.state.Lock()
+	repo := interfaces.NewRepository()
+	ifacerepo.Replace(s.state, repo)
+
 	snapstate.Set(s.state, "other-snap", &snapstate.SnapState{
 		Active: true,
 		Sequence: []*snap.SideInfo{
@@ -461,8 +467,61 @@ epoch: 1
 type: app
 `
 
+func (s *refreshHintsTestSuite) TestRefreshHintsAbortsMonitoringForRemovedCandidates(c *C) {
+	s.state.Lock()
+	snapstate.Set(s.state, "other-snap", &snapstate.SnapState{
+		Active: true,
+		Sequence: []*snap.SideInfo{
+			{RealName: "other-snap", Revision: snap.R(1), SnapID: "other-snap-id"},
+		},
+		Current: snap.R(1),
+	})
+	s.state.Unlock()
+
+	s.store.refreshedSnaps = []*snap.Info{{
+		SideInfo: snap.SideInfo{
+			RealName: "some-snap",
+			Revision: snap.R(1),
+		}},
+		{
+			SideInfo: snap.SideInfo{
+				RealName: "other-snap",
+				Revision: snap.R(2),
+			},
+		}}
+
+	s.state.Lock()
+	s.state.Set("refresh-candidates", map[string]*snapstate.RefreshCandidate{
+		"some-snap":      {SnapSetup: snapstate.SnapSetup{SideInfo: &snap.SideInfo{RealName: "some-snap"}}},
+		"monitored-snap": {SnapSetup: snapstate.SnapSetup{SideInfo: &snap.SideInfo{RealName: "second-snap"}}},
+	})
+
+	// mock a monitoring routine for "second-snap" for which the refresh-candidate
+	// will be removed
+	refreshCtx, abort := context.WithCancel(context.TODO())
+	monitored := map[string]context.CancelFunc{
+		"monitored-snap": abort,
+		"something-else": nil,
+	}
+	s.state.Cache("monitored-snaps", monitored)
+	s.state.Unlock()
+
+	rh := snapstate.NewRefreshHints(s.state)
+	err := rh.Ensure()
+	c.Check(err, IsNil)
+	c.Check(s.store.ops, DeepEquals, []string{"list-refresh"})
+
+	select {
+	case <-refreshCtx.Done():
+	case <-time.After(5 * time.Second):
+		c.Fatal("test timed out before mocked monitoring was aborted")
+	}
+}
+
 func (s *refreshHintsTestSuite) TestRefreshHintsNotApplicableWrongEpoch(c *C) {
 	s.state.Lock()
+	repo := interfaces.NewRepository()
+	ifacerepo.Replace(s.state, repo)
 
 	si := &snap.SideInfo{RealName: "other-snap", Revision: snap.R(1), SnapID: "other-snap-id"}
 	snaptest.MockSnap(c, otherSnapYaml, si)
@@ -502,4 +561,21 @@ func (s *refreshHintsTestSuite) TestRefreshHintsNotApplicableWrongEpoch(c *C) {
 	c.Assert(candidates, HasLen, 1)
 	// other-snap ignored due to epoch
 	c.Check(candidates["some-snap"], NotNil)
+}
+
+func (s *refreshHintsTestSuite) TestSnapStoreOffline(c *C) {
+	setStoreAccess(s.state, "offline")
+
+	rh := snapstate.NewRefreshHints(s.state)
+	err := rh.Ensure()
+	c.Check(err, IsNil)
+
+	c.Check(s.store.ops, HasLen, 0)
+
+	setStoreAccess(s.state, nil)
+
+	err = rh.Ensure()
+	c.Check(err, IsNil)
+
+	c.Check(s.store.ops, DeepEquals, []string{"list-refresh"})
 }

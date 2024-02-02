@@ -60,7 +60,7 @@ func (s *storeCtxSuite) SetUpTest(c *C) {
 
 func (s *storeCtxSuite) TestUpdateUserAuth(c *C) {
 	s.state.Lock()
-	user, _ := auth.NewUser(s.state, auth.NewUserData{
+	user, _ := auth.NewUser(s.state, auth.NewUserParams{
 		Username:   "username",
 		Email:      "email@test.com",
 		Macaroon:   "macaroon",
@@ -85,7 +85,7 @@ func (s *storeCtxSuite) TestUpdateUserAuth(c *C) {
 
 func (s *storeCtxSuite) TestUpdateUserAuthOtherUpdate(c *C) {
 	s.state.Lock()
-	user, _ := auth.NewUser(s.state, auth.NewUserData{
+	user, _ := auth.NewUser(s.state, auth.NewUserParams{
 		Username:   "username",
 		Email:      "email@test.com",
 		Macaroon:   "macaroon",
@@ -123,7 +123,7 @@ func (s *storeCtxSuite) TestUpdateUserAuthOtherUpdate(c *C) {
 
 func (s *storeCtxSuite) TestUpdateUserAuthInvalid(c *C) {
 	s.state.Lock()
-	_, _ = auth.NewUser(s.state, auth.NewUserData{
+	_, _ = auth.NewUser(s.state, auth.NewUserParams{
 		Username:   "username",
 		Email:      "email@test.com",
 		Macaroon:   "macaroon",
@@ -304,9 +304,10 @@ AXNpZw=`
 )
 
 type testBackend struct {
-	nothing  bool
-	noSerial bool
-	device   *auth.DeviceState
+	nothing      bool
+	noSerial     bool
+	storeOffline bool
+	device       *auth.DeviceState
 }
 
 func (b *testBackend) Device() (*auth.DeviceState, error) {
@@ -368,6 +369,14 @@ func (b *testBackend) ProxyStore() (*asserts.Store, error) {
 		return nil, err
 	}
 	return a.(*asserts.Store), nil
+}
+
+func (b *testBackend) StoreOffline() (bool, error) {
+	if b.nothing {
+		return false, state.ErrNoState
+	}
+
+	return b.storeOffline, nil
 }
 
 func (s *storeCtxSuite) TestMissingDeviceAssertions(c *C) {
@@ -484,4 +493,16 @@ func (s *storeCtxSuite) TestComposable(c *C) {
 	storeCtx = storecontext.NewComposed(s.state, b, srqs, b)
 	params, err = storeCtx.DeviceSessionRequestParams("NONCE-1")
 	c.Assert(err, ErrorMatches, "boom")
+}
+
+func (s *storeCtxSuite) TestStoreOffline(c *C) {
+	b := &testBackend{
+		storeOffline: true,
+	}
+
+	storeCtx := storecontext.NewComposed(s.state, b, b, b)
+
+	offline, err := storeCtx.StoreOffline()
+	c.Check(err, IsNil)
+	c.Check(offline, Equals, true)
 }

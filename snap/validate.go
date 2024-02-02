@@ -1,7 +1,7 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 
 /*
- * Copyright (C) 2022 Canonical Ltd
+ * Copyright (C) 2022-2023 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -159,6 +159,22 @@ func ValidateLicense(license string) error {
 	if err := spdx.ValidateLicense(license); err != nil {
 		return fmt.Errorf("cannot validate license %q: %s", license, err)
 	}
+	return nil
+}
+
+func validateHooks(info *Info) error {
+	for _, hook := range info.Hooks {
+		if err := ValidateHook(hook); err != nil {
+			return err
+		}
+	}
+
+	hasDefaultConfigureHook := info.Hooks["default-configure"] != nil
+	hasConfigureHook := info.Hooks["configure"] != nil
+	if hasDefaultConfigureHook && !hasConfigureHook {
+		return fmt.Errorf(`cannot specify "default-configure" hook without "configure" hook`)
+	}
+
 	return nil
 }
 
@@ -368,11 +384,9 @@ func Validate(info *Info) error {
 		}
 	}
 
-	// validate hook entries
-	for _, hook := range info.Hooks {
-		if err := ValidateHook(hook); err != nil {
-			return err
-		}
+	// Validate hook entries
+	if err := validateHooks(info); err != nil {
+		return err
 	}
 
 	// Ensure that plugs and slots have appropriate names and interface names.
@@ -396,7 +410,7 @@ func Validate(info *Info) error {
 	}
 
 	// Ensure links are valid
-	if err := ValidateLinks(info.Links()); err != nil {
+	if err := ValidateLinks(info.OriginalLinks); err != nil {
 		return err
 	}
 
@@ -924,6 +938,7 @@ var layoutRejectionList = []string{
 	// snap applications to be integrated with the rest of the system and
 	// therefore snaps should not be allowed to replace it.
 	"/run",
+	"/var/run",
 	// The /tmp directory contains a private, per-snap, view of /tmp and
 	// there's no valid reason to allow snaps to replace it.
 	"/tmp",
@@ -939,9 +954,11 @@ var layoutRejectionList = []string{
 	// firmware. Therefore firmware must not be replaceable to prevent
 	// malicious firmware from attacking the host.
 	"/lib/firmware",
+	"/usr/lib/firmware",
 	// Similarly the kernel will load modules and the modules should not be
 	// something that snaps can tamper with.
 	"/lib/modules",
+	"/usr/lib/modules",
 
 	// Locations that store essential data:
 
@@ -1108,33 +1125,177 @@ func ValidateCommonIDs(info *Info) error {
 
 func ValidateSystemUsernames(info *Info) error {
 	for username := range info.SystemUsernames {
-		if !osutil.IsValidUsername(username) {
+		if !osutil.IsValidSnapSystemUsername(username) {
 			return fmt.Errorf("invalid system username %q", username)
 		}
 	}
 	return nil
 }
 
-// NeededDefaultProviders returns a map keyed by the names of all
+// SimplePrereqTracker is a simple stateless helper to track
+// prerequisites of snaps (default-providers in particular).
+// SimplePrereqTracker implements snapstate.PrereqTracker.
+type SimplePrereqTracker struct{}
+
+// InterfaceRepo can return all the known slots for an interface.
+type InterfaceRepo interface {
+	AllSlots(interfaceName string) []*SlotInfo
+}
+
+// Add implements snapstate.PrereqTracker.
+func (SimplePrereqTracker) Add(*Info) {
+	// SimplePrereqTracker is stateless, nothing to do.
+}
+
+// MissingProviderContentTags returns a map keyed by the names of all
 // default-providers for the content plugs that the given snap.Info
 // needs. The map values are the corresponding content tags.
-func NeededDefaultProviders(info *Info) (providerSnapsToContentTag map[string][]string) {
-	providerSnapsToContentTag = make(map[string][]string)
+// If repo is not nil, any content tag provided by an existing slot in it
+// is considered already available and filtered out from the result.
+func (SimplePrereqTracker) MissingProviderContentTags(info *Info, repo InterfaceRepo) map[string][]string {
+	availTags := contentIfaceAvailable(repo)
+	providerSnapsToContentTag := make(map[string][]string)
 	for _, plug := range info.Plugs {
-		gatherDefaultContentProvider(providerSnapsToContentTag, plug)
+		gatherDefaultContentProvider(providerSnapsToContentTag, plug, availTags)
 	}
 	return providerSnapsToContentTag
 }
 
-// ValidateBasesAndProviders checks that all bases/default-providers are part of the seed
-func ValidateBasesAndProviders(snapInfos []*Info) []error {
-	all := naming.NewSnapSet(nil)
-	for _, info := range snapInfos {
-		all.Add(info)
+// contentIfaceAvailable returns a map populated with content tags for which there is a content snap in the system.
+func contentIfaceAvailable(repo InterfaceRepo) map[string]bool {
+	if repo == nil {
+		return nil
+	}
+	contentSlots := repo.AllSlots("content")
+	avail := make(map[string]bool, len(contentSlots))
+	for _, slot := range contentSlots {
+		var contentTag string
+		slot.Attr("content", &contentTag)
+		if contentTag == "" {
+			continue
+		}
+		avail[contentTag] = true
+	}
+	return avail
+}
+
+// NeededDefaultProviders returns a map keyed by the names of all
+// default-providers for the content plugs that the given snap.Info
+// needs. The map values are the corresponding content tags.
+// XXX TODO: switch away from using/needing this in favor of the prereq
+// trackers.
+func NeededDefaultProviders(info *Info) (providerSnapsToContentTag map[string][]string) {
+	return (SimplePrereqTracker{}).MissingProviderContentTags(info, nil)
+}
+
+// SelfContainedPrereqTracker is a stateful helper to track
+// prerequisites of snaps (default-providers in particular).
+// It is meant to be used when dealing with a self-contained set
+// of snaps, with no desire to fetch further snaps, so all
+// prerequisites must be present in the set itself.
+// This applies to first boot seeding and remodeling for example.
+// SelfContainedPrereqTracker implements snapstate.PrereqTracker.
+type SelfContainedSetPrereqTracker struct {
+	snaps []*Info
+	all   *naming.SnapSet
+}
+
+// NewSelfContainedSetPrereqTracker returns a new SelfContainedSetPrereqTracker.
+func NewSelfContainedSetPrereqTracker() *SelfContainedSetPrereqTracker {
+	return &SelfContainedSetPrereqTracker{
+		all: naming.NewSnapSet(nil),
+	}
+}
+
+// Add adds a snap to track. Add implements snapstate.PrereqTracker.
+func (prqt *SelfContainedSetPrereqTracker) Add(info *Info) {
+	if !prqt.all.Contains(info) {
+		prqt.all.Add(info)
+		prqt.snaps = append(prqt.snaps, info)
+	}
+}
+
+// MissingProviderContentTags implements snapstate.PrereqTracker.
+// Given how snapstate uses this and as SelfContainedSetPrereqTracker is for
+// when no automatic fetching of prerequisites is desired, this always returns
+// nil.
+func (prqt *SelfContainedSetPrereqTracker) MissingProviderContentTags(info *Info, repo InterfaceRepo) map[string][]string {
+	return nil
+}
+
+func maybeContentSlot(slot *SlotInfo) (contentTag string) {
+	if slot.Interface != "content" {
+		return ""
+	}
+	slot.Attr("content", &contentTag)
+	return contentTag
+}
+
+func maybeContentPlug(plug *PlugInfo) (contentTag, defaultProviderSnap string) {
+	if plug.Interface != "content" {
+		return "", ""
+	}
+	plug.Attr("content", &contentTag)
+	plug.Attr("default-provider", &defaultProviderSnap)
+	return contentTag, defaultProviderSnap
+}
+
+// ProviderWarning represents a situation where a snap requires a content
+// provider but the default-provider is missing and/or many slots
+// are available.
+type ProviderWarning struct {
+	Snap            string
+	Plug            string
+	ContentTag      string
+	DefaultProvider string
+	Slots           []string
+}
+
+func (w *ProviderWarning) defaultProviderAvailable() (defaultProviderSlot string, otherSlots []string) {
+	prefix := w.DefaultProvider + ":"
+	for i, slot := range w.Slots {
+		if strings.HasPrefix(slot, prefix) {
+			return slot, append(append([]string{}, w.Slots[:i]...), w.Slots[i+1:]...)
+		}
+	}
+	return "", w.Slots
+}
+
+func (w *ProviderWarning) Error() string {
+	defaultSlot, otherSlots := w.defaultProviderAvailable()
+	slotsStr := strings.Join(otherSlots, ", ")
+
+	if defaultSlot != "" {
+		return fmt.Sprintf("snap %q requires a provider for content %q, many candidates slots are available (%s) including from default-provider %s, ensure a single auto-connection (or possibly a connection) is in-place", w.Snap, w.ContentTag, slotsStr, defaultSlot)
 	}
 
-	var errs []error
-	for _, info := range snapInfos {
+	var cands string
+	if len(otherSlots) == 1 {
+		cands = fmt.Sprintf("a candidate slot is available (%s)", otherSlots[0])
+	} else {
+		cands = fmt.Sprintf("many candidate slots are available (%s)", slotsStr)
+	}
+	return fmt.Sprintf("snap %q requires a provider for content %q, %s but not the default-provider, ensure a single auto-connection (or possibly a connection) is in-place", w.Snap, w.ContentTag, cands)
+}
+
+// Check checks that all the prerequisites for the tracked snaps in the set are
+// present in the set itself. It returns errors for the cases when this is
+// clearly not the case. It returns warnings for ambiguous situations and/or
+// when fulfilling the prerequisite might require setting up auto-connections
+// in the store or explicit connections.
+func (prqt *SelfContainedSetPrereqTracker) Check() (warnings, errs []error) {
+	all := prqt.all
+	contentSlots := make(map[string][]*SlotInfo)
+	for _, info := range prqt.snaps {
+		for _, slot := range info.Slots {
+			contentTag := maybeContentSlot(slot)
+			if contentTag == "" {
+				continue
+			}
+			contentSlots[contentTag] = append(contentSlots[contentTag], slot)
+		}
+	}
+	for _, info := range prqt.snaps {
 		// ensure base is available
 		if info.Base != "" && info.Base != "none" {
 			if !all.Contains(naming.Snap(info.Base)) {
@@ -1147,14 +1308,57 @@ func ValidateBasesAndProviders(snapInfos []*Info) []error {
 				errs = append(errs, fmt.Errorf(`cannot use snap %q: required snap "core" missing`, info.InstanceName()))
 			}
 		}
-		// ensure default-providers are available
-		for dp := range NeededDefaultProviders(info) {
-			if !all.Contains(naming.Snap(dp)) {
-				errs = append(errs, fmt.Errorf("cannot use snap %q: default provider %q is missing", info.InstanceName(), dp))
+		// ensure that content plugs are fulfilled by default-providers
+		// or otherwise
+		plugNames := make([]string, 0, len(info.Plugs))
+		for plugName, plug := range info.Plugs {
+			_, defaultProvider := maybeContentPlug(plug)
+			if defaultProvider == "" {
+				continue
+			}
+			plugNames = append(plugNames, plugName)
+		}
+		sort.Strings(plugNames)
+		for _, plugName := range plugNames {
+			plug := info.Plugs[plugName]
+			wantedTag, defaultProvider := maybeContentPlug(plug)
+			candSlots := contentSlots[wantedTag]
+			switch len(candSlots) {
+			case 0:
+				errs = append(errs, fmt.Errorf("cannot use snap %q: default provider %q or any alternative provider for content %q is missing", info.InstanceName(), defaultProvider, wantedTag))
+			case 1:
+				if candSlots[0].Snap.InstanceName() == defaultProvider {
+					continue
+				}
+				// XXX TODO: consider also publisher
+				fallthrough
+			default:
+				slots := make([]string, len(candSlots))
+				for i, slot := range candSlots {
+					slots[i] = slot.String()
+				}
+				sort.Strings(slots)
+				w := &ProviderWarning{
+					Snap:            info.InstanceName(),
+					Plug:            plugName,
+					ContentTag:      wantedTag,
+					DefaultProvider: defaultProvider,
+					Slots:           slots,
+				}
+				warnings = append(warnings, w)
 			}
 		}
 	}
-	return errs
+	return warnings, errs
+}
+
+// ValidateBasesAndProviders checks that all bases/content providers are fulfilled for the given self-contained set of snaps.
+func ValidateBasesAndProviders(snapInfos []*Info) (warns, errors []error) {
+	prqt := NewSelfContainedSetPrereqTracker()
+	for _, info := range snapInfos {
+		prqt.Add(info)
+	}
+	return prqt.Check()
 }
 
 var isValidLinksKey = regexp.MustCompile("^[a-zA-Z](?:-?[a-zA-Z0-9])*$").MatchString

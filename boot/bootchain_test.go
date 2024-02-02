@@ -1,7 +1,7 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 
 /*
- * Copyright (C) 2020 Canonical Ltd
+ * Copyright (C) 2020-2022 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -21,7 +21,6 @@ package boot_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -1022,7 +1021,7 @@ func (s *bootchainSuite) TestBootAssetsToLoadChainErr(c *C) {
 	c.Check(chains, IsNil)
 	// make it work now
 	c.Assert(os.MkdirAll(filepath.Dir(cPath("recovery-bl/shim-hash0")), 0755), IsNil)
-	c.Assert(ioutil.WriteFile(cPath("recovery-bl/shim-hash0"), nil, 0644), IsNil)
+	c.Assert(os.WriteFile(cPath("recovery-bl/shim-hash0"), nil, 0644), IsNil)
 
 	// nested error bubbled up
 	chains, err = boot.BootAssetsToLoadChains(assets, kbl, blNames)
@@ -1030,7 +1029,7 @@ func (s *bootchainSuite) TestBootAssetsToLoadChainErr(c *C) {
 	c.Check(chains, IsNil)
 	// again, make it work
 	c.Assert(os.MkdirAll(filepath.Dir(cPath("recovery-bl/loader-recovery-hash0")), 0755), IsNil)
-	c.Assert(ioutil.WriteFile(cPath("recovery-bl/loader-recovery-hash0"), nil, 0644), IsNil)
+	c.Assert(os.WriteFile(cPath("recovery-bl/loader-recovery-hash0"), nil, 0644), IsNil)
 
 	// fails on missing bootloader name for role "run-mode"
 	chains, err = boot.BootAssetsToLoadChains(assets, kbl, blNames)
@@ -1055,7 +1054,7 @@ func (s *bootchainSuite) TestBootAssetsToLoadChainSimpleChain(c *C) {
 	} {
 		p := filepath.Join(dirs.SnapBootAssetsDir, name)
 		c.Assert(os.MkdirAll(filepath.Dir(p), 0755), IsNil)
-		c.Assert(ioutil.WriteFile(p, nil, 0644), IsNil)
+		c.Assert(os.WriteFile(p, nil, 0644), IsNil)
 	}
 
 	blNames := map[bootloader.Role]string{
@@ -1241,9 +1240,26 @@ func (s *bootchainSuite) TestModelForSealing(c *C) {
 	modelForSealing := bc.SecbootModelForSealing()
 	c.Check(modelForSealing.Model(), Equals, "my-model")
 	c.Check(modelForSealing.BrandID(), Equals, "my-brand")
+	c.Check(modelForSealing.Classic(), Equals, false)
 	c.Check(modelForSealing.Grade(), Equals, asserts.ModelGrade("signed"))
 	c.Check(modelForSealing.SignKeyID(), Equals, "my-key-id")
 	c.Check(modelForSealing.Series(), Equals, "16")
 	c.Check(boot.ModelUniqueID(modelForSealing), Equals, "my-brand/my-model,signed,my-key-id")
 
+}
+
+func (s *bootchainSuite) TestClassicModelForSealing(c *C) {
+	bc := boot.BootChain{
+		BrandID:        "my-brand",
+		Model:          "my-model",
+		Classic:        true,
+		Grade:          "signed",
+		ModelSignKeyID: "my-key-id",
+	}
+
+	modelForSealing := bc.SecbootModelForSealing()
+	c.Check(modelForSealing.Model(), Equals, "my-model")
+	c.Check(modelForSealing.BrandID(), Equals, "my-brand")
+	c.Check(modelForSealing.Classic(), Equals, true)
+	c.Check(boot.ModelUniqueID(modelForSealing), Equals, "my-brand/my-model,signed,my-key-id")
 }

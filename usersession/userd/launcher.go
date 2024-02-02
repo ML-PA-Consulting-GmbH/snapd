@@ -1,7 +1,7 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 
 /*
- * Copyright (C) 2017 Canonical Ltd
+ * Copyright (C) 2017-2023 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -65,13 +65,13 @@ const launcherIntrospectionXML = `
 // https://github.com/snapcore/snapd/pull/7731#pullrequestreview-362900171
 //
 // The current criteria for adding url schemes is:
-// * understanding and documenting the scheme in this file
-// * the scheme itself does not cause xdg-open to open files (eg, file:// or
-//   matching '^[[:alpha:]+\.\-]+:' (from xdg-open source))
-// * verifying that the recipient of the url (ie, what xdg-open calls) won't
-//   process file paths/etc that can be leveraged to break out of the sandbox
-//   (but understanding how the url can drive the recipient application is
-//   important)
+//   - understanding and documenting the scheme in this file
+//   - the scheme itself does not cause xdg-open to open files (eg, file:// or
+//     matching '^[[:alpha:]+\.\-]+:' (from xdg-open source))
+//   - verifying that the recipient of the url (ie, what xdg-open calls) won't
+//     process file paths/etc that can be leveraged to break out of the sandbox
+//     (but understanding how the url can drive the recipient application is
+//     important)
 //
 // This code uses golang's net/url.Parse() which will help ensure the url is
 // ok before passing to xdg-open. xdg-open itself properly quotes the url so
@@ -161,12 +161,9 @@ func checkOnClassic() *dbus.Error {
 var validDesktopFileName = regexp.MustCompile(`^[A-Za-z-_][A-Za-z0-9-_]*(\.[A-Za-z-_][A-Za-z0-9-_]*)*\.desktop$`)
 
 func schemeHasHandler(scheme string) (bool, error) {
-	cmd := exec.Command("xdg-mime", "query", "default", "x-scheme-handler/"+scheme)
-	// TODO: consider using Output() in case xdg-mime starts logging to
-	// stderr
-	out, err := cmd.CombinedOutput()
+	out, stderr, err := osutil.RunSplitOutput("xdg-mime", "query", "default", "x-scheme-handler/"+scheme)
 	if err != nil {
-		return false, osutil.OutputErr(out, err)
+		return false, osutil.OutputErrCombine(out, stderr, err)
 	}
 	out = bytes.TrimSpace(out)
 	// if the output is a valid desktop file we have a handler for the given
@@ -205,6 +202,10 @@ func (s *Launcher) OpenURL(addr string, sender dbus.Sender) *dbus.Error {
 		return makeAccessDeniedError(fmt.Errorf("Supplied URL scheme %q is not allowed", u.Scheme))
 	}
 
+	// ATTENTION!
+	// this code must not add directories from the snap
+	// to XDG_DATA_DIRS and similar, see
+	// https://ubuntu.com/security/CVE-2020-11934
 	if err := exec.Command("xdg-open", addr).Run(); err != nil {
 		return dbus.MakeFailedError(fmt.Errorf("cannot open supplied URL"))
 	}

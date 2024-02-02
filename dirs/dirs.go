@@ -41,26 +41,25 @@ var (
 
 	HiddenSnapDataHomeGlob string
 
-	SnapBlobDir            string
-	SnapDataDir            string
-	SnapDataHomeGlob       string
-	SnapDownloadCacheDir   string
-	SnapAppArmorDir        string
-	SnapConfineAppArmorDir string
-	SnapSeccompBase        string
-	SnapSeccompDir         string
-	SnapMountPolicyDir     string
-	SnapUdevRulesDir       string
-	SnapKModModulesDir     string
-	SnapKModModprobeDir    string
-	LocaleDir              string
-	SnapdSocket            string
-	SnapSocket             string
-	SnapRunDir             string
-	SnapRunNsDir           string
-	SnapRunLockDir         string
-	SnapBootstrapRunDir    string
-	SnapVoidDir            string
+	SnapBlobDir          string
+	SnapDataDir          string
+	SnapDataHomeGlob     string
+	SnapDownloadCacheDir string
+	SnapAppArmorDir      string
+	SnapSeccompBase      string
+	SnapSeccompDir       string
+	SnapMountPolicyDir   string
+	SnapUdevRulesDir     string
+	SnapKModModulesDir   string
+	SnapKModModprobeDir  string
+	LocaleDir            string
+	SnapdSocket          string
+	SnapSocket           string
+	SnapRunDir           string
+	SnapRunNsDir         string
+	SnapRunLockDir       string
+	SnapBootstrapRunDir  string
+	SnapVoidDir          string
 
 	SnapdMaintenanceFile string
 
@@ -79,6 +78,7 @@ var (
 	SnapStateLockFile string
 	SnapSystemKeyFile string
 
+	SnapRepairConfigFile string
 	SnapRepairDir        string
 	SnapRepairStateFile  string
 	SnapRepairRunDir     string
@@ -135,8 +135,7 @@ var (
 
 	SnapshotsDir string
 
-	ErrtrackerDbDir string
-	SysfsDir        string
+	SysfsDir string
 
 	FeaturesDir string
 )
@@ -283,6 +282,11 @@ func FeaturesDirUnder(rootdir string) string {
 	return filepath.Join(rootdir, snappyDir, "features")
 }
 
+// SnapSystemParamsUnder returns the path to the system-params file under rootdir.
+func SnapSystemParamsUnder(rootdir string) string {
+	return filepath.Join(rootdir, snappyDir, "system-params")
+}
+
 // SnapSystemdConfDirUnder returns the path to the systemd conf dir under
 // rootdir.
 func SnapSystemdConfDirUnder(rootdir string) string {
@@ -323,6 +327,11 @@ func SnapFDEDirUnderSave(savedir string) string {
 	return filepath.Join(savedir, "device/fde")
 }
 
+// SnapSaveDirUnder returns the path to device save directory under rootdir.
+func SnapRepairConfigFileUnder(rootdir string) string {
+	return filepath.Join(rootdir, snappyDir, "repair.json")
+}
+
 // AddRootDirCallback registers a callback for whenever the global root
 // directory (set by SetRootDir) is changed to enable updates to variables in
 // other packages that depend on its location.
@@ -360,7 +369,6 @@ func SetRootDir(rootdir string) {
 	SnapDataHomeGlob = filepath.Join(rootdir, "/home/*/", UserHomeSnapDir)
 	HiddenSnapDataHomeGlob = filepath.Join(rootdir, "/home/*/", HiddenSnapDataHomeDir)
 	SnapAppArmorDir = filepath.Join(rootdir, snappyDir, "apparmor", "profiles")
-	SnapConfineAppArmorDir = filepath.Join(rootdir, snappyDir, "apparmor", "snap-confine")
 	SnapDownloadCacheDir = filepath.Join(rootdir, snappyDir, "cache")
 	SnapSeccompBase = filepath.Join(rootdir, snappyDir, "seccomp")
 	SnapSeccompDir = filepath.Join(SnapSeccompBase, "bpf")
@@ -411,6 +419,7 @@ func SetRootDir(rootdir string) {
 	SnapDeviceSaveDir = filepath.Join(SnapSaveDir, "device")
 	SnapDataSaveDir = filepath.Join(SnapSaveDir, "snap")
 
+	SnapRepairConfigFile = SnapRepairConfigFileUnder(rootdir)
 	SnapRepairDir = filepath.Join(rootdir, snappyDir, "repair")
 	SnapRepairStateFile = filepath.Join(SnapRepairDir, "repair.json")
 	SnapRepairRunDir = filepath.Join(SnapRepairDir, "run")
@@ -503,7 +512,6 @@ func SetRootDir(rootdir string) {
 
 	SnapshotsDir = filepath.Join(rootdir, snappyDir, "snapshots")
 
-	ErrtrackerDbDir = filepath.Join(rootdir, snappyDir, "errtracker.db")
 	SysfsDir = filepath.Join(rootdir, "/sys")
 
 	FeaturesDir = FeaturesDirUnder(rootdir)

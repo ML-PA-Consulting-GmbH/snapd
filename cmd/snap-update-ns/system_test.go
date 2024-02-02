@@ -21,7 +21,6 @@ package main_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -78,10 +77,10 @@ func (s *systemSuite) TestAssumptions(c *C) {
 	c.Check(as.ModeForPath("/stuff"), Equals, os.FileMode(0755))
 	c.Check(as.ModeForPath("/tmp"), Equals, os.FileMode(0755))
 	c.Check(as.ModeForPath("/var/lib/snapd/hostfs/tmp"), Equals, os.FileMode(0755))
-	c.Check(as.ModeForPath("/var/lib/snapd/hostfs/tmp/snap.x11-server"), Equals, os.FileMode(0700))
-	c.Check(as.ModeForPath("/var/lib/snapd/hostfs/tmp/snap.x11-server/tmp"), Equals, os.FileMode(0777)|os.ModeSticky)
-	c.Check(as.ModeForPath("/var/lib/snapd/hostfs/tmp/snap.x11-server/foo"), Equals, os.FileMode(0755))
-	c.Check(as.ModeForPath("/var/lib/snapd/hostfs/tmp/snap.x11-server/tmp/.X11-unix"), Equals, os.FileMode(0777)|os.ModeSticky)
+	c.Check(as.ModeForPath("/var/lib/snapd/hostfs/tmp/snap-private-tmp/snap.x11-server"), Equals, os.FileMode(0700))
+	c.Check(as.ModeForPath("/var/lib/snapd/hostfs/tmp/snap-private-tmp/snap.x11-server/tmp"), Equals, os.FileMode(0777)|os.ModeSticky)
+	c.Check(as.ModeForPath("/var/lib/snapd/hostfs/tmp/snap-private-tmp/snap.x11-server/foo"), Equals, os.FileMode(0755))
+	c.Check(as.ModeForPath("/var/lib/snapd/hostfs/tmp/snap-private-tmp/snap.x11-server/tmp/.X11-unix"), Equals, os.FileMode(0777)|os.ModeSticky)
 	c.Check(as.ModeForPath("/dev/shm/snap.some-snap"), Equals, os.FileMode(0777)|os.ModeSticky)
 
 	// Instances can, in addition, access /snap/$SNAP_INSTANCE_NAME
@@ -101,7 +100,7 @@ func (s *systemSuite) TestLoadDesiredProfile(c *C) {
 	// Write a desired system mount profile for snap "foo".
 	path := update.DesiredSystemProfilePath(upCtx.InstanceName())
 	c.Assert(os.MkdirAll(filepath.Dir(path), 0755), IsNil)
-	c.Assert(ioutil.WriteFile(path, []byte(text), 0644), IsNil)
+	c.Assert(os.WriteFile(path, []byte(text), 0644), IsNil)
 
 	// Ask the system profile update helper to read the desired profile.
 	profile, err := upCtx.LoadDesiredProfile()
@@ -123,7 +122,7 @@ func (s *systemSuite) TestLoadCurrentProfile(c *C) {
 	// Write a current system mount profile for snap "foo".
 	path := update.CurrentSystemProfilePath(upCtx.InstanceName())
 	c.Assert(os.MkdirAll(filepath.Dir(path), 0755), IsNil)
-	c.Assert(ioutil.WriteFile(path, []byte(text), 0644), IsNil)
+	c.Assert(os.WriteFile(path, []byte(text), 0644), IsNil)
 
 	// Ask the system profile update helper to read the current profile.
 	profile, err := upCtx.LoadCurrentProfile()

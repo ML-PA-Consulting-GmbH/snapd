@@ -35,13 +35,17 @@ import (
 	"github.com/snapcore/snapd/overlord/auth"
 )
 
-func (s *Store) assertionsEndpointURL(p string, query url.Values) *url.URL {
+func (s *Store) assertionsEndpointURL(p string, query url.Values) (*url.URL, error) {
+	if err := s.checkStoreOnline(); err != nil {
+		return nil, err
+	}
+
 	defBaseURL := s.cfg.StoreBaseURL
 	// can be overridden separately!
 	if s.cfg.AssertionsBaseURL != nil {
 		defBaseURL = s.cfg.AssertionsBaseURL
 	}
-	return endpointURL(s.baseURL(defBaseURL), path.Join("v2/assertions", p), query)
+	return endpointURL(s.baseURL(defBaseURL), path.Join(assertionsPath, p), query), nil
 }
 
 type assertionSvcError struct {
@@ -74,15 +78,29 @@ func (e *assertionSvcError) toError() error {
 	return fmt.Errorf("assertion service error: [%s] %q", e.Title, e.Detail)
 }
 
+func (s *Store) setMaxFormat(v url.Values, assertType *asserts.AssertionType) {
+	var maxFormat int
+	if s.cfg.AssertionMaxFormats == nil {
+		maxFormat = assertType.MaxSupportedFormat()
+	} else {
+		maxFormat = s.cfg.AssertionMaxFormats[assertType.Name]
+	}
+	v.Set("max-format", strconv.Itoa(maxFormat))
+}
+
 // Assertion retrieves the assertion for the given type and primary key.
 func (s *Store) Assertion(assertType *asserts.AssertionType, primaryKey []string, user *auth.UserState) (asserts.Assertion, error) {
 	v := url.Values{}
-	v.Set("max-format", strconv.Itoa(assertType.MaxSupportedFormat()))
-	u := s.assertionsEndpointURL(path.Join(assertType.Name, path.Join(asserts.ReducePrimaryKey(assertType, primaryKey)...)), v)
+	s.setMaxFormat(v, assertType)
+
+	u, err := s.assertionsEndpointURL(path.Join(assertType.Name, path.Join(asserts.ReducePrimaryKey(assertType, primaryKey)...)), v)
+	if err != nil {
+		return nil, err
+	}
 
 	var asrt asserts.Assertion
 
-	err := s.downloadAssertions(u, func(r io.Reader) error {
+	err = s.downloadAssertions(u, func(r io.Reader) error {
 		// decode assertion
 		dec := asserts.NewDecoder(r)
 		var e error
@@ -116,7 +134,7 @@ func (s *Store) SeqFormingAssertion(assertType *asserts.AssertionType, sequenceK
 		return nil, fmt.Errorf("internal error: requested non sequence-forming assertion type %q", assertType.Name)
 	}
 	v := url.Values{}
-	v.Set("max-format", strconv.Itoa(assertType.MaxSupportedFormat()))
+	s.setMaxFormat(v, assertType)
 
 	hasSequenceNumber := sequence > 0
 	if hasSequenceNumber {
@@ -126,11 +144,14 @@ func (s *Store) SeqFormingAssertion(assertType *asserts.AssertionType, sequenceK
 		// query for the latest sequence.
 		v.Set("sequence", "latest")
 	}
-	u := s.assertionsEndpointURL(path.Join(assertType.Name, path.Join(sequenceKey...)), v)
+	u, err := s.assertionsEndpointURL(path.Join(assertType.Name, path.Join(sequenceKey...)), v)
+	if err != nil {
+		return nil, err
+	}
 
 	var asrt asserts.Assertion
 
-	err := s.downloadAssertions(u, func(r io.Reader) error {
+	err = s.downloadAssertions(u, func(r io.Reader) error {
 		// decode assertion
 		dec := asserts.NewDecoder(r)
 		var e error

@@ -1,7 +1,7 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 
 /*
- * Copyright (C) 2016-2017 Canonical Ltd
+ * Copyright (C) 2016-2022 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -40,7 +40,6 @@ import (
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/overlord"
-	"github.com/snapcore/snapd/overlord/auth"
 	"github.com/snapcore/snapd/overlord/devicestate/devicestatetest"
 	"github.com/snapcore/snapd/overlord/hookstate"
 	"github.com/snapcore/snapd/overlord/ifacestate"
@@ -116,6 +115,7 @@ func (ovs *overlordSuite) TestNew(c *C) {
 
 	c.Check(o.StateEngine(), NotNil)
 	c.Check(o.TaskRunner(), NotNil)
+	c.Check(o.RestartManager(), NotNil)
 	c.Check(o.SnapManager(), NotNil)
 	c.Check(o.ServiceManager(), NotNil)
 	c.Check(o.AssertManager(), NotNil)
@@ -170,11 +170,12 @@ func (ovs *overlordSuite) TestNewWithGoodState(c *C) {
 	defer func() { timings.DurationThreshold = oldDurationThreshold }()
 
 	fakeState := []byte(fmt.Sprintf(`{"data":{"patch-level":%d,"patch-sublevel":%d,"patch-sublevel-last-version":%q,"some":"data","refresh-privacy-key":"0123456789ABCDEF"},"changes":null,"tasks":null,"last-change-id":0,"last-task-id":0,"last-lane-id":0}`, patch.Level, patch.Sublevel, snapdtool.Version))
-	err := ioutil.WriteFile(dirs.SnapStateFile, fakeState, 0600)
+	err := os.WriteFile(dirs.SnapStateFile, fakeState, 0600)
 	c.Assert(err, IsNil)
 
 	o, err := overlord.New(nil)
 	c.Assert(err, IsNil)
+	c.Check(o.RestartManager(), NotNil)
 
 	state := o.State()
 	c.Assert(err, IsNil)
@@ -198,7 +199,7 @@ func (ovs *overlordSuite) TestNewWithGoodState(c *C) {
 
 func (ovs *overlordSuite) TestNewWithStateSnapmgrUpdate(c *C) {
 	fakeState := []byte(fmt.Sprintf(`{"data":{"patch-level":%d,"some":"data"},"changes":null,"tasks":null,"last-change-id":0,"last-task-id":0,"last-lane-id":0}`, patch.Level))
-	err := ioutil.WriteFile(dirs.SnapStateFile, fakeState, 0600)
+	err := os.WriteFile(dirs.SnapStateFile, fakeState, 0600)
 	c.Assert(err, IsNil)
 
 	o, err := overlord.New(nil)
@@ -216,7 +217,7 @@ func (ovs *overlordSuite) TestNewWithStateSnapmgrUpdate(c *C) {
 
 func (ovs *overlordSuite) TestNewWithInvalidState(c *C) {
 	fakeState := []byte(``)
-	err := ioutil.WriteFile(dirs.SnapStateFile, fakeState, 0600)
+	err := os.WriteFile(dirs.SnapStateFile, fakeState, 0600)
 	c.Assert(err, IsNil)
 
 	_, err = overlord.New(nil)
@@ -235,7 +236,7 @@ func (ovs *overlordSuite) TestNewWithPatches(c *C) {
 	patch.Mock(1, 1, map[int][]patch.PatchFunc{1: {p, sp}})
 
 	fakeState := []byte(`{"data":{"patch-level":0, "patch-sublevel":0}}`)
-	err := ioutil.WriteFile(dirs.SnapStateFile, fakeState, 0600)
+	err := os.WriteFile(dirs.SnapStateFile, fakeState, 0600)
 	c.Assert(err, IsNil)
 
 	o, err := overlord.New(nil)
@@ -309,12 +310,7 @@ func (wm *witnessManager) Ensure() error {
 func markSeeded(o *overlord.Overlord) {
 	st := o.State()
 	st.Lock()
-	st.Set("seeded", true)
-	devicestatetest.SetDevice(st, &auth.DeviceState{
-		Brand:  "canonical",
-		Model:  "pc",
-		Serial: "serialserial",
-	})
+	devicestatetest.MarkInitialized(st)
 	st.Unlock()
 }
 
@@ -1181,7 +1177,7 @@ func (ovs *overlordSuite) TestRequestRestartHandler(c *C) {
 
 func (ovs *overlordSuite) TestVerifyRebootNoPendingReboot(c *C) {
 	fakeState := []byte(fmt.Sprintf(`{"data":{"patch-level":%d,"patch-sublevel":%d,"some":"data","refresh-privacy-key":"0123456789ABCDEF"},"changes":null,"tasks":null,"last-change-id":0,"last-task-id":0,"last-lane-id":0}`, patch.Level, patch.Sublevel))
-	err := ioutil.WriteFile(dirs.SnapStateFile, fakeState, 0600)
+	err := os.WriteFile(dirs.SnapStateFile, fakeState, 0600)
 	c.Assert(err, IsNil)
 
 	rb := &testRestartHandler{}
@@ -1194,7 +1190,7 @@ func (ovs *overlordSuite) TestVerifyRebootNoPendingReboot(c *C) {
 
 func (ovs *overlordSuite) TestVerifyRebootOK(c *C) {
 	fakeState := []byte(fmt.Sprintf(`{"data":{"patch-level":%d,"patch-sublevel":%d,"some":"data","refresh-privacy-key":"0123456789ABCDEF","system-restart-from-boot-id":%q},"changes":null,"tasks":null,"last-change-id":0,"last-task-id":0,"last-lane-id":0}`, patch.Level, patch.Sublevel, "boot-id-prev"))
-	err := ioutil.WriteFile(dirs.SnapStateFile, fakeState, 0600)
+	err := os.WriteFile(dirs.SnapStateFile, fakeState, 0600)
 	c.Assert(err, IsNil)
 
 	rb := &testRestartHandler{}
@@ -1207,7 +1203,7 @@ func (ovs *overlordSuite) TestVerifyRebootOK(c *C) {
 
 func (ovs *overlordSuite) TestVerifyRebootOKButError(c *C) {
 	fakeState := []byte(fmt.Sprintf(`{"data":{"patch-level":%d,"patch-sublevel":%d,"some":"data","refresh-privacy-key":"0123456789ABCDEF","system-restart-from-boot-id":%q},"changes":null,"tasks":null,"last-change-id":0,"last-task-id":0,"last-lane-id":0}`, patch.Level, patch.Sublevel, "boot-id-prev"))
-	err := ioutil.WriteFile(dirs.SnapStateFile, fakeState, 0600)
+	err := os.WriteFile(dirs.SnapStateFile, fakeState, 0600)
 	c.Assert(err, IsNil)
 
 	e := errors.New("boom")
@@ -1224,7 +1220,7 @@ func (ovs *overlordSuite) TestVerifyRebootDidNotHappen(c *C) {
 	c.Assert(err, IsNil)
 
 	fakeState := []byte(fmt.Sprintf(`{"data":{"patch-level":%d,"patch-sublevel":%d,"some":"data","refresh-privacy-key":"0123456789ABCDEF","system-restart-from-boot-id":%q},"changes":null,"tasks":null,"last-change-id":0,"last-task-id":0,"last-lane-id":0}`, patch.Level, patch.Sublevel, curBootID))
-	err = ioutil.WriteFile(dirs.SnapStateFile, fakeState, 0600)
+	err = os.WriteFile(dirs.SnapStateFile, fakeState, 0600)
 	c.Assert(err, IsNil)
 
 	rb := &testRestartHandler{}
@@ -1240,7 +1236,7 @@ func (ovs *overlordSuite) TestVerifyRebootDidNotHappenError(c *C) {
 	c.Assert(err, IsNil)
 
 	fakeState := []byte(fmt.Sprintf(`{"data":{"patch-level":%d,"patch-sublevel":%d,"some":"data","refresh-privacy-key":"0123456789ABCDEF","system-restart-from-boot-id":%q},"changes":null,"tasks":null,"last-change-id":0,"last-task-id":0,"last-lane-id":0}`, patch.Level, patch.Sublevel, curBootID))
-	err = ioutil.WriteFile(dirs.SnapStateFile, fakeState, 0600)
+	err = os.WriteFile(dirs.SnapStateFile, fakeState, 0600)
 	c.Assert(err, IsNil)
 
 	e := errors.New("boom")

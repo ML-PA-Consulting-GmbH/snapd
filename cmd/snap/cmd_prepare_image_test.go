@@ -20,14 +20,15 @@
 package main_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	. "gopkg.in/check.v1"
 
-	snap "github.com/snapcore/snapd/cmd/snap"
+	cmdsnap "github.com/snapcore/snapd/cmd/snap"
 	"github.com/snapcore/snapd/image"
+	"github.com/snapcore/snapd/seed/seedwriter"
+	"github.com/snapcore/snapd/snap"
 )
 
 type SnapPrepareImageSuite struct {
@@ -42,10 +43,10 @@ func (s *SnapPrepareImageSuite) TestPrepareImageCore(c *C) {
 		opts = o
 		return nil
 	}
-	r := snap.MockImagePrepare(prep)
+	r := cmdsnap.MockImagePrepare(prep)
 	defer r()
 
-	rest, err := snap.Parser(snap.Client()).ParseArgs([]string{"prepare-image", "model", "prepare-dir"})
+	rest, err := cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "model", "prepare-dir"})
 	c.Assert(err, IsNil)
 	c.Assert(rest, DeepEquals, []string{})
 
@@ -61,10 +62,10 @@ func (s *SnapPrepareImageSuite) TestPrepareImageClassic(c *C) {
 		opts = o
 		return nil
 	}
-	r := snap.MockImagePrepare(prep)
+	r := cmdsnap.MockImagePrepare(prep)
 	defer r()
 
-	rest, err := snap.Parser(snap.Client()).ParseArgs([]string{"prepare-image", "--classic", "model", "prepare-dir"})
+	rest, err := cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "--classic", "model", "prepare-dir"})
 	c.Assert(err, IsNil)
 	c.Assert(rest, DeepEquals, []string{})
 
@@ -81,10 +82,10 @@ func (s *SnapPrepareImageSuite) TestPrepareImageClassicArch(c *C) {
 		opts = o
 		return nil
 	}
-	r := snap.MockImagePrepare(prep)
+	r := cmdsnap.MockImagePrepare(prep)
 	defer r()
 
-	rest, err := snap.Parser(snap.Client()).ParseArgs([]string{"prepare-image", "--classic", "--arch", "i386", "model", "prepare-dir"})
+	rest, err := cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "--classic", "--arch", "i386", "model", "prepare-dir"})
 	c.Assert(err, IsNil)
 	c.Assert(rest, DeepEquals, []string{})
 
@@ -102,12 +103,12 @@ func (s *SnapPrepareImageSuite) TestPrepareImageClassicWideCohort(c *C) {
 		opts = o
 		return nil
 	}
-	r := snap.MockImagePrepare(prep)
+	r := cmdsnap.MockImagePrepare(prep)
 	defer r()
 
 	os.Setenv("UBUNTU_STORE_COHORT_KEY", "is-six-centuries")
 
-	rest, err := snap.Parser(snap.Client()).ParseArgs([]string{"prepare-image", "--classic", "model", "prepare-dir"})
+	rest, err := cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "--classic", "model", "prepare-dir"})
 	c.Assert(err, IsNil)
 	c.Assert(rest, DeepEquals, []string{})
 
@@ -127,10 +128,10 @@ func (s *SnapPrepareImageSuite) TestPrepareImageExtraSnaps(c *C) {
 		opts = o
 		return nil
 	}
-	r := snap.MockImagePrepare(prep)
+	r := cmdsnap.MockImagePrepare(prep)
 	defer r()
 
-	rest, err := snap.Parser(snap.Client()).ParseArgs([]string{"prepare-image", "model", "prepare-dir", "--channel", "candidate", "--snap", "foo", "--snap", "bar=t/edge", "--snap", "local.snap", "--extra-snaps", "local2.snap", "--extra-snaps", "store-snap"})
+	rest, err := cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "model", "prepare-dir", "--channel", "candidate", "--snap", "foo", "--snap", "bar=t/edge", "--snap", "local.snap", "--extra-snaps", "local2.snap", "--extra-snaps", "store-snap"})
 	c.Assert(err, IsNil)
 	c.Assert(rest, DeepEquals, []string{})
 
@@ -149,18 +150,18 @@ func (s *SnapPrepareImageSuite) TestPrepareImageCustomize(c *C) {
 		opts = o
 		return nil
 	}
-	r := snap.MockImagePrepare(prep)
+	r := cmdsnap.MockImagePrepare(prep)
 	defer r()
 
 	tmpdir := c.MkDir()
 	customizeFile := filepath.Join(tmpdir, "custo.json")
-	err := ioutil.WriteFile(customizeFile, []byte(`{
+	err := os.WriteFile(customizeFile, []byte(`{
   "console-conf": "disabled",
   "cloud-init-user-data": "cloud-init-user-data"
 }`), 0644)
 	c.Assert(err, IsNil)
 
-	rest, err := snap.Parser(snap.Client()).ParseArgs([]string{"prepare-image", "model", "prepare-dir", "--customize", customizeFile})
+	rest, err := cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "model", "prepare-dir", "--customize", customizeFile})
 	c.Assert(err, IsNil)
 	c.Assert(rest, DeepEquals, []string{})
 
@@ -174,8 +175,37 @@ func (s *SnapPrepareImageSuite) TestPrepareImageCustomize(c *C) {
 	})
 }
 
+func (s *SnapPrepareImageSuite) TestReadSeedManifest(c *C) {
+	var opts *image.Options
+	prep := func(o *image.Options) error {
+		opts = o
+		return nil
+	}
+	r := cmdsnap.MockImagePrepare(prep)
+	defer r()
+
+	var readManifestCalls int
+	r = cmdsnap.MockSeedWriterReadManifest(func(manifestFile string) (*seedwriter.Manifest, error) {
+		readManifestCalls++
+		c.Check(manifestFile, Equals, "seed.manifest")
+		return seedwriter.MockManifest(map[string]*seedwriter.ManifestSnapRevision{"snapd": {SnapName: "snapd", Revision: snap.R(100)}}, nil, nil, nil), nil
+	})
+	defer r()
+
+	rest, err := cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "model", "prepare-dir", "--revisions", "seed.manifest"})
+	c.Assert(err, IsNil)
+	c.Assert(rest, DeepEquals, []string{})
+
+	c.Check(readManifestCalls, Equals, 1)
+	c.Check(opts, DeepEquals, &image.Options{
+		ModelFile:    "model",
+		PrepareDir:   "prepare-dir",
+		SeedManifest: seedwriter.MockManifest(map[string]*seedwriter.ManifestSnapRevision{"snapd": {SnapName: "snapd", Revision: snap.R(100)}}, nil, nil, nil),
+	})
+}
+
 func (s *SnapPrepareImageSuite) TestPrepareImagePreseedArgError(c *C) {
-	_, err := snap.Parser(snap.Client()).ParseArgs([]string{"prepare-image", "--preseed-sign-key", "key", "model", "prepare-dir"})
+	_, err := cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "--preseed-sign-key", "key", "model", "prepare-dir"})
 	c.Assert(err, ErrorMatches, `--preseed-sign-key cannot be used without --preseed`)
 }
 
@@ -185,10 +215,10 @@ func (s *SnapPrepareImageSuite) TestPrepareImagePreseed(c *C) {
 		opts = o
 		return nil
 	}
-	r := snap.MockImagePrepare(prep)
+	r := cmdsnap.MockImagePrepare(prep)
 	defer r()
 
-	rest, err := snap.Parser(snap.Client()).ParseArgs([]string{"prepare-image", "--preseed", "--preseed-sign-key", "key", "--apparmor-features-dir", "aafeatures-dir", "model", "prepare-dir"})
+	rest, err := cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "--preseed", "--preseed-sign-key", "key", "--apparmor-features-dir", "aafeatures-dir", "--sysfs-overlay", "sys-overlay", "model", "prepare-dir"})
 	c.Assert(err, IsNil)
 	c.Assert(rest, DeepEquals, []string{})
 
@@ -197,6 +227,37 @@ func (s *SnapPrepareImageSuite) TestPrepareImagePreseed(c *C) {
 		PrepareDir:                "prepare-dir",
 		Preseed:                   true,
 		PreseedSignKey:            "key",
+		SysfsOverlay:              "sys-overlay",
 		AppArmorKernelFeaturesDir: "aafeatures-dir",
+	})
+}
+
+func (s *SnapPrepareImageSuite) TestPrepareImageWriteRevisions(c *C) {
+	var opts *image.Options
+	prep := func(o *image.Options) error {
+		opts = o
+		return nil
+	}
+	r := cmdsnap.MockImagePrepare(prep)
+	defer r()
+
+	rest, err := cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "model", "prepare-dir", "--write-revisions"})
+	c.Assert(err, IsNil)
+	c.Assert(rest, DeepEquals, []string{})
+
+	c.Check(opts, DeepEquals, &image.Options{
+		ModelFile:        "model",
+		PrepareDir:       "prepare-dir",
+		SeedManifestPath: "./seed.manifest",
+	})
+
+	rest, err = cmdsnap.Parser(cmdsnap.Client()).ParseArgs([]string{"prepare-image", "model", "prepare-dir", "--write-revisions=/tmp/seed.manifest"})
+	c.Assert(err, IsNil)
+	c.Assert(rest, DeepEquals, []string{})
+
+	c.Check(opts, DeepEquals, &image.Options{
+		ModelFile:        "model",
+		PrepareDir:       "prepare-dir",
+		SeedManifestPath: "/tmp/seed.manifest",
 	})
 }

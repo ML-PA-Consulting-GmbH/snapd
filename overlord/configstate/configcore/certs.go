@@ -1,6 +1,5 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 //go:build !nomanagers
-// +build !nomanagers
 
 /*
  * Copyright (C) 2020 Canonical Ltd
@@ -24,16 +23,14 @@ package configcore
 import (
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/snapcore/snapd/dirs"
-	"github.com/snapcore/snapd/overlord/configstate/config"
 )
 
-func handleCertConfiguration(tr config.Conf, opts *fsOnlyContext) error {
+func handleCertConfiguration(tr RunTransaction, opts *fsOnlyContext) error {
 	// This handles the "snap revert core" case:
 	// We need to go over each pem cert on disk and check if there is
 	// a matching config entry - if not->delete the cert
@@ -44,7 +41,7 @@ func handleCertConfiguration(tr config.Conf, opts *fsOnlyContext) error {
 	// TODO: add ways to detect cleanly if tr is a patch, skip the sync code if it is
 	storeCerts, err := filepath.Glob(filepath.Join(dirs.SnapdStoreSSLCertsDir, "*.pem"))
 	if err != nil {
-		return fmt.Errorf("cannot get exiting store certs: %v", err)
+		return fmt.Errorf("cannot get existing store certs: %v", err)
 	}
 	for _, storeCertPath := range storeCerts {
 		optionName := strings.TrimSuffix(filepath.Base(storeCertPath), ".pem")
@@ -82,7 +79,7 @@ func handleCertConfiguration(tr config.Conf, opts *fsOnlyContext) error {
 			if err := os.MkdirAll(dirs.SnapdStoreSSLCertsDir, 0755); err != nil {
 				return fmt.Errorf("cannot create store ssl certs dir: %v", err)
 			}
-			if err := ioutil.WriteFile(certPath, []byte(cert), 0644); err != nil {
+			if err := os.WriteFile(certPath, []byte(cert), 0644); err != nil {
 				return fmt.Errorf("cannot write store certificate: %v", err)
 			}
 		}
@@ -91,7 +88,7 @@ func handleCertConfiguration(tr config.Conf, opts *fsOnlyContext) error {
 	return nil
 }
 
-func validateCertSettings(tr config.Conf) error {
+func validateCertSettings(tr RunTransaction) error {
 	for _, name := range tr.Changes() {
 		if !strings.HasPrefix(name, "core.store-certs.") {
 			continue

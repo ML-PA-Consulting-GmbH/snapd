@@ -21,7 +21,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/jessevdk/go-flags"
@@ -51,7 +50,7 @@ type cmdCreatePartitions struct {
 
 type simpleObserver struct{}
 
-func (o *simpleObserver) Observe(op gadget.ContentOperation, affectedStruct *gadget.LaidOutStructure, root, dst string, data *gadget.ContentChange) (gadget.ContentChangeAction, error) {
+func (o *simpleObserver) Observe(op gadget.ContentOperation, partRole, root, dst string, data *gadget.ContentChange) (gadget.ContentChangeAction, error) {
 	return gadget.ChangeApply, nil
 }
 
@@ -105,7 +104,7 @@ func main() {
 			"save-key":     saveKey[:],
 		}
 		for keyFileName, keyData := range toWrite {
-			if err := ioutil.WriteFile(keyFileName, keyData, 0644); err != nil {
+			if err := os.WriteFile(keyFileName, keyData, 0644); err != nil {
 				panic(err)
 			}
 		}

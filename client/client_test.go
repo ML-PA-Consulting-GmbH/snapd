@@ -35,10 +35,12 @@ import (
 	"testing"
 	"time"
 
+	"gopkg.in/check.v1"
 	. "gopkg.in/check.v1"
 
 	"github.com/snapcore/snapd/client"
 	"github.com/snapcore/snapd/dirs"
+	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/testutil"
 )
 
@@ -148,7 +150,7 @@ func (cs *clientSuite) TestClientWorks(c *C) {
 
 func makeMaintenanceFile(c *C, b []byte) {
 	c.Assert(os.MkdirAll(filepath.Dir(dirs.SnapdMaintenanceFile), 0755), IsNil)
-	c.Assert(ioutil.WriteFile(dirs.SnapdMaintenanceFile, b, 0644), IsNil)
+	c.Assert(os.WriteFile(dirs.SnapdMaintenanceFile, b, 0644), IsNil)
 }
 
 func (cs *clientSuite) TestClientSetMaintenanceForMaintenanceJSON(c *C) {
@@ -330,7 +332,7 @@ func (cs *clientSuite) TestClientWhoAmINobody(c *C) {
 }
 
 func (cs *clientSuite) TestClientWhoAmIRubbish(c *C) {
-	c.Assert(ioutil.WriteFile(client.TestStoreAuthFilename(os.Getenv("HOME")), []byte("rubbish"), 0644), IsNil)
+	c.Assert(os.WriteFile(client.TestStoreAuthFilename(os.Getenv("HOME")), []byte("rubbish"), 0644), IsNil)
 
 	email, err := cs.cli.WhoAmI()
 	c.Check(err, NotNil)
@@ -677,4 +679,38 @@ func (cs *clientSuite) TestClientSystemRecoveryKeys(c *C) {
 	c.Check(cs.reqs[0].Method, Equals, "GET")
 	c.Check(cs.reqs[0].URL.Path, Equals, "/v2/system-recovery-keys")
 	c.Check(key.RecoveryKey, Equals, "42")
+}
+
+func (cs *clientSuite) TestClientDebugEnvVar(c *check.C) {
+	buf, restore := logger.MockLogger()
+	defer restore()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `bar`)
+	}))
+	defer srv.Close()
+
+	debugValue, ok := os.LookupEnv("SNAP_CLIENT_DEBUG_HTTP")
+	defer func() {
+		if ok {
+			os.Setenv("SNAP_CLIENT_DEBUG_HTTP", debugValue)
+		} else {
+			os.Unsetenv("SNAP_CLIENT_DEBUG_HTTP")
+		}
+	}()
+
+	os.Setenv("SNAP_CLIENT_DEBUG_HTTP", "7")
+
+	cli := client.New(&client.Config{BaseURL: srv.URL})
+	c.Assert(cli, check.NotNil)
+	_, err := cli.Do("GET", "/", nil, strings.NewReader("foo"), nil, nil)
+	c.Assert(err, check.IsNil)
+
+	// check request
+	c.Assert(buf.String(), testutil.Contains, `logger.go:67: DEBUG: > "GET`)
+	// check response
+	c.Assert(buf.String(), testutil.Contains, `logger.go:74: DEBUG: < "HTTP/1.1 200 OK`)
+	// check bodies
+	c.Assert(buf.String(), testutil.Contains, "foo")
+	c.Assert(buf.String(), testutil.Contains, "bar")
 }

@@ -115,6 +115,10 @@ type Config struct {
 
 	// Proxy returns the HTTP proxy to use when talking to the store
 	Proxy func(*http.Request) (*url.URL, error)
+
+	// AssertionMaxFormats if set provides a way to override
+	// the assertion max formats sent to the store as supported.
+	AssertionMaxFormats map[string]int
 }
 
 // setBaseURL updates the store API's base URL in the Config. Must not be used
@@ -344,6 +348,14 @@ type sectionResults struct {
 	} `json:"_embedded"`
 }
 
+type CategoryDetails struct {
+	Name string `json:"name"`
+}
+
+type categoryResults struct {
+	Categories []CategoryDetails `json:"categories"`
+}
+
 // The default delta format if not configured.
 var defaultSupportedDeltaFormat = "xdelta3"
 
@@ -420,6 +432,12 @@ func New(cfg *Config, dauthCtx DeviceAndAuthContext) *Store {
 	return store
 }
 
+// SetAssertionMaxFormats allows to change the assertion max formats to send
+// for a store already in use.
+func (s *Store) SetAssertionMaxFormats(maxFormats map[string]int) {
+	s.cfg.AssertionMaxFormats = maxFormats
+}
+
 // API endpoint paths
 const (
 	// see https://dashboard.snapcraft.io/docs/
@@ -439,12 +457,15 @@ const (
 	snapInfoEndpPath   = "v2/snaps/info"
 	cohortsEndpPath    = "v2/cohorts"
 	findEndpPath       = "v2/snaps/find"
+	categoriesEndpPath = "v2/snaps/categories"
 
 	deviceNonceEndpPath   = "api/v1/snaps/auth/nonces"
 	deviceSessionEndpPath = "api/v1/snaps/auth/sessions"
 
 	assertionsPath = "v2/assertions"
 )
+
+var httputilNewHTTPClient = httputil.NewHTTPClient
 
 func (s *Store) newHTTPClient(opts *httputil.ClientOptions) *http.Client {
 	if opts == nil {
@@ -455,7 +476,7 @@ func (s *Store) newHTTPClient(opts *httputil.ClientOptions) *http.Client {
 	opts.ExtraSSLCerts = &httputil.ExtraSSLCertsFromDir{
 		Dir: dirs.SnapdStoreSSLCertsDir,
 	}
-	return httputil.NewHTTPClient(opts)
+	return httputilNewHTTPClient(opts)
 }
 
 func (s *Store) defaultSnapQuery() url.Values {
@@ -481,12 +502,23 @@ func (s *Store) baseURL(defaultURL *url.URL) *url.URL {
 	return defaultURL
 }
 
-func (s *Store) endpointURL(p string, query url.Values) *url.URL {
-	return endpointURL(s.baseURL(s.cfg.StoreBaseURL), p, query)
+func (s *Store) endpointURL(p string, query url.Values) (*url.URL, error) {
+	if err := s.checkStoreOnline(); err != nil {
+		return nil, err
+	}
+
+	return endpointURL(s.baseURL(s.cfg.StoreBaseURL), p, query), nil
 }
 
 // LoginUser logs user in the store and returns the authentication macaroons.
 func (s *Store) LoginUser(username, password, otp string) (string, string, error) {
+	// most other store network operations use s.endpointURL, which returns an
+	// error if the store is offline. this doesn't, so we need to explicitly
+	// check.
+	if err := s.checkStoreOnline(); err != nil {
+		return "", "", err
+	}
+
 	macaroon, err := requestStoreMacaroon(s.client)
 	if err != nil {
 		return "", "", err
@@ -554,7 +586,6 @@ var (
 type deviceAuthNeed int
 
 const (
-	//nolint:deadcode
 	deviceAuthPreferred deviceAuthNeed = iota
 	deviceAuthCustomStoreOnly
 )
@@ -736,6 +767,31 @@ func (s *Store) doRequest(ctx context.Context, client *http.Client, reqOptions *
 	}
 }
 
+func (s *Store) buildLocationString() (string, error) {
+	if s.dauthCtx == nil {
+		return "", nil
+	}
+
+	cloudInfo, err := s.dauthCtx.CloudInfo()
+	if err != nil {
+		return "", err
+	}
+
+	if cloudInfo == nil {
+		return "", nil
+	}
+
+	cdnParams := []string{fmt.Sprintf("cloud-name=%q", cloudInfo.Name)}
+	if cloudInfo.Region != "" {
+		cdnParams = append(cdnParams, fmt.Sprintf("region=%q", cloudInfo.Region))
+	}
+	if cloudInfo.AvailabilityZone != "" {
+		cdnParams = append(cdnParams, fmt.Sprintf("availability-zone=%q", cloudInfo.AvailabilityZone))
+	}
+
+	return strings.Join(cdnParams, " "), nil
+}
+
 // build a new http.Request with headers for the store
 func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user *auth.UserState) (*http.Request, error) {
 	var body io.Reader
@@ -771,6 +827,13 @@ func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user
 	req.Header.Set(hdrSnapDeviceSeries[reqOptions.APILevel], s.series)
 	req.Header.Set(hdrSnapClassic[reqOptions.APILevel], strconv.FormatBool(release.OnClassic))
 	req.Header.Set("Snap-Device-Capabilities", "default-tracks")
+	locationHeader, err := s.buildLocationString()
+	if err != nil {
+		return nil, err
+	}
+	if locationHeader != "" {
+		req.Header.Set("Snap-Device-Location", locationHeader)
+	}
 	if cua := ClientUserAgent(ctx); cua != "" {
 		req.Header.Set("Snap-Client-User-Agent", cua)
 	}
@@ -853,11 +916,14 @@ func (s *Store) decorateOrders(snaps []*snap.Info, user *auth.UserState) error {
 		return nil
 	}
 
-	var err error
+	storeEndpoint, err := s.endpointURL(ordersEndpPath, nil)
+	if err != nil {
+		return err
+	}
 
 	reqOptions := &requestOptions{
 		Method: "GET",
-		URL:    s.endpointURL(ordersEndpPath, nil),
+		URL:    storeEndpoint,
 		Accept: jsonContentType,
 	}
 	var result ordersResult
@@ -931,7 +997,11 @@ func (s *Store) snapInfo(ctx context.Context, snapName string, fields string, us
 	query.Set("fields", fields)
 	query.Set("architecture", s.architecture)
 
-	u := s.endpointURL(path.Join(snapInfoEndpPath, snapName), query)
+	u, err := s.endpointURL(path.Join(snapInfoEndpPath, snapName), query)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	reqOptions := &requestOptions{
 		Method:   "GET",
 		URL:      u,
@@ -1041,7 +1111,11 @@ func (s *Store) Find(ctx context.Context, search *Search, user *auth.UserState) 
 		q.Set("confinement", "strict")
 	}
 
-	u := s.endpointURL(findEndpPath, q)
+	u, err := s.endpointURL(findEndpPath, q)
+	if err != nil {
+		return nil, err
+	}
+
 	reqOptions := &requestOptions{
 		Method:   "GET",
 		URL:      u,
@@ -1147,7 +1221,11 @@ func (s *Store) findV1(ctx context.Context, search *Search, user *auth.UserState
 		q.Set("confinement", "strict")
 	}
 
-	u := s.endpointURL(searchEndpPath, q)
+	u, err := s.endpointURL(searchEndpPath, q)
+	if err != nil {
+		return nil, err
+	}
+
 	reqOptions := &requestOptions{
 		Method: "GET",
 		URL:    u,
@@ -1185,9 +1263,14 @@ func (s *Store) findV1(ctx context.Context, search *Search, user *auth.UserState
 
 // Sections retrieves the list of available store sections.
 func (s *Store) Sections(ctx context.Context, user *auth.UserState) ([]string, error) {
+	u, err := s.endpointURL(sectionsEndpPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	reqOptions := &requestOptions{
 		Method:         "GET",
-		URL:            s.endpointURL(sectionsEndpPath, nil),
+		URL:            u,
 		Accept:         halJsonContentType,
 		DeviceAuthNeed: deviceAuthCustomStoreOnly,
 	}
@@ -1214,10 +1297,44 @@ func (s *Store) Sections(ctx context.Context, user *auth.UserState) ([]string, e
 	return sectionNames, nil
 }
 
+// Categories retrieves the list of available store categories.
+func (s *Store) Categories(ctx context.Context, user *auth.UserState) ([]CategoryDetails, error) {
+	u, err := s.endpointURL(categoriesEndpPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	reqOptions := &requestOptions{
+		Method:   "GET",
+		URL:      u,
+		Accept:   jsonContentType,
+		APILevel: apiV2Endps,
+	}
+
+	var categoryData categoryResults
+	resp, err := s.retryRequestDecodeJSON(context.TODO(), reqOptions, user, &categoryData, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, respToError(resp, "retrieve categories")
+	}
+
+	if ct := resp.Header.Get("Content-Type"); ct != jsonContentType {
+		return nil, fmt.Errorf("received an unexpected content type (%q) when trying to retrieve the categories via %q", ct, resp.Request.URL)
+	}
+
+	return categoryData.Categories, nil
+}
+
 // WriteCatalogs queries the "commands" endpoint and writes the
 // command names into the given io.Writer.
 func (s *Store) WriteCatalogs(ctx context.Context, names io.Writer, adder SnapAdder) error {
-	u := *s.endpointURL(commandsEndpPath, nil)
+	u, err := s.endpointURL(commandsEndpPath, nil)
+	if err != nil {
+		return err
+	}
 
 	q := u.Query()
 	if release.OnClassic {
@@ -1229,7 +1346,7 @@ func (s *Store) WriteCatalogs(ctx context.Context, names io.Writer, adder SnapAd
 	u.RawQuery = q.Encode()
 	reqOptions := &requestOptions{
 		Method:         "GET",
-		URL:            &u,
+		URL:            u,
 		Accept:         halJsonContentType,
 		DeviceAuthNeed: deviceAuthCustomStoreOnly,
 	}
@@ -1333,9 +1450,14 @@ func (s *Store) Buy(options *client.BuyOptions, user *auth.UserState) (*client.B
 		return nil, err
 	}
 
+	u, err := s.endpointURL(buyEndpPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	reqOptions := &requestOptions{
 		Method:      "POST",
-		URL:         s.endpointURL(buyEndpPath, nil),
+		URL:         u,
 		Accept:      jsonContentType,
 		ContentType: jsonContentType,
 		Data:        jsonData,
@@ -1397,9 +1519,14 @@ func (s *Store) ReadyToBuy(user *auth.UserState) error {
 		return ErrUnauthenticated
 	}
 
+	u, err := s.endpointURL(customersMeEndpPath, nil)
+	if err != nil {
+		return err
+	}
+
 	reqOptions := &requestOptions{
 		Method: "GET",
-		URL:    s.endpointURL(customersMeEndpPath, nil),
+		URL:    u,
 		Accept: jsonContentType,
 	}
 
@@ -1448,12 +1575,16 @@ func (s *Store) snapConnCheck() ([]string, error) {
 	var hosts []string
 	// NOTE: "core" is possibly the only snap that's sure to be in all stores
 	//       when we drop "core" in the move to snapd/core18/etc, change this
-	infoURL := s.endpointURL(path.Join(snapInfoEndpPath, "core"), url.Values{
+	infoURL, err := s.endpointURL(path.Join(snapInfoEndpPath, "core"), url.Values{
 		// we only want the download URL
 		"fields": {"download"},
 		// we only need *one* (but can't filter by channel ... yet)
 		"architecture": {s.architecture},
 	})
+	if err != nil {
+		return nil, err
+	}
+
 	hosts = append(hosts, infoURL.Host)
 
 	var result storeInfoAbbrev
@@ -1510,6 +1641,25 @@ func (s *Store) snapConnCheck() ([]string, error) {
 	return hosts, nil
 }
 
+var ErrStoreOffline = errors.New("store is marked offline, use 'snap unset system store.access' to go online")
+
+func (s *Store) checkStoreOnline() error {
+	if s.dauthCtx == nil {
+		return nil
+	}
+
+	offline, err := s.dauthCtx.StoreOffline()
+	if err != nil {
+		return fmt.Errorf("cannot get store access from state: %w", err)
+	}
+
+	if offline {
+		return ErrStoreOffline
+	}
+
+	return nil
+}
+
 func (s *Store) ConnectivityCheck() (status map[string]bool, err error) {
 	status = make(map[string]bool)
 
@@ -1519,6 +1669,12 @@ func (s *Store) ConnectivityCheck() (status map[string]bool, err error) {
 
 	for _, checker := range checkers {
 		hosts, err := checker()
+
+		// do not swallow errors if the hosts list is empty
+		if len(hosts) == 0 && err != nil {
+			return nil, err
+		}
+
 		for _, host := range hosts {
 			status[host] = (err == nil)
 		}
@@ -1533,7 +1689,11 @@ func (s *Store) CreateCohorts(ctx context.Context, snaps []string) (map[string]s
 		return nil, err
 	}
 
-	u := s.endpointURL(cohortsEndpPath, nil)
+	u, err := s.endpointURL(cohortsEndpPath, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	reqOptions := &requestOptions{
 		Method:   "POST",
 		URL:      u,

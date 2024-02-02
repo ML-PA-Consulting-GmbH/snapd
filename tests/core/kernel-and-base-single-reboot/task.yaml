@@ -12,10 +12,8 @@ prepare: |
         exit
     fi
     snap ack "$TESTSLIB/assertions/testrootorg-store.account-key"
-    #shellcheck source=tests/lib/store.sh
-    . "$TESTSLIB"/store.sh
 
-    setup_fake_store "$BLOB_DIR"
+    "$TESTSTOOLS"/store-state setup-fake-store "$BLOB_DIR"
 
     core_snap=core20
     if os.query is-core18; then
@@ -29,9 +27,7 @@ restore: |
         echo "This test needs test keys to be trusted"
         exit
     fi
-    #shellcheck source=tests/lib/store.sh
-    . "$TESTSLIB"/store.sh
-    teardown_fake_store "$BLOB_DIR"
+    "$TESTSTOOLS"/store-state teardown-fake-store "$BLOB_DIR"
 
 execute: |
     if [ "$TRUST_TEST_KEYS" = "false" ]; then
@@ -39,17 +35,14 @@ execute: |
         exit
     fi
 
-    #shellcheck source=tests/lib/store.sh
-    . "$TESTSLIB"/store.sh
-
     core_snap=core20
     if os.query is-core18; then
         core_snap=core18
     fi
 
     if [ "$SPREAD_REBOOT" = 0 ]; then
-        init_fake_refreshes "$BLOB_DIR" pc-kernel
-        init_fake_refreshes "$BLOB_DIR" "$core_snap"
+        "$TESTSTOOLS"/store-state init-fake-refreshes "$BLOB_DIR" pc-kernel
+        "$TESTSTOOLS"/store-state init-fake-refreshes "$BLOB_DIR" "$core_snap"
 
         # taken from transition_to_recover_mode()
         cp /bin/systemctl /tmp/orig-systemctl
@@ -72,10 +65,10 @@ execute: |
         # retrying auto-connect)
         snap debug state --change "$change_id" /var/lib/snapd/state.json > tasks.state
         # both link snaps are done
-        MATCH ' Done\s+.*Make snap "pc-kernel" .* available' < tasks.state
+        MATCH ' Wait\s+.*Make snap "pc-kernel" .* available' < tasks.state
         MATCH " Done\s+.*Make snap \"$core_snap\" .* available" < tasks.state
         # auto-connect of the base is in doing and waiting for reboot
-        MATCH " Doing\s+.*Automatically connect eligible plugs and slots of snap \"$core_snap\"" < tasks.state
+        MATCH " Do\s+.*Automatically connect eligible plugs and slots of snap \"$core_snap\"" < tasks.state
         # auto-connect of the kernel is still queued
         MATCH ' Do\s+.*Automatically connect eligible plugs and slots of snap "pc-kernel"' < tasks.state
 
@@ -105,11 +98,11 @@ execute: |
         snap changes | MATCH "$change_id\s+(Done|Error)"
         # we expect re-refresh to fail since the tests uses a fake store
         snap change "$change_id" > tasks.done
-        MATCH '^Error .* Handling re-refresh' < tasks.done
+        MATCH '^Error .* Monitoring .* to determine whether extra refresh steps are required' < tasks.done
         # no other errors
-        grep -v 'Handling re-refresh' < tasks.done | NOMATCH '^Error'
+        grep -v 'Monitoring .* to determine whether extra refresh steps are required' < tasks.done | NOMATCH '^Error'
         # nothing was undone
-        grep -v 'Handling re-refresh' < tasks.done | NOMATCH '^Undone'
+        grep -v 'Monitoring .* to determine whether extra refresh steps are required' < tasks.done | NOMATCH '^Undone'
         # we did not even try to hijack shutdown (/bin/systemctl) because that
         # could race with snapd (if that wanted to call it), so just check that
         # the system is in a stable state once we have already determined that

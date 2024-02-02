@@ -194,6 +194,10 @@ slots:
     allow-connection:
       plug-snap-type:
         - gadget
+  fromcore:
+    allow-connection:
+      slot-snap-type:
+        - core
   same-slot-publisher-id:
     allow-connection:
       plug-publisher-id:
@@ -394,6 +398,7 @@ plugs:
 
    gadgethelp:
    trustedhelp:
+   fromcore:
 
    precise-plug-snap-id:
    precise-slot-snap-id:
@@ -1095,6 +1100,7 @@ plugs:
    gadgethelp:
 slots:
    trustedhelp:
+   fromcore:
 `, nil)
 
 	coreSnap := snaptest.MockInfo(c, `
@@ -1104,6 +1110,7 @@ type: os
 slots:
    gadgethelp:
    trustedhelp:
+   fromcore:
 `, nil)
 
 	cand := policy.ConnectCandidate{
@@ -1135,6 +1142,20 @@ slots:
 		PlugSnapDeclaration: s.plugDecl,
 		Slot:                interfaces.NewConnectedSlot(s.slotSnap.Slots["trustedhelp"], nil, nil),
 		BaseDeclaration:     s.baseDecl,
+	}
+	c.Check(cand.Check(), ErrorMatches, "connection not allowed.*")
+
+	cand = policy.ConnectCandidate{
+		Plug:            interfaces.NewConnectedPlug(s.plugSnap.Plugs["fromcore"], nil, nil),
+		Slot:            interfaces.NewConnectedSlot(coreSnap.Slots["fromcore"], nil, nil),
+		BaseDeclaration: s.baseDecl,
+	}
+	c.Check(cand.Check(), IsNil)
+
+	cand = policy.ConnectCandidate{
+		Plug:            interfaces.NewConnectedPlug(s.plugSnap.Plugs["fromcore"], nil, nil),
+		Slot:            interfaces.NewConnectedSlot(gadgetSnap.Slots["fromcore"], nil, nil),
+		BaseDeclaration: s.baseDecl,
 	}
 	c.Check(cand.Check(), ErrorMatches, "connection not allowed.*")
 }
@@ -1618,7 +1639,7 @@ version: 0
 type: gadget
 slots:
   install-slot-or:
-`, `installation denied by "install-slot-or" slot rule.*`},
+`, ""}, // we ignore deny-installation rules for the purpose of the minimal check
 		{`name: install-snap
 version: 0
 slots:
@@ -2863,8 +2884,9 @@ slots:
       slot-snap-type:
         - app
         - core
-      slot-snap-id:
-        - ` + constants.ProdIdSnapd + `
+    deny-installation:
+      slot-snap-type:
+        - app
 timestamp: 2022-03-20T12:00:00Z
 sign-key-sha3-384: Jv8_JiHiIzJVcO9M55pPdqSDWUvuhfDIBJUS-3VW7F_idjix7Ffn5qMxB21ZQuij
 
@@ -2951,8 +2973,9 @@ plugs:
       plug-snap-type:
         - app
         - core
-      plug-snap-id:
-        - ` + constants.ProdIdSnapd + `
+    deny-installation:
+      plug-snap-type:
+        - app
 timestamp: 2022-03-20T12:00:00Z
 sign-key-sha3-384: Jv8_JiHiIzJVcO9M55pPdqSDWUvuhfDIBJUS-3VW7F_idjix7Ffn5qMxB21ZQuij
 
@@ -2970,6 +2993,8 @@ plugs:
 `, nil)
 
 	// ok with dangerous
+	// NB: so far InstallCandidateMinimalCheck simply does not consider
+	// plugs
 	minCand := policy.InstallCandidateMinimalCheck{
 		Snap:            appSnap,
 		BaseDeclaration: baseDecl,

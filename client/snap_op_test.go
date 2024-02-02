@@ -1,7 +1,7 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 
 /*
- * Copyright (C) 2016 Canonical Ltd
+ * Copyright (C) 2016-2022 Canonical Ltd
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -28,6 +28,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"gopkg.in/check.v1"
@@ -49,6 +50,8 @@ var ops = []struct {
 	{(*client.Client).Enable, "enable"},
 	{(*client.Client).Disable, "disable"},
 	{(*client.Client).Switch, "switch"},
+	{(*client.Client).HoldRefreshes, "hold"},
+	{(*client.Client).UnholdRefreshes, "unhold"},
 }
 
 var multiOps = []struct {
@@ -58,6 +61,8 @@ var multiOps = []struct {
 	{(*client.Client).RefreshMany, "refresh"},
 	{(*client.Client).InstallMany, "install"},
 	{(*client.Client).RemoveMany, "remove"},
+	{(*client.Client).HoldRefreshesMany, "hold"},
+	{(*client.Client).UnholdRefreshesMany, "unhold"},
 }
 
 func (cs *clientSuite) TestClientOpSnapServerError(c *check.C) {
@@ -285,7 +290,7 @@ func (cs *clientSuite) TestClientOpInstallPath(c *check.C) {
 	bodyData := []byte("snap-data")
 
 	snap := filepath.Join(c.MkDir(), "foo.snap")
-	err := ioutil.WriteFile(snap, bodyData, 0644)
+	err := os.WriteFile(snap, bodyData, 0644)
 	c.Assert(err, check.IsNil)
 
 	id, err := cs.cli.InstallPath(snap, "", nil)
@@ -315,7 +320,7 @@ func (cs *clientSuite) TestClientOpInstallPathIgnoreRunning(c *check.C) {
 	bodyData := []byte("snap-data")
 
 	snap := filepath.Join(c.MkDir(), "foo.snap")
-	err := ioutil.WriteFile(snap, bodyData, 0644)
+	err := os.WriteFile(snap, bodyData, 0644)
 	c.Assert(err, check.IsNil)
 
 	id, err := cs.cli.InstallPath(snap, "", &client.SnapOptions{IgnoreRunning: true})
@@ -346,7 +351,7 @@ func (cs *clientSuite) TestClientOpInstallPathInstance(c *check.C) {
 	bodyData := []byte("snap-data")
 
 	snap := filepath.Join(c.MkDir(), "foo.snap")
-	err := ioutil.WriteFile(snap, bodyData, 0644)
+	err := os.WriteFile(snap, bodyData, 0644)
 	c.Assert(err, check.IsNil)
 
 	id, err := cs.cli.InstallPath(snap, "foo_bar", nil)
@@ -378,7 +383,7 @@ func (cs *clientSuite) TestClientOpInstallPathMany(c *check.C) {
 	for _, name := range names {
 		path := filepath.Join(c.MkDir(), name)
 		paths = append(paths, path)
-		c.Assert(ioutil.WriteFile(path, []byte("snap-data"), 0644), check.IsNil)
+		c.Assert(os.WriteFile(path, []byte("snap-data"), 0644), check.IsNil)
 	}
 
 	id, err := cs.cli.InstallPathMany(paths, nil)
@@ -415,7 +420,7 @@ func (cs *clientSuite) TestClientOpInstallPathManyTransactionally(c *check.C) {
 	for _, name := range names {
 		path := filepath.Join(c.MkDir(), name)
 		paths = append(paths, path)
-		c.Assert(ioutil.WriteFile(path, []byte("snap-data"), 0644), check.IsNil)
+		c.Assert(os.WriteFile(path, []byte("snap-data"), 0644), check.IsNil)
 	}
 
 	id, err := cs.cli.InstallPathMany(paths, &client.SnapOptions{Transaction: client.TransactionAllSnaps})
@@ -452,7 +457,7 @@ func (cs *clientSuite) TestClientOpInstallPathManyWithOptions(c *check.C) {
 	for _, name := range []string{"foo.snap", "bar.snap"} {
 		path := filepath.Join(c.MkDir(), name)
 		paths = append(paths, path)
-		c.Assert(ioutil.WriteFile(path, []byte("snap-data"), 0644), check.IsNil)
+		c.Assert(os.WriteFile(path, []byte("snap-data"), 0644), check.IsNil)
 	}
 
 	// InstallPathMany supports opts
@@ -484,7 +489,7 @@ func (cs *clientSuite) TestClientOpInstallPathManyWithQuotaGroup(c *check.C) {
 	for _, name := range []string{"foo.snap", "bar.snap"} {
 		path := filepath.Join(c.MkDir(), name)
 		paths = append(paths, path)
-		c.Assert(ioutil.WriteFile(path, []byte("snap-data"), 0644), check.IsNil)
+		c.Assert(os.WriteFile(path, []byte("snap-data"), 0644), check.IsNil)
 	}
 
 	// Verify that the quota group option is serialized as a part of multipart form.
@@ -512,7 +517,7 @@ func (cs *clientSuite) TestClientOpInstallDangerous(c *check.C) {
 	bodyData := []byte("snap-data")
 
 	snap := filepath.Join(c.MkDir(), "foo.snap")
-	err := ioutil.WriteFile(snap, bodyData, 0644)
+	err := os.WriteFile(snap, bodyData, 0644)
 	c.Assert(err, check.IsNil)
 
 	opts := client.SnapOptions{
@@ -547,7 +552,7 @@ func (cs *clientSuite) TestClientOpInstallUnaliased(c *check.C) {
 	bodyData := []byte("snap-data")
 
 	snap := filepath.Join(c.MkDir(), "foo.snap")
-	err := ioutil.WriteFile(snap, bodyData, 0644)
+	err := os.WriteFile(snap, bodyData, 0644)
 	c.Assert(err, check.IsNil)
 
 	opts := client.SnapOptions{
@@ -583,7 +588,7 @@ func (cs *clientSuite) TestClientOpInstallTransactional(c *check.C) {
 	bodyData := []byte("snap-data")
 
 	snap := filepath.Join(c.MkDir(), "foo.snap")
-	err := ioutil.WriteFile(snap, bodyData, 0644)
+	err := os.WriteFile(snap, bodyData, 0644)
 	c.Assert(err, check.IsNil)
 
 	opts := client.SnapOptions{
@@ -609,6 +614,42 @@ func (cs *clientSuite) TestClientOpInstallTransactional(c *check.C) {
 
 	c.Assert(string(body), check.Matches,
 		"(?s).*Content-Disposition: form-data; name=\"transaction\"\r\n\r\nall-snaps\r\n.*")
+}
+
+func (cs *clientSuite) TestClientOpInstallPrefer(c *check.C) {
+	cs.status = 202
+	cs.rsp = `{
+		"change": "66b3",
+		"status-code": 202,
+		"type": "async"
+	}`
+	bodyData := []byte("snap-data")
+
+	snap := filepath.Join(c.MkDir(), "foo.snap")
+	err := os.WriteFile(snap, bodyData, 0644)
+	c.Assert(err, check.IsNil)
+
+	opts := client.SnapOptions{
+		Prefer: true,
+	}
+
+	_, err = cs.cli.Install("foo", &opts)
+	c.Assert(err, check.IsNil)
+
+	body, err := ioutil.ReadAll(cs.req.Body)
+	c.Assert(err, check.IsNil)
+	var jsonBody map[string]interface{}
+	err = json.Unmarshal(body, &jsonBody)
+	c.Assert(err, check.IsNil, check.Commentf("body: %v", string(body)))
+	c.Check(jsonBody["prefer"], check.Equals, true, check.Commentf("body: %v", string(body)))
+
+	_, err = cs.cli.InstallPath(snap, "", &opts)
+	c.Assert(err, check.IsNil)
+
+	body, err = ioutil.ReadAll(cs.req.Body)
+	c.Assert(err, check.IsNil)
+
+	c.Assert(string(body), check.Matches, "(?s).*Content-Disposition: form-data; name=\"prefer\"\r\n\r\ntrue\r\n.*")
 }
 
 func formToMap(c *check.C, mr *multipart.Reader) map[string]string {
@@ -700,6 +741,7 @@ func (cs *clientSuite) TestSnapOptionsSerialises(c *check.C) {
 		`{"unaliased":true}`:         {Unaliased: true},
 		`{"purge":true}`:             {Purge: true},
 		`{"amend":true}`:             {Amend: true},
+		`{"prefer":true}`:            {Prefer: true},
 	}
 	for expected, opts := range tests {
 		buf, err := json.Marshal(&opts)
@@ -802,4 +844,74 @@ func (cs *clientSuite) TestClientOpDownloadResume(c *check.C) {
 	c.Check(string(content), check.Equals, cs.rsp)
 	// and we can close it
 	c.Check(rc.Close(), check.IsNil)
+}
+
+func (cs *clientSuite) TestClientRefreshWithValidationSets(c *check.C) {
+	cs.status = 202
+	cs.rsp = `{
+		"change": "12",
+		"status-code": 202,
+		"type": "async"
+	}`
+
+	sets := []string{"foo/bar=2", "foo/baz"}
+	chgID, err := cs.cli.RefreshMany(nil, &client.SnapOptions{
+		ValidationSets: sets,
+	})
+	c.Assert(err, check.IsNil)
+	c.Check(chgID, check.Equals, "12")
+
+	type req struct {
+		ValidationSets []string `json:"validation-sets"`
+		Action         string   `json:"action"`
+	}
+	body, err := ioutil.ReadAll(cs.req.Body)
+	c.Assert(err, check.IsNil)
+
+	var decodedBody req
+	err = json.Unmarshal(body, &decodedBody)
+	c.Assert(err, check.IsNil)
+
+	c.Check(decodedBody, check.DeepEquals, req{
+		ValidationSets: sets,
+		Action:         "refresh",
+	})
+	c.Check(cs.req.Header["Content-Type"], check.DeepEquals, []string{"application/json"})
+}
+
+func (cs *clientSuite) TestClientHoldMany(c *check.C) {
+	cs.status = 202
+	cs.rsp = `{
+		"change": "12",
+		"status-code": 202,
+		"type": "async"
+	}`
+
+	chgID, err := cs.cli.HoldRefreshesMany([]string{"foo", "bar"}, &client.SnapOptions{
+		Time:      "forever",
+		HoldLevel: "general",
+	})
+	c.Assert(err, check.IsNil)
+	c.Check(chgID, check.Equals, "12")
+
+	type req struct {
+		Action    string   `json:"action"`
+		Snaps     []string `json:"snaps"`
+		Time      string   `json:"time"`
+		HoldLevel string   `json:"hold-level"`
+	}
+	body, err := ioutil.ReadAll(cs.req.Body)
+	c.Assert(err, check.IsNil)
+
+	var decodedBody req
+	err = json.Unmarshal(body, &decodedBody)
+	c.Assert(err, check.IsNil)
+
+	c.Check(decodedBody, check.DeepEquals, req{
+		Action:    "hold",
+		Snaps:     []string{"foo", "bar"},
+		Time:      "forever",
+		HoldLevel: "general",
+	})
+	c.Check(cs.req.Header["Content-Type"], check.DeepEquals, []string{"application/json"})
 }

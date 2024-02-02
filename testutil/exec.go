@@ -129,7 +129,7 @@ func mockCommand(c *check.C, basename, script, template string) *MockCmd {
 		newpath = binDir + ":" + os.Getenv("PATH")
 	}
 	fmt.Fprintf(&wholeScript, template, logFile, script)
-	err := ioutil.WriteFile(exeFile, wholeScript.Bytes(), 0700)
+	err := os.WriteFile(exeFile, wholeScript.Bytes(), 0700)
 	if err != nil {
 		panic(err)
 	}
@@ -166,7 +166,7 @@ func MockLockedCommand(c *check.C, basename, script string) *MockCmd {
 // Useful when you want to check the ordering of things.
 func (cmd *MockCmd) Also(basename, script string) *MockCmd {
 	exeFile := path.Join(cmd.binDir, basename)
-	err := ioutil.WriteFile(exeFile, []byte(fmt.Sprintf(scriptTpl, cmd.logFile, script)), 0700)
+	err := os.WriteFile(exeFile, []byte(fmt.Sprintf(scriptTpl, cmd.logFile, script)), 0700)
 	if err != nil {
 		panic(err)
 	}
@@ -187,10 +187,11 @@ func (cmd *MockCmd) Restore() {
 
 // Calls returns a list of calls that were made to the mock command.
 // of the form:
-// [][]string{
-//     {"cmd", "arg1", "arg2"}, // first invocation of "cmd"
-//     {"cmd", "arg1", "arg2"}, // second invocation of "cmd"
-// }
+//
+//	[][]string{
+//	    {"cmd", "arg1", "arg2"}, // first invocation of "cmd"
+//	    {"cmd", "arg1", "arg2"}, // second invocation of "cmd"
+//	}
 func (cmd *MockCmd) Calls() [][]string {
 	raw, err := ioutil.ReadFile(cmd.logFile)
 	if os.IsNotExist(err) {

@@ -65,10 +65,7 @@ func serviceStopTimeout(app *snap.AppInfo) time.Duration {
 	return time.Duration(tout)
 }
 
-// TODO: this should not accept AddSnapServicesOptions, it should use some other
-// subset of options, specifically it should not accept Preseeding as an option
-// here
-func generateSnapServiceFile(app *snap.AppInfo, opts *AddSnapServicesOptions) ([]byte, error) {
+func generateSnapServiceFile(app *snap.AppInfo, opts *generateSnapServicesOptions) ([]byte, error) {
 	if err := snap.ValidateApp(app); err != nil {
 		return nil, err
 	}
@@ -132,8 +129,8 @@ TasksAccounting=true
 `
 	buf := bytes.NewBufferString(header)
 
-	if grp.TaskLimit != 0 {
-		fmt.Fprintf(buf, "TasksMax=%d\n", grp.TaskLimit)
+	if grp.ThreadLimit != 0 {
+		fmt.Fprintf(buf, "TasksMax=%d\n", grp.ThreadLimit)
 	}
 	return buf.String()
 }
@@ -169,7 +166,7 @@ RuntimeMaxUse=%[1]d
 }
 
 func formatJournalRateConf(grp *quota.Group) string {
-	if grp.JournalLimit.RateCount == 0 || grp.JournalLimit.RatePeriod == 0 {
+	if !grp.JournalLimit.RateEnabled {
 		return ""
 	}
 	return fmt.Sprintf(`RateLimitIntervalSec=%dus
@@ -184,8 +181,15 @@ func generateJournaldConfFile(grp *quota.Group) []byte {
 
 	sizeOptions := formatJournalSizeConf(grp)
 	rateOptions := formatJournalRateConf(grp)
+	// Set Storage=auto for all journal namespaces we create. This is
+	// the setting for the default namespace, and 'persistent' is the default
+	// setting for all namespaces. However we want namespaces to honor the
+	// journal.persistent setting, and this only works if Storage is set
+	// to 'auto'.
+	// See https://www.freedesktop.org/software/systemd/man/journald.conf.html#Storage=
 	template := `# Journald configuration for snap quota group %[1]s
 [Journal]
+Storage=auto
 `
 	buf := bytes.Buffer{}
 	fmt.Fprintf(&buf, template, grp.Name)
@@ -216,29 +220,16 @@ func startUserServices(cli *client.Client, inter Interacter, services ...string)
 	return err
 }
 
-func stopService(sysd systemd.Systemd, app *snap.AppInfo, inter Interacter) error {
-	var serviceList []string
-
-	// Add application sockets
-	for _, socket := range app.Sockets {
-		serviceList = append(serviceList, filepath.Base(socket.File()))
-	}
-	// Add application timers
-	if app.Timer != nil {
-		serviceList = append(serviceList, filepath.Base(app.Timer.File()))
-	}
-	// Add application service
-	serviceList = append(serviceList, app.ServiceName())
-
-	switch app.DaemonScope {
+func stopService(sysd systemd.Systemd, inter Interacter, scope snap.DaemonScope, svcs []string) error {
+	switch scope {
 	case snap.SystemDaemon:
-		if err := sysd.Stop(serviceList); err != nil {
+		if err := sysd.Stop(svcs); err != nil {
 			return err
 		}
 
 	case snap.UserDaemon:
 		cli := client.New()
-		if err := stopUserServices(cli, inter, serviceList...); err != nil {
+		if err := stopUserServices(cli, inter, svcs...); err != nil {
 			return err
 		}
 	default:
@@ -246,6 +237,31 @@ func stopService(sysd systemd.Systemd, app *snap.AppInfo, inter Interacter) erro
 	}
 
 	return nil
+}
+
+func serviceIsActivated(app *snap.AppInfo) bool {
+	return len(app.Sockets) > 0 || app.Timer != nil || len(app.ActivatesOn) > 0
+}
+
+func serviceIsSlotActivated(app *snap.AppInfo) bool {
+	return len(app.ActivatesOn) > 0
+}
+
+// serviceUnits returns the service unit of the primary service, and a list
+// of service units for the activation services.
+func serviceUnits(app *snap.AppInfo) (service string, activators []string) {
+	// Add application sockets
+	for _, socket := range app.Sockets {
+		activators = append(activators, filepath.Base(socket.File()))
+	}
+	// Sort the results from sockets for consistency
+	sort.Strings(activators)
+
+	// Add application timer
+	if app.Timer != nil {
+		activators = append(activators, filepath.Base(app.Timer.File()))
+	}
+	return app.ServiceName(), activators
 }
 
 // StartServicesFlags carries extra flags for StartServices.
@@ -280,7 +296,8 @@ func StartServices(apps []*snap.AppInfo, disabledSvcs []string, flags *StartServ
 		if servicesStarted {
 			for i := len(apps) - 1; i >= 0; i-- {
 				app := apps[i]
-				if e := stopService(systemSysd, app, inter); e != nil {
+				svc, activators := serviceUnits(app)
+				if e := stopService(systemSysd, inter, app.DaemonScope, append(activators, svc)); e != nil {
 					inter.Notify(fmt.Sprintf("While trying to stop previously started service %q: %v", app.ServiceName(), e))
 				}
 			}
@@ -302,21 +319,20 @@ func StartServices(apps []*snap.AppInfo, disabledSvcs []string, flags *StartServ
 	// process all services of the snap in the order specified by the
 	// caller; before batched calls were introduced, the sockets and timers
 	// were started first, followed by other non-activated services
-
-	startService := func(svc string, scope snap.DaemonScope) {
+	markServicesForStart := func(svcs []string, scope snap.DaemonScope) {
 		switch scope {
 		case snap.SystemDaemon:
-			systemServices = append(systemServices, svc)
+			systemServices = append(systemServices, svcs...)
 		case snap.UserDaemon:
-			userServices = append(userServices, svc)
+			userServices = append(userServices, svcs...)
 		}
 	}
-	enableService := func(svc string, scope snap.DaemonScope) {
+	markServicesForEnable := func(svcs []string, scope snap.DaemonScope) {
 		switch scope {
 		case snap.SystemDaemon:
-			toEnableSystem = append(toEnableSystem, svc)
+			toEnableSystem = append(toEnableSystem, svcs...)
 		case snap.UserDaemon:
-			toEnableUser = append(toEnableUser, svc)
+			toEnableUser = append(toEnableUser, svcs...)
 		}
 	}
 	// first, gather all socket and timer units
@@ -324,38 +340,37 @@ func StartServices(apps []*snap.AppInfo, disabledSvcs []string, flags *StartServ
 		if !app.IsService() {
 			continue
 		}
-		for _, socket := range app.Sockets {
-			// socket unit
-			socketService := filepath.Base(socket.File())
-			startService(socketService, app.DaemonScope)
-			// TODO: look at enable flag
-			enableService(socketService, app.DaemonScope)
+		if strutil.ListContains(disabledSvcs, app.Name) {
+			continue
 		}
-
-		if app.Timer != nil {
-			// timer unit
-			timerService := filepath.Base(app.Timer.File())
-
-			startService(timerService, app.DaemonScope)
-			// TODO: look at enable flag
-			enableService(timerService, app.DaemonScope)
+		// Get all units for the service, but we only deal with
+		// the activators here.
+		_, activators := serviceUnits(app)
+		if len(activators) == 0 {
+			// just skip if there are no activated units
+			continue
+		}
+		markServicesForStart(activators, app.DaemonScope)
+		if flags.Enable {
+			markServicesForEnable(activators, app.DaemonScope)
 		}
 	}
+
 	// now collect all services
 	for _, app := range apps {
 		if !app.IsService() {
 			continue
 		}
-		if len(app.Sockets) > 0 || app.Timer != nil || len(app.ActivatesOn) > 0 {
+		if serviceIsActivated(app) {
 			continue
 		}
 		if strutil.ListContains(disabledSvcs, app.Name) {
 			continue
 		}
 		svcName := app.ServiceName()
-		startService(svcName, app.DaemonScope)
+		markServicesForStart([]string{svcName}, app.DaemonScope)
 		if flags.Enable {
-			enableService(svcName, app.DaemonScope)
+			markServicesForEnable([]string{svcName}, app.DaemonScope)
 		}
 	}
 
@@ -469,7 +484,7 @@ type SnapServiceOptions struct {
 	// the OOM killer when OOM conditions are reached.
 	VitalityRank int
 
-	// QuotaGroup is the quota group for all services in the specified snap.
+	// QuotaGroup is the quota group for the specified snap.
 	QuotaGroup *quota.Group
 }
 
@@ -492,6 +507,11 @@ type EnsureSnapServicesOptions struct {
 	// the snapd snap being mounted, this is specific to systems like UC18 and
 	// UC20 which have the snapd snap and need to have units generated
 	RequireMountedSnapdSnap bool
+
+	// IncludeServices provides the option for allowing filtering which services
+	// that should be configured. The service list must be in the format my-snap.my-service.
+	// If this list is not provided, then all services will be included.
+	IncludeServices []string
 }
 
 // ensureSnapServicesContext is the context for EnsureSnapServices.
@@ -575,9 +595,9 @@ func (es *ensureSnapServicesContext) reloadModified() error {
 	return nil
 }
 
-// ensureSnapSystemdUnits takes care of writing .service files for all services
+// ensureSnapServiceSystemdUnits takes care of writing .service files for all services
 // registered in snap.Info apps.
-func (es *ensureSnapServicesContext) ensureSnapSystemdUnits(snapInfo *snap.Info, opts *AddSnapServicesOptions) error {
+func (es *ensureSnapServicesContext) ensureSnapServiceSystemdUnits(snapInfo *snap.Info, opts *generateSnapServicesOptions) error {
 	handleFileModification := func(app *snap.AppInfo, unitType string, name, path string, content []byte) error {
 		old, modifiedFile, err := tryFileUpdate(path, content)
 		if err != nil {
@@ -607,44 +627,77 @@ func (es *ensureSnapServicesContext) ensureSnapSystemdUnits(snapInfo *snap.Info,
 		return nil
 	}
 
+	// lets sort the service list before generating them for
+	// consistency when testing
+	services := snapInfo.Services()
+	sort.Slice(services, func(i, j int) bool {
+		return services[i].Name < services[j].Name
+	})
+
+	var svcQuotaMap map[string]*quota.Group
+	if opts.QuotaGroup != nil {
+		svcQuotaMap = opts.QuotaGroup.ServiceMap()
+	}
+
 	// note that the Preseeding option is not used here at all
-	for _, app := range snapInfo.Apps {
-		if !app.IsService() {
+	for _, svc := range services {
+		// if an inclusion list is provided, then we want to make sure this service
+		// is included.
+		// TODO: add an AppInfo.FullName member
+		fullServiceName := fmt.Sprintf("%s.%s", snapInfo.InstanceName(), svc.Name)
+		if len(es.opts.IncludeServices) > 0 && !strutil.ListContains(es.opts.IncludeServices, fullServiceName) {
 			continue
 		}
 
 		// create services first; this doesn't trigger systemd
 
-		// Generate new service file state
-		path := app.ServiceFile()
-		content, err := generateSnapServiceFile(app, opts)
+		// get the correct quota group for the service we are generating.
+		quotaGrp := opts.QuotaGroup
+		if quotaGrp != nil {
+			// the service map contains quota group overrides if the service
+			// entry exists.
+			quotaGrp = svcQuotaMap[fullServiceName]
+			if quotaGrp == nil {
+				// default to the parent quota group, which may also be nil.
+				quotaGrp = opts.QuotaGroup
+			}
+		}
+
+		// Generate new service file state, make an app-specific generateSnapServicesOptions
+		// to avoid modifying the original copy, if we were to override the quota group.
+		content, err := generateSnapServiceFile(svc, &generateSnapServicesOptions{
+			QuotaGroup:              quotaGrp,
+			VitalityRank:            opts.VitalityRank,
+			RequireMountedSnapdSnap: opts.RequireMountedSnapdSnap,
+		})
 		if err != nil {
 			return err
 		}
 
-		if err := handleFileModification(app, "service", app.Name, path, content); err != nil {
+		path := svc.ServiceFile()
+		if err := handleFileModification(svc, "service", svc.Name, path, content); err != nil {
 			return err
 		}
 
 		// Generate systemd .socket files if needed
-		socketFiles, err := generateSnapSocketFiles(app)
+		socketFiles, err := generateSnapSocketFiles(svc)
 		if err != nil {
 			return err
 		}
 		for name, content := range socketFiles {
-			path := app.Sockets[name].File()
-			if err := handleFileModification(app, "socket", name, path, content); err != nil {
+			path := svc.Sockets[name].File()
+			if err := handleFileModification(svc, "socket", name, path, content); err != nil {
 				return err
 			}
 		}
 
-		if app.Timer != nil {
-			content, err := generateSnapTimerFile(app)
+		if svc.Timer != nil {
+			content, err := generateSnapTimerFile(svc)
 			if err != nil {
 				return err
 			}
-			path := app.Timer.File()
-			if err := handleFileModification(app, "timer", "", path, content); err != nil {
+			path := svc.Timer.File()
+			if err := handleFileModification(svc, "timer", "", path, content); err != nil {
 				return err
 			}
 		}
@@ -662,27 +715,27 @@ func (es *ensureSnapServicesContext) ensureSnapsSystemdServices() (*quota.QuotaG
 		if s.Type() == snap.TypeSnapd {
 			return nil, fmt.Errorf("internal error: adding explicit services for snapd snap is unexpected")
 		}
+		if snapSvcOpts == nil {
+			snapSvcOpts = &SnapServiceOptions{}
+		}
 
 		// always use RequireMountedSnapdSnap options from the global options
-		genServiceOpts := &AddSnapServicesOptions{
+		genServiceOpts := &generateSnapServicesOptions{
 			RequireMountedSnapdSnap: es.opts.RequireMountedSnapdSnap,
+			VitalityRank:            snapSvcOpts.VitalityRank,
+			QuotaGroup:              snapSvcOpts.QuotaGroup,
 		}
-		if snapSvcOpts != nil {
-			// and if there are per-snap options specified, use that for
-			// VitalityRank
-			genServiceOpts.VitalityRank = snapSvcOpts.VitalityRank
-			genServiceOpts.QuotaGroup = snapSvcOpts.QuotaGroup
-
-			if snapSvcOpts.QuotaGroup != nil {
-				if err := neededQuotaGrps.AddAllNecessaryGroups(snapSvcOpts.QuotaGroup); err != nil {
-					// this error can basically only be a circular reference
-					// in the quota group tree
-					return nil, err
-				}
+		if snapSvcOpts.QuotaGroup != nil {
+			// AddAllNecessaryGroups also adds all sub-groups to the quota group set. So this
+			// automatically covers any other quota group that might be set in snapSvcOpts.ServiceQuotaMap
+			if err := neededQuotaGrps.AddAllNecessaryGroups(snapSvcOpts.QuotaGroup); err != nil {
+				// this error can basically only be a circular reference
+				// in the quota group tree
+				return nil, err
 			}
 		}
 
-		if err := es.ensureSnapSystemdUnits(s, genServiceOpts); err != nil {
+		if err := es.ensureSnapServiceSystemdUnits(s, genServiceOpts); err != nil {
 			return nil, err
 		}
 	}
@@ -731,12 +784,12 @@ func (es *ensureSnapServicesContext) ensureSnapSlices(quotaGroups *quota.QuotaGr
 
 func (es *ensureSnapServicesContext) ensureSnapJournaldUnits(quotaGroups *quota.QuotaGroupSet) error {
 	handleJournalModification := func(grp *quota.Group, path string, content []byte) error {
-		old, modifiedFile, err := tryFileUpdate(path, content)
+		old, fileModified, err := tryFileUpdate(path, content)
 		if err != nil {
 			return err
 		}
 
-		if !modifiedFile {
+		if !fileModified {
 			return nil
 		}
 
@@ -760,14 +813,59 @@ func (es *ensureSnapServicesContext) ensureSnapJournaldUnits(quotaGroups *quota.
 	}
 
 	for _, grp := range quotaGroups.AllQuotaGroups() {
+		if len(grp.Services) > 0 {
+			// ignore service sub-groups
+			continue
+		}
+
 		contents := generateJournaldConfFile(grp)
-		fileName := grp.JournalFileName()
+		fileName := grp.JournalConfFileName()
 
 		path := filepath.Join(dirs.SnapSystemdDir, fileName)
 		if err := handleJournalModification(grp, path, contents); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+// ensureJournalQuotaServiceUnits takes care of writing service drop-in files for all journal namespaces.
+func (es *ensureSnapServicesContext) ensureJournalQuotaServiceUnits(quotaGroups *quota.QuotaGroupSet) error {
+	handleFileModification := func(grp *quota.Group, path string, content []byte) error {
+		old, fileModified, err := tryFileUpdate(path, content)
+		if err != nil {
+			return err
+		}
+
+		if fileModified {
+			if es.observeChange != nil {
+				var oldContent []byte
+				if old != nil {
+					oldContent = old.Content
+				}
+				es.observeChange(nil, grp, "service", grp.Name, string(oldContent), string(content))
+			}
+			es.modifiedUnits[path] = old
+		}
+		return nil
+	}
+
+	for _, grp := range quotaGroups.AllQuotaGroups() {
+		if grp.JournalLimit == nil {
+			continue
+		}
+
+		if err := os.MkdirAll(grp.JournalServiceDropInDir(), 0755); err != nil {
+			return err
+		}
+
+		dropInPath := grp.JournalServiceDropInFile()
+		content := genJournalServiceFile(grp)
+		if err := handleFileModification(grp, dropInPath, content); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -822,50 +920,27 @@ func EnsureSnapServices(snaps map[*snap.Info]*SnapServiceOptions, opts *EnsureSn
 		return err
 	}
 
+	if err := context.ensureJournalQuotaServiceUnits(quotaGroups); err != nil {
+		return err
+	}
+
 	return context.reloadModified()
 }
 
-// AddSnapServicesOptions is a struct for controlling the generated service
+// generateSnapServicesOptions is a struct for controlling the generated service
 // definition for a snap service.
-type AddSnapServicesOptions struct {
+type generateSnapServicesOptions struct {
 	// VitalityRank is the rank of all services in the specified snap used by
 	// the OOM killer when OOM conditions are reached.
 	VitalityRank int
 
-	// QuotaGroup is the quota group for all services in the specified snap.
+	// QuotaGroup is the quota group for the service.
 	QuotaGroup *quota.Group
 
 	// RequireMountedSnapdSnap is whether the generated units should depend on
 	// the snapd snap being mounted, this is specific to systems like UC18 and
 	// UC20 which have the snapd snap and need to have units generated
 	RequireMountedSnapdSnap bool
-
-	// Preseeding is whether the system is currently being preseeded, in which
-	// case there is not a running systemd for EnsureSnapServicesOptions to
-	// issue commands like systemctl daemon-reload to.
-	Preseeding bool
-}
-
-// AddSnapServices adds service units for the applications from the snap which
-// are services. The services do not get enabled or started.
-func AddSnapServices(s *snap.Info, opts *AddSnapServicesOptions, inter Interacter) error {
-	m := map[*snap.Info]*SnapServiceOptions{
-		s: {},
-	}
-	ensureOpts := &EnsureSnapServicesOptions{}
-	if opts != nil {
-		// set the per-snap service options
-		m[s].VitalityRank = opts.VitalityRank
-		m[s].QuotaGroup = opts.QuotaGroup
-
-		// copy the globally applicable opts from AddSnapServicesOptions to
-		// EnsureSnapServicesOptions, since those options override the per-snap opts
-		// we put in the map argument
-		ensureOpts.Preseeding = opts.Preseeding
-		ensureOpts.RequireMountedSnapdSnap = opts.RequireMountedSnapdSnap
-	}
-
-	return EnsureSnapServices(m, ensureOpts, nil, inter)
 }
 
 // StopServicesFlags carries extra flags for StopServices.
@@ -905,17 +980,31 @@ func StopServices(apps []*snap.AppInfo, flags *StopServicesFlags, reason snap.Se
 			}
 		}
 
+		// Is the service slot activated, then lets warn the user this doesn't have any
+		// real effect if a disable was requested
+		if flags.Disable && serviceIsSlotActivated(app) {
+			logger.Noticef("Disabling %s may not have the intended effect as the service is currently always activated by a slot", app.Name)
+		}
+
+		// Get services including any activation mechanisms. When stopping and disabling
+		// services we do it on both the primary service, and it's activation mechanisms. The
+		// StartServices logic does actually not enable/start any service which are activated,
+		// but rather only the activation services themselves, so one might argue if it
+		// is really necessary to disable the primary service.
+		svc, activators := serviceUnits(app)
+
 		var err error
 		timings.Run(tm, "stop-service", fmt.Sprintf("stop service %q", app.ServiceName()), func(nested timings.Measurer) {
-			err = stopService(sysd, app, inter)
+			err = stopService(sysd, inter, app.DaemonScope, append(activators, svc))
 			if err == nil && flags.Disable {
-				disableServices = append(disableServices, app.ServiceName())
+				disableServices = append(disableServices, append(activators, svc)...)
 			}
 		})
 		if err != nil {
 			return err
 		}
 	}
+
 	if len(disableServices) > 0 {
 		if err := sysd.DisableNoReload(disableServices); err != nil {
 			return err
@@ -925,31 +1014,6 @@ func StopServices(apps []*snap.AppInfo, flags *StopServicesFlags, reason snap.Se
 		}
 	}
 	return nil
-}
-
-// ServicesEnableState returns a map of service names from the given snap,
-// together with their enable/disable status.
-func ServicesEnableState(s *snap.Info, inter Interacter) (map[string]bool, error) {
-	sysd := systemd.New(systemd.SystemMode, inter)
-
-	// loop over all services in the snap, querying systemd for the current
-	// systemd state of the snaps
-	snapSvcsState := make(map[string]bool, len(s.Apps))
-	for name, app := range s.Apps {
-		if !app.IsService() {
-			continue
-		}
-		// FIXME: handle user daemons
-		if app.DaemonScope != snap.SystemDaemon {
-			continue
-		}
-		state, err := sysd.IsEnabled(app.ServiceName())
-		if err != nil {
-			return nil, err
-		}
-		snapSvcsState[name] = state
-	}
-	return snapSvcsState, nil
 }
 
 // RemoveQuotaGroup ensures that the slice file for a quota group is removed. It
@@ -1089,12 +1153,9 @@ func genServiceNames(snap *snap.Info, appNames []string) []string {
 	return names
 }
 
-// TODO: this should not accept AddSnapServicesOptions, it should use some other
-// subset of options, specifically it should not accept Preseeding as an option
-// here
-func genServiceFile(appInfo *snap.AppInfo, opts *AddSnapServicesOptions) ([]byte, error) {
+func genServiceFile(appInfo *snap.AppInfo, opts *generateSnapServicesOptions) ([]byte, error) {
 	if opts == nil {
-		opts = &AddSnapServicesOptions{}
+		opts = &generateSnapServicesOptions{}
 	}
 
 	// assemble all of the service directive snippets for all interfaces that
@@ -1319,7 +1380,7 @@ WantedBy={{.ServicesTarget}}
 	// check the quota group slice
 	if opts.QuotaGroup != nil {
 		wrapperData.SliceUnit = opts.QuotaGroup.SliceFileName()
-		if opts.QuotaGroup.JournalLimit != nil {
+		if opts.QuotaGroup.JournalQuotaSet() {
 			wrapperData.LogNamespace = opts.QuotaGroup.JournalNamespaceName()
 		}
 	}
@@ -1405,6 +1466,15 @@ WantedBy={{.SocketsTarget}}
 	}
 
 	return templateOut.Bytes()
+}
+
+func genJournalServiceFile(grp *quota.Group) []byte {
+	buf := bytes.Buffer{}
+	template := `[Service]
+LogsDirectory=
+`
+	fmt.Fprint(&buf, template)
+	return buf.Bytes()
 }
 
 func generateSnapSocketFiles(app *snap.AppInfo) (map[string][]byte, error) {
@@ -1718,8 +1788,96 @@ func generateOnCalendarSchedules(schedule []*timeutil.Schedule) []string {
 	return calendarEvents
 }
 
+// serviceStatus represents the status of a service, and any of its activation
+// service units. It also provides a method isEnabled which can determine the true
+// enable status for services that are activated.
+type serviceStatus struct {
+	name        string
+	service     *systemd.UnitStatus
+	activators  []*systemd.UnitStatus
+	slotEnabled bool
+}
+
+func (s *serviceStatus) isEnabled() bool {
+	// If the service is slot activated, it cannot be disabled and thus always
+	// is enabled.
+	if s.slotEnabled {
+		return true
+	}
+
+	// If there are no activator units, then return status of the
+	// primary service.
+	if len(s.activators) == 0 {
+		return s.service.Enabled
+	}
+
+	// Just a single of those activators need to be enabled for us
+	// to report the service as enabled.
+	for _, a := range s.activators {
+		if a.Enabled {
+			return true
+		}
+	}
+	return false
+}
+
+func appServiceUnitsMany(apps []*snap.AppInfo) []string {
+	var allUnits []string
+	for _, app := range apps {
+		if !app.IsService() {
+			continue
+		}
+		// TODO: handle user daemons
+		if app.DaemonScope != snap.SystemDaemon {
+			continue
+		}
+		svc, activators := serviceUnits(app)
+		allUnits = append(allUnits, svc)
+		allUnits = append(allUnits, activators...)
+	}
+	return allUnits
+}
+
+func queryServiceStatusMany(sysd systemd.Systemd, apps []*snap.AppInfo) ([]*serviceStatus, error) {
+	allUnits := appServiceUnitsMany(apps)
+	unitStatuses, err := sysd.Status(allUnits)
+	if err != nil {
+		return nil, err
+	}
+
+	var appStatuses []*serviceStatus
+	var statusIndex int
+	for _, app := range apps {
+		if !app.IsService() {
+			continue
+		}
+		// TODO: handle user daemons
+		if app.DaemonScope != snap.SystemDaemon {
+			continue
+		}
+
+		// This builds on the principle that sysd.Status returns service unit statuses
+		// in the exact same order we requested them in.
+		_, activators := serviceUnits(app)
+		svcSt := &serviceStatus{
+			name:        app.Name,
+			service:     unitStatuses[statusIndex],
+			slotEnabled: serviceIsSlotActivated(app),
+		}
+		if len(activators) > 0 {
+			svcSt.activators = unitStatuses[statusIndex+1 : statusIndex+1+len(activators)]
+		}
+		appStatuses = append(appStatuses, svcSt)
+		statusIndex += 1 + len(activators)
+	}
+	return appStatuses, nil
+}
+
 type RestartServicesFlags struct {
+	// Reload set if we might need to reload the service definitions.
 	Reload bool
+	// AlsoEnabledNonActive set if we to restart also enabled but not running units
+	AlsoEnabledNonActive bool
 }
 
 // Restart or reload active services in `svcs`.
@@ -1733,40 +1891,45 @@ type RestartServicesFlags struct {
 // The list of explicitServices needs to use systemd unit names.
 // TODO: change explicitServices format to be less unusual, more consistent
 // (introduce AppRef?)
-func RestartServices(svcs []*snap.AppInfo, explicitServices []string,
+func RestartServices(apps []*snap.AppInfo, explicitServices []string,
 	flags *RestartServicesFlags, inter Interacter, tm timings.Measurer) error {
+	if flags == nil {
+		flags = &RestartServicesFlags{}
+	}
 	sysd := systemd.New(systemd.SystemMode, inter)
 
-	unitNames := make([]string, 0, len(svcs))
-	for _, srv := range svcs {
-		// they're *supposed* to be all services, but checking doesn't hurt
-		if !srv.IsService() {
-			continue
-		}
-		unitNames = append(unitNames, srv.ServiceName())
-	}
-
-	unitStatuses, err := sysd.Status(unitNames)
+	// Get service statuses for each of the apps
+	sts, err := queryServiceStatusMany(sysd, apps)
 	if err != nil {
 		return err
 	}
 
-	for _, unit := range unitStatuses {
+	for _, st := range sts {
+		unitName := st.service.Name
+		unitActive := st.service.Active
+		unitEnabled := st.isEnabled()
+
 		// If the unit was explicitly mentioned in the command line, restart it
 		// even if it is disabled; otherwise, we only restart units which are
-		// currently running. Reference:
+		// currently enabled or running. Reference:
 		// https://forum.snapcraft.io/t/command-line-interface-to-manipulate-services/262/47
-		if !unit.Active && !strutil.ListContains(explicitServices, unit.Name) {
-			continue
+		if !unitActive && !strutil.ListContains(explicitServices, unitName) {
+			if !flags.AlsoEnabledNonActive {
+				logger.Noticef("not restarting inactive unit %s", unitName)
+				continue
+			} else if !unitEnabled {
+				logger.Noticef("not restarting disabled and inactive unit %s", unitName)
+				continue
+			}
 		}
 
 		var err error
-		timings.Run(tm, "restart-service", fmt.Sprintf("restart service %s", unit.Name), func(nested timings.Measurer) {
-			if flags != nil && flags.Reload {
-				err = sysd.ReloadOrRestart(unit.Name)
+		timings.Run(tm, "restart-service", fmt.Sprintf("restart service %s", unitName), func(nested timings.Measurer) {
+			if flags.Reload {
+				err = sysd.ReloadOrRestart([]string{unitName})
 			} else {
 				// note: stop followed by start, not just 'restart'
-				err = sysd.Restart([]string{unit.Name})
+				err = sysd.Restart([]string{unitName})
 			}
 		})
 		if err != nil {
@@ -1777,21 +1940,37 @@ func RestartServices(svcs []*snap.AppInfo, explicitServices []string,
 	return nil
 }
 
-// QueryDisabledServices returns a list of all currently disabled snap services
-// in the snap.
-func QueryDisabledServices(info *snap.Info, pb progress.Meter) ([]string, error) {
-	// save the list of services that are in the disabled state before unlinking
-	// and thus removing the snap services
-	snapSvcStates, err := ServicesEnableState(info, pb)
+// ServicesEnableState returns a map of service names from the given snap,
+// together with their enable/disable status.
+func ServicesEnableState(s *snap.Info, inter Interacter) (map[string]bool, error) {
+	sysd := systemd.New(systemd.SystemMode, inter)
+	sts, err := queryServiceStatusMany(sysd, s.Services())
 	if err != nil {
 		return nil, err
 	}
 
-	disabledSnapSvcs := []string{}
+	// loop over all services in the snap, storing the current enable status
+	snapSvcsState := make(map[string]bool, len(sts))
+	for _, st := range sts {
+		snapSvcsState[st.name] = st.isEnabled()
+	}
+	return snapSvcsState, nil
+}
+
+// QueryDisabledServices returns a list of all currently disabled snap services
+// in the snap.
+func QueryDisabledServices(info *snap.Info, pb progress.Meter) ([]string, error) {
+	sysd := systemd.New(systemd.SystemMode, pb)
+	sts, err := queryServiceStatusMany(sysd, info.Services())
+	if err != nil {
+		return nil, err
+	}
+
 	// add all disabled services to the list
-	for svc, isEnabled := range snapSvcStates {
-		if !isEnabled {
-			disabledSnapSvcs = append(disabledSnapSvcs, svc)
+	disabledSnapSvcs := []string{}
+	for _, st := range sts {
+		if !st.isEnabled() {
+			disabledSnapSvcs = append(disabledSnapSvcs, st.name)
 		}
 	}
 

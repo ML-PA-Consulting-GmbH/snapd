@@ -1,6 +1,5 @@
 // -*- Mode: Go; indent-tabs-mode: t -*-
 //go:build nosecboot
-// +build nosecboot
 
 /*
  * Copyright (C) 2021 Canonical Ltd
@@ -29,7 +28,7 @@ import (
 
 var errBuildWithoutSecboot = errors.New("build without secboot support")
 
-func CheckTPMKeySealingSupported() error {
+func CheckTPMKeySealingSupported(mode TPMProvisionMode) error {
 	return errBuildWithoutSecboot
 }
 

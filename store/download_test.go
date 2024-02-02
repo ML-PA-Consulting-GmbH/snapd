@@ -26,7 +26,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -71,6 +70,7 @@ func (s *downloadSuite) TestActualDownload(c *C) {
 	n := 0
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c.Check(r.Header.Get("Snap-CDN"), Equals, "")
+		c.Check(r.Header.Get("Snap-Device-Location"), Equals, "")
 		c.Check(r.Header.Get("Snap-Refresh-Reason"), Equals, "")
 		n++
 		io.WriteString(w, "response-data")
@@ -102,7 +102,7 @@ func (s *downloadSuite) TestActualDownloadAutoRefresh(c *C) {
 	var buf SillyBuffer
 	// keep tests happy
 	sha3 := ""
-	err := store.Download(context.TODO(), "foo", sha3, mockServer.URL, nil, theStore, &buf, 0, nil, &store.DownloadOptions{IsAutoRefresh: true})
+	err := store.Download(context.TODO(), "foo", sha3, mockServer.URL, nil, theStore, &buf, 0, nil, &store.DownloadOptions{Scheduled: true})
 	c.Assert(err, IsNil)
 	c.Check(buf.String(), Equals, "response-data")
 	c.Check(n, Equals, 1)
@@ -114,6 +114,7 @@ func (s *downloadSuite) TestActualDownloadNoCDN(c *C) {
 
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c.Check(r.Header.Get("Snap-CDN"), Equals, "none")
+		c.Check(r.Header.Get("Snap-Device-Location"), Equals, "")
 		io.WriteString(w, "response-data")
 	}))
 	c.Assert(mockServer, NotNil)
@@ -131,6 +132,7 @@ func (s *downloadSuite) TestActualDownloadNoCDN(c *C) {
 func (s *downloadSuite) TestActualDownloadFullCloudInfoFromAuthContext(c *C) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c.Check(r.Header.Get("Snap-CDN"), Equals, `cloud-name="aws" region="us-east-1" availability-zone="us-east-1c"`)
+		c.Check(r.Header.Get("Snap-Device-Location"), Equals, `cloud-name="aws" region="us-east-1" availability-zone="us-east-1c"`)
 
 		io.WriteString(w, "response-data")
 	}))
@@ -151,6 +153,7 @@ func (s *downloadSuite) TestActualDownloadFullCloudInfoFromAuthContext(c *C) {
 func (s *downloadSuite) TestActualDownloadLessDetailedCloudInfoFromAuthContext(c *C) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c.Check(r.Header.Get("Snap-CDN"), Equals, `cloud-name="openstack" availability-zone="nova"`)
+		c.Check(r.Header.Get("Snap-Device-Location"), Equals, `cloud-name="openstack" availability-zone="nova"`)
 
 		io.WriteString(w, "response-data")
 	}))
@@ -668,7 +671,7 @@ func (s *downloadSuite) TestDownloadWithDelta(c *C) {
 		defer restore()
 		restore = store.MockApplyDelta(func(_ *store.Store, name string, deltaPath string, deltaInfo *snap.DeltaInfo, targetPath string, targetSha3_384 string) error {
 			c.Check(deltaInfo, Equals, &testCase.info.Deltas[0])
-			err := ioutil.WriteFile(targetPath, []byte("snap-content-via-delta"), 0644)
+			err := os.WriteFile(targetPath, []byte("snap-content-via-delta"), 0644)
 			c.Assert(err, IsNil)
 			return nil
 		})

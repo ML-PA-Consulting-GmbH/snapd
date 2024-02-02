@@ -20,7 +20,6 @@
 package cgroup_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -32,7 +31,7 @@ import (
 func (s *cgroupSuite) mockPidCgroup(c *C, text string) int {
 	f := filepath.Join(s.rootDir, "proc/333/cgroup")
 	c.Assert(os.MkdirAll(filepath.Dir(f), 0755), IsNil)
-	c.Assert(ioutil.WriteFile(f, []byte(text), 0755), IsNil)
+	c.Assert(os.WriteFile(f, []byte(text), 0755), IsNil)
 	return 333
 }
 
@@ -64,6 +63,8 @@ func (s *cgroupSuite) TestV1SnapNameFromPidEmptyName(c *C) {
 }
 
 func (s *cgroupSuite) TestSnapNameFromPidTracking(c *C) {
+	restore := cgroup.MockVersion(cgroup.V1, nil)
+	defer restore()
 	pid := s.mockPidCgroup(c, "1:name=systemd:/user.slice/user-1000.slice/user@1000.service/apps.slice/snap.foo.bar.00000-1111-3333.service\n")
 	name, err := cgroup.SnapNameFromPid(pid)
 	c.Assert(err, IsNil)

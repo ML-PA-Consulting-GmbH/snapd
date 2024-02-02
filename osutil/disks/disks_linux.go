@@ -51,6 +51,27 @@ var abstractCalculateLastUsableLBA = func(device string, diskSize uint64, sector
 	return CalculateLastUsableLBA(device, diskSize, sectorSize)
 }
 
+func MockUdevPropertiesForDevice(new func(string, string) (map[string]string, error)) (restore func()) {
+	old := udevadmProperties
+	// for better testing we mock the udevadm command output so that we still
+	// test the parsing
+	udevadmProperties = func(typeOpt, dev string) ([]byte, []byte, error) {
+		props, err := new(typeOpt, dev)
+		if err != nil {
+			return []byte(err.Error()), []byte{}, err
+		}
+		// put it into udevadm format output, i.e. "KEY=VALUE\n"
+		output := ""
+		for k, v := range props {
+			output += fmt.Sprintf("%s=%s\n", k, v)
+		}
+		return []byte(output), []byte{}, nil
+	}
+	return func() {
+		udevadmProperties = old
+	}
+}
+
 func parseDeviceMajorMinor(s string) (int, int, error) {
 	errMsg := fmt.Errorf("invalid device number format: (expected <int>:<int>)")
 	devNums := strings.SplitN(s, ":", 2)
@@ -68,17 +89,16 @@ func parseDeviceMajorMinor(s string) (int, int, error) {
 	return maj, min, nil
 }
 
-var udevadmProperties = func(typeOpt, device string) ([]byte, error) {
+var udevadmProperties = func(typeOpt, device string) ([]byte, []byte, error) {
 	// TODO: maybe combine with gadget interfaces hotplug code where the udev
 	// db is parsed?
-	cmd := exec.Command("udevadm", "info", "--query", "property", typeOpt, device)
-	return cmd.CombinedOutput()
+	return osutil.RunSplitOutput("udevadm", "info", "--query", "property", typeOpt, device)
 }
 
 func udevProperties(typeOpt, device string) (map[string]string, error) {
-	out, err := udevadmProperties(typeOpt, device)
+	out, stderr, err := udevadmProperties(typeOpt, device)
 	if err != nil {
-		return nil, osutil.OutputErr(out, err)
+		return nil, osutil.OutputErrCombine(out, stderr, err)
 	}
 	r := bytes.NewBuffer(out)
 
@@ -856,7 +876,7 @@ func (d *disk) FindMatchingPartitionWithFsLabel(label string) (Partition, error)
 	}
 
 	for _, p := range d.partitions {
-		if p.FilesystemLabel == encodedLabel {
+		if p.hasFilesystemLabel(encodedLabel) {
 			return p, nil
 		}
 	}
@@ -982,4 +1002,16 @@ func PartitionUUID(node string) (string, error) {
 
 func SectorSize(devname string) (uint64, error) {
 	return blockDeviceSectorSize(devname)
+}
+
+// filesystemTypeForPartition returns the filesystem type for a
+// partition passed by device name. The type might be an empty string
+// if no filesystem has been detected.
+func filesystemTypeForPartition(devname string) (string, error) {
+	props, err := udevPropertiesForName(devname)
+	if err != nil {
+		return "", err
+	}
+
+	return props["ID_FS_TYPE"], nil
 }

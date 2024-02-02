@@ -20,7 +20,6 @@ package cgroup_test
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -147,7 +146,7 @@ var mockCgroup = []byte(`
 func (s *cgroupSuite) TestProgGroupHappy(c *C) {
 	err := os.MkdirAll(filepath.Join(s.rootDir, "proc/333"), 0755)
 	c.Assert(err, IsNil)
-	err = ioutil.WriteFile(filepath.Join(s.rootDir, "proc/333/cgroup"), mockCgroup, 0755)
+	err = os.WriteFile(filepath.Join(s.rootDir, "proc/333/cgroup"), mockCgroup, 0755)
 	c.Assert(err, IsNil)
 
 	group, err := cgroup.ProcGroup(333, cgroup.MatchV1Controller("freezer"))
@@ -187,7 +186,7 @@ func (s *cgroupSuite) TestProgGroupMissingGroup(c *C) {
 
 	err := os.MkdirAll(filepath.Join(s.rootDir, "proc/333"), 0755)
 	c.Assert(err, IsNil)
-	err = ioutil.WriteFile(filepath.Join(s.rootDir, "proc/333/cgroup"), noFreezerCgroup, 0755)
+	err = os.WriteFile(filepath.Join(s.rootDir, "proc/333/cgroup"), noFreezerCgroup, 0755)
 	c.Assert(err, IsNil)
 
 	group, err := cgroup.ProcGroup(333, cgroup.MatchV1Controller("freezer"))
@@ -211,7 +210,7 @@ var mockCgroupConfusingCpu = []byte(`
 func (s *cgroupSuite) TestProgGroupConfusingCpu(c *C) {
 	err := os.MkdirAll(filepath.Join(s.rootDir, "proc/333"), 0755)
 	c.Assert(err, IsNil)
-	err = ioutil.WriteFile(filepath.Join(s.rootDir, "proc/333/cgroup"), mockCgroupConfusingCpu, 0755)
+	err = os.WriteFile(filepath.Join(s.rootDir, "proc/333/cgroup"), mockCgroupConfusingCpu, 0755)
 	c.Assert(err, IsNil)
 
 	group, err := cgroup.ProcGroup(333, cgroup.MatchV1Controller("cpu"))
@@ -251,30 +250,38 @@ func (s *cgroupSuite) TestProcessPathInTrackingCgroup(c *C) {
 	defer dirs.SetRootDir(dirs.GlobalRootDir)
 	dirs.SetRootDir(d)
 
-	restore := cgroup.MockVersion(cgroup.V2, nil)
-	defer restore()
-
 	f := filepath.Join(d, "proc", "1234", "cgroup")
 	c.Assert(os.MkdirAll(filepath.Dir(f), 0755), IsNil)
 
-	for _, scenario := range []struct{ cgroups, path, errMsg string }{
-		{cgroups: "", path: "", errMsg: "cannot find tracking cgroup"},
-		{cgroups: noise + "", path: "", errMsg: "cannot find tracking cgroup"},
-		{cgroups: noise + "0::/foo", path: "/foo"},
-		{cgroups: noise + "1:name=systemd:/bar", path: "/bar"},
+	for _, scenario := range []struct {
+		cgVersion             int
+		cgroups, path, errMsg string
+	}{
+		{cgVersion: cgroup.V2, cgroups: "", path: "", errMsg: "cannot find tracking cgroup"},
+		{cgVersion: cgroup.V2, cgroups: noise + "", path: "", errMsg: "cannot find tracking cgroup"},
+		{cgVersion: cgroup.V2, cgroups: noise + "0::/foo", path: "/foo"},
+		{cgVersion: cgroup.V2, cgroups: noise + "1:name=systemd:/bar", errMsg: "cannot find tracking cgroup"},
+		// If only V1 is mounted, then the same configuration works
+		{cgVersion: cgroup.V1, cgroups: noise + "1:name=systemd:/bar", path: "/bar"},
 		// First match wins (normally they are in sync).
-		{cgroups: noise + "1:name=systemd:/bar\n0::/foo", path: "/bar"},
-		{cgroups: "0::/tricky:path", path: "/tricky:path"},
-		{cgroups: "1:ctrl" /* no path */, errMsg: `cannot parse proc cgroup entry ".*": expected three fields`},
-		{cgroups: "potato:foo:/bar" /* bad ID number */, errMsg: `cannot parse proc cgroup entry ".*": cannot parse cgroup id "potato"`},
+		{cgVersion: cgroup.V1, cgroups: noise + "1:name=systemd:/bar\n0::/foo", path: "/bar"},
+		{cgVersion: cgroup.V2, cgroups: noise + "1:name=systemd:/bar\n0::/foo", path: "/foo"},
+		{cgVersion: cgroup.V2, cgroups: "0::/tricky:path", path: "/tricky:path"},
+		{cgVersion: cgroup.V2, cgroups: "1:ctrl" /* no path */, errMsg: `cannot parse proc cgroup entry ".*": expected three fields`},
+		{cgVersion: cgroup.V2, cgroups: "potato:foo:/bar" /* bad ID number */, errMsg: `cannot parse proc cgroup entry ".*": cannot parse cgroup id "potato"`},
 	} {
-		c.Assert(ioutil.WriteFile(f, []byte(scenario.cgroups), 0644), IsNil)
+		restoreCGVersion := cgroup.MockVersion(scenario.cgVersion, nil)
+
+		c.Assert(os.WriteFile(f, []byte(scenario.cgroups), 0644), IsNil)
 		path, err := cgroup.ProcessPathInTrackingCgroup(1234)
 		if scenario.errMsg != "" {
 			c.Assert(err, ErrorMatches, scenario.errMsg)
 		} else {
 			c.Assert(path, Equals, scenario.path)
+			c.Assert(err, IsNil)
 		}
+
+		restoreCGVersion()
 	}
 }
 
@@ -292,7 +299,7 @@ func (s *cgroupSuite) TestProcessPathInTrackingCgroupV2SpecialCase(c *C) {
 	f := filepath.Join(d, "proc", "1234", "cgroup")
 	c.Assert(os.MkdirAll(filepath.Dir(f), 0755), IsNil)
 
-	c.Assert(ioutil.WriteFile(f, []byte(text), 0644), IsNil)
+	c.Assert(os.WriteFile(f, []byte(text), 0644), IsNil)
 	path, err := cgroup.ProcessPathInTrackingCgroup(1234)
 	c.Assert(err, IsNil)
 	// Because v2 is not really mounted, we ignore the entry 0::/
