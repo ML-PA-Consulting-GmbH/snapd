@@ -395,6 +395,12 @@ func prepareSerialRequest(t *state.Task, regCtx registrationContext, privKey ass
 
 	}
 
+	if deterministicSerial, err := getDeviceSerial(); err != nil {
+		return "", fmt.Errorf("failed generating device serial: %v", err)
+	} else {
+		cfg.proposedSerial = deterministicSerial
+	}
+
 	headers := map[string]interface{}{
 		"brand-id":   device.Brand,
 		"model":      device.Model,
