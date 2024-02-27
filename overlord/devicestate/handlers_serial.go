@@ -452,6 +452,13 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	cfg.applyHeaders(req)
 	req.Header.Set("Content-Type", asserts.MediaType)
 
+	if ekPub, err := asserts.TpmGetEndorsementPublicKey(); err == nil {
+		if pubEncoded, err := asserts.EncodePublicKey(ekPub); err == nil {
+			req.Header.Set("X-Tpm-Ek", string(pubEncoded))
+			req.Header.Set("X-Tpm-Ek-Sha3-384", ekPub.ID())
+		}
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, nil, retryErr(t, 0, "cannot deliver device serial request: %v", err)

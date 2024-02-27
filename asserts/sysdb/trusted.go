@@ -21,9 +21,8 @@ package sysdb
 
 import (
 	"fmt"
-	"github.com/snapcore/snapd/constants"
-
 	"github.com/snapcore/snapd/asserts"
+	"github.com/snapcore/snapd/constants"
 	"github.com/snapcore/snapd/snapdenv"
 )
 
@@ -32,6 +31,25 @@ var (
 	trustedStagingAssertions []asserts.Assertion
 	trustedExtraAssertions   []asserts.Assertion
 )
+
+// init - this modified version of init() allows for multiple trusted accounts
+/*func init() {
+	trustedAssertions = []asserts.Assertion{}
+	accountAssertionsEncoded := strings.Split(constants.EncodedCanonicalAccount, "\n\n\n")
+	for _, accountAssertionEncoded := range accountAssertionsEncoded {
+		trimmed := strings.TrimSpace(accountAssertionEncoded) + "\n"
+		accountAssertion, err := asserts.Decode([]byte(trimmed))
+		if err != nil {
+			panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
+		}
+		trustedAssertions = append(trustedAssertions, accountAssertion)
+	}
+	canonicalRootAccountKey, err := asserts.Decode([]byte(constants.EncodedCanonicalRootAccountKey))
+	if err != nil {
+		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
+	}
+	trustedAssertions = append(trustedAssertions, canonicalRootAccountKey)
+}*/
 
 func init() {
 	canonicalAccount, err := asserts.Decode([]byte(constants.EncodedCanonicalAccount))
