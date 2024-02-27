@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
@@ -797,6 +798,13 @@ func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user
 	var body io.Reader
 	if reqOptions.Data != nil {
 		body = bytes.NewBuffer(reqOptions.Data)
+
+		// mlpa patch: always sign payload
+		if bodySignature, err := asserts.TpmSignBytes(reqOptions.Data); err == nil {
+			reqOptions.addHeader("X-Tpm-Body-Signature", string(bodySignature))
+		} else {
+			logger.Debugf("cannot sign request body: %v", err)
+		}
 	}
 
 	req, err := http.NewRequest(reqOptions.Method, reqOptions.URL.String(), body)
