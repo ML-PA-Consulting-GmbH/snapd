@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/tpmutil"
 	"github.com/google/uuid"
+	"log"
 	"sync"
 )
 
@@ -17,12 +18,12 @@ var (
 
 var tpmSigningKeyTemplate = tpm2.Public{
 	Type:       tpm2.AlgRSA,
-	NameAlg:    tpm2.AlgSHA384,
+	NameAlg:    tpm2.AlgSHA256,
 	Attributes: tpm2.FlagSignerDefault,
 	RSAParameters: &tpm2.RSAParams{
 		Sign: &tpm2.SigScheme{
 			Alg:  tpm2.AlgRSASSA,
-			Hash: tpm2.AlgSHA384,
+			Hash: tpm2.AlgSHA256,
 		},
 		KeyBits: 2048,
 	},
@@ -93,6 +94,7 @@ func withTpm(f func(key *client.Key) error) (err error) {
 	tpmLock.Lock()
 	defer tpmLock.Unlock()
 
+	log.Printf("opening TPM")
 	rwc, err := tpm2.OpenTPM("/dev/tpmrm0")
 	if err != nil {
 		return fmt.Errorf("failed to open TPM: %s", err)
@@ -101,17 +103,20 @@ func withTpm(f func(key *client.Key) error) (err error) {
 		_ = rwc.Close()
 	}()
 
+	log.Printf("fetching/creating key")
 	key, err := client.NewCachedKey(rwc, tpm2.HandleEndorsement, tpmSigningKeyTemplate, tpmSigningKeyHandle)
 	if err != nil {
 		return fmt.Errorf("failed to create key: %s", err)
 	}
 	defer key.Close()
 
+	log.Printf("ready for tpm operation")
+
 	return f(key)
 }
 
 func tpmVerifyEkSignature(pubKey crypto.PublicKey, message, signature []byte) bool {
-	hashAlgo := crypto.SHA384
+	hashAlgo := crypto.SHA256
 
 	hash := hashAlgo.New()
 	hash.Write(message)
