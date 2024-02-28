@@ -18,10 +18,13 @@ func main() {
 
 	fmt.Print("Getting m2cp-public-key: ")
 	key, err := asserts.TpmGetEndorsementPublicKey()
+	keyBase64, err2 := asserts.TpmGetEndorsementPublicKeyBase64()
 	if err != nil {
 		fmt.Printf("failed: %s\n", err)
+	} else if err2 != nil {
+		fmt.Printf("failed: %s\n", err2)
 	} else {
-		fmt.Printf("success\npub key sha3-384: %s\n", key.ID())
+		fmt.Printf("success\npub key base64: %s\npub key sha3-384: %s\n", keyBase64, key.ID())
 	}
 	fmt.Println()
 

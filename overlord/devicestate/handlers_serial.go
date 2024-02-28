@@ -452,11 +452,8 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	cfg.applyHeaders(req)
 	req.Header.Set("Content-Type", asserts.MediaType)
 
-	if ekPub, err := asserts.TpmGetEndorsementPublicKey(); err == nil {
-		if pubEncoded, err := asserts.EncodePublicKey(ekPub); err == nil {
-			req.Header.Set("X-Tpm-Ek", string(pubEncoded))
-			req.Header.Set("X-Tpm-Ek-Hash", ekPub.ID())
-		}
+	if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
+		req.Header.Set("X-Tpm-Ek", ekPubBase64)
 	}
 
 	resp, err := client.Do(req)

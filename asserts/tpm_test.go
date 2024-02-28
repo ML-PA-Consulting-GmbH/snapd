@@ -28,3 +28,15 @@ func TestTpmGetEndorsementPublicKey(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, pub)
 }
+
+func TestTpmPushEkWithHeader(t *testing.T) {
+	ekPub, err := TpmGetEndorsementPublicKey()
+	assert.NoError(t, err)
+	assert.NotNil(t, ekPub)
+
+	pubEncoded, err := encodeKeyBase64(ekPub)
+	assert.NoError(t, err)
+	assert.NotNil(t, pubEncoded)
+
+	fmt.Printf("X-Tpm-Ek: %s\n", string(pubEncoded))
+}

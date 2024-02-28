@@ -69,6 +69,14 @@ func TpmGetEndorsementPublicKey() (PublicKey, error) {
 	return pub, nil
 }
 
+func TpmGetEndorsementPublicKeyBase64() (string, error) {
+	ekPub, err := TpmGetEndorsementPublicKey()
+	if err != nil {
+		return "", err
+	}
+	return encodeKeyBase64(ekPub)
+}
+
 // TpmDeterministicDeviceSerial generates a deterministic serial number for the device from the m2cp key (derived from EK).
 func TpmDeterministicDeviceSerial() (string, error) {
 	var deviceUUID uuid.UUID
