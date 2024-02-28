@@ -36,7 +36,6 @@ require (
 )
 
 require (
-	github.com/google/go-attestation v0.5.1
 	github.com/google/go-tpm v0.9.0
 	github.com/google/go-tpm-tools v0.4.2
 	github.com/google/uuid v1.6.0
@@ -48,10 +47,10 @@ require (
 	github.com/canonical/tcglog-parser v0.0.0-20210824131805-69fa1e9f0ad2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/certificate-transparency-go v1.1.2 // indirect
+	github.com/google/go-attestation v0.5.1 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-sev-guest v0.9.3 // indirect
 	github.com/google/go-tdx-guest v0.2.3-0.20231011100059-4cf02bed9d33 // indirect
-	github.com/google/go-tspi v0.3.0 // indirect
 	github.com/google/logger v1.1.1 // indirect
 	github.com/kr/pretty v0.2.2-0.20200810074440-814ac30b4b18 // indirect
 	github.com/kr/text v0.2.0 // indirect
