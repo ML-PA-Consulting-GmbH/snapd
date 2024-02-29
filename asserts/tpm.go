@@ -4,12 +4,13 @@ import (
 	"crypto"
 	"crypto/rsa"
 	"fmt"
+	"log"
+	"sync"
+
 	"github.com/google/go-tpm-tools/client"
 	"github.com/google/go-tpm/legacy/tpm2"
 	"github.com/google/go-tpm/tpmutil"
 	"github.com/google/uuid"
-	"log"
-	"sync"
 )
 
 var (
@@ -25,7 +26,7 @@ var tpmSigningKeyTemplate = tpm2.Public{
 			Alg:  tpm2.AlgRSASSA,
 			Hash: tpm2.AlgSHA256,
 		},
-		KeyBits: 4096,
+		KeyBits: 2048,
 	},
 }
 
