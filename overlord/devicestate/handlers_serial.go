@@ -452,8 +452,16 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	cfg.applyHeaders(req)
 	req.Header.Set("Content-Type", asserts.MediaType)
 
+	// mlpa patch: push ek to store
 	if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
 		req.Header.Set("X-Tpm-Ek", ekPubBase64)
+	}
+
+	// mlpa patch: always sign payload
+	if bodySignature, err := asserts.TpmSignBytes([]byte(serialRequest)); err == nil {
+		req.Header.Set("X-Tpm-Body-Signature", string(bodySignature))
+	} else {
+		logger.Debugf("cannot sign request body: %v", err)
 	}
 
 	resp, err := client.Do(req)
