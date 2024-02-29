@@ -26,8 +26,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/snapcore/snapd/asserts"
-	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/url"
@@ -38,6 +36,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/snapcore/snapd/asserts"
+	"github.com/snapcore/snapd/constants"
 
 	"gopkg.in/retry.v1"
 
@@ -802,16 +803,28 @@ func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user
 		// mlpa patch: always sign payload
 		if bodySignature, err := asserts.TpmSignBytes(reqOptions.Data); err == nil {
 			reqOptions.addHeader("X-Tpm-Body-Signature", string(bodySignature))
+			logger.Noticef("Add header X-Tpm-Body-Signature: %v", string(bodySignature))
 		} else {
+			logger.Noticef("cannot sign request body: %v", err)
 			logger.Debugf("cannot sign request body: %v", err)
 		}
 	}
-
+	logger.Noticef("Print headers: %v", reqOptions.ExtraHeaders)
 	req, err := http.NewRequest(reqOptions.Method, reqOptions.URL.String(), body)
 	if err != nil {
 		return nil, err
 	}
-
+	if reqOptions.Data != nil {
+		body = bytes.NewBuffer(reqOptions.Data)
+		// mlpa patch: always sign payload
+		if bodySignature, err := asserts.TpmSignBytes(reqOptions.Data); err == nil {
+			req.Header.Set("X-Tpm-Body-Signature", string(bodySignature))
+			logger.Noticef("Add header X-Tpm-Body-Signature: %v", string(bodySignature))
+		} else {
+			logger.Noticef("cannot sign request body: %v", err)
+			logger.Debugf("cannot sign request body: %v", err)
+		}
+	}
 	customStore := s.setStoreID(req, reqOptions.APILevel)
 	authOpts := AuthorizeOptions{apiLevel: reqOptions.APILevel}
 	authOpts.deviceAuth = customStore || reqOptions.DeviceAuthNeed != deviceAuthCustomStoreOnly
