@@ -25,7 +25,7 @@ var tpmSigningKeyTemplate = tpm2.Public{
 			Alg:  tpm2.AlgRSASSA,
 			Hash: tpm2.AlgSHA256,
 		},
-		KeyBits: 2048,
+		KeyBits: 4096,
 	},
 }
 
