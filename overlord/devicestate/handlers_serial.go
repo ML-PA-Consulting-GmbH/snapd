@@ -461,9 +461,9 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 
 	// mlpa patch: always sign payload
 	if bodySerialSignature, err := asserts.TpmSignBytes([]byte(serialRequest)); err == nil {
-		bodySerlialSignatureBase64 := base64.StdEncoding.EncodeToString(bodySerialSignature)
-		logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", bodySerlialSignatureBase64)
-		req.Header.Set("X-Tpm-Body-Signature", bodySerlialSignatureBase64)
+		bodySerialSignatureBase64 := base64.StdEncoding.EncodeToString(bodySerialSignature)
+		logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", bodySerialSignatureBase64)
+		req.Header.Set("X-Tpm-Body-Signature", bodySerialSignatureBase64)
 	} else {
 		logger.Noticef("TPM: cannot sign serial request body: %s\nanalyzing problem..", err)
 	}
