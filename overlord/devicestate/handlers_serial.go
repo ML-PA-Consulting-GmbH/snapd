@@ -470,7 +470,7 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, nil, retryErr(t, 0, "cannot deliver device serial request: %v", err)
+		return nil, nil, retryErr(t, 0, "cannot deliver device serial request retry error: %v : method: %v , header: %v", err, req.Method, req.Header.Get("X-Tpm-Body-Signature"))
 	}
 	defer resp.Body.Close()
 
@@ -479,7 +479,7 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	case 202:
 		return nil, nil, errPoll
 	default:
-		return nil, nil, retryBadStatus(t, 0, "cannot deliver device serial request", resp)
+		return nil, nil, retryBadStatus(t, 0, "cannot deliver device serial request bad request", resp)
 	}
 
 	var serial *asserts.Serial
