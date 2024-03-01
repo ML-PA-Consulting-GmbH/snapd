@@ -174,7 +174,7 @@ func tpmVerifyEkSignature(pubKey crypto.PublicKey, message, signature []byte) bo
 }
 
 func tpmHashBytes(toHash []byte) []byte {
-	hash := crypto.SHA3_512.New()
+	hash := crypto.SHA3_384.New()
 	hash.Write(toHash)
 	return hash.Sum(nil)
 }
