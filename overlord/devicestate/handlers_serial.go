@@ -21,16 +21,18 @@ package devicestate
 import (
 	"bytes"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/snapcore/snapd/constants"
 
 	"gopkg.in/tomb.v2"
 
@@ -458,10 +460,12 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	}
 
 	// mlpa patch: always sign payload
-	if bodySignature, err := asserts.TpmSignBytes([]byte(serialRequest)); err == nil {
-		req.Header.Set("X-Tpm-Body-Signature", string(bodySignature))
+	if bodySerialSignature, err := asserts.TpmSignBytes([]byte(serialRequest)); err == nil {
+		bodySerlialSignatureBase64 := base64.StdEncoding.EncodeToString(bodySerialSignature)
+		logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", bodySerlialSignatureBase64)
+		req.Header.Set("X-Tpm-Body-Signature", bodySerlialSignatureBase64)
 	} else {
-		logger.Debugf("cannot sign request body: %v", err)
+		logger.Noticef("TPM: cannot sign serial request body: %s\nanalyzing problem..", err)
 	}
 
 	resp, err := client.Do(req)
