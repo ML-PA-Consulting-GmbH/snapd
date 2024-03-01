@@ -23,6 +23,7 @@ package store
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -803,18 +804,16 @@ func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user
 	}
 	if reqOptions.Data != nil && len(reqOptions.Data) > 0 {
 		// mlpa patch: always sign payload
-		logger.Noticef("TPM: trying to get ek pubkey - just to see, if tpm is working at all..")
-		if pubkey, err := asserts.TpmGetEndorsementPublicKeyBase64(); err != nil {
-			logger.Noticef("TPM: cannot get ek pubkey: %s", err)
-		} else {
-			logger.Noticef("TPM: ek pubkey: %s", pubkey)
-		}
+		bodyBytes := reqOptions.Data
+		logger.Noticef("TPM: trying to sign %d bytes of request body", len(bodyBytes))
+		logger.Noticef(base64.StdEncoding.EncodeToString(bodyBytes))
 
-		if bodySignature, err := asserts.TpmSignBytes(reqOptions.Data); err == nil {
-			logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", string(bodySignature))
-			req.Header.Set("X-Tpm-Body-Signature", string(bodySignature))
+		if bodySignature, err := asserts.TpmSignBytes(bodyBytes); err == nil {
+			bodySignatureBase64 := base64.StdEncoding.EncodeToString(bodySignature)
+			logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", bodySignatureBase64)
+			req.Header.Set("X-Tpm-Body-Signature", bodySignatureBase64)
 		} else {
-			logger.Noticef("TPM: cannot sign request body: %s", err)
+			logger.Noticef("TPM: cannot sign request body: %s\nanalyzing problem..", err)
 		}
 	} else {
 		logger.Noticef("TPM: signature not added due to empty request body")

@@ -3,6 +3,7 @@ package asserts
 import (
 	"crypto"
 	"crypto/rsa"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"sync"
@@ -37,18 +38,29 @@ func TpmSignBytes(toSign []byte) (signature []byte, err error) {
 	var sig []byte
 
 	if err = withTpm(func(key *client.Key) error {
-		log.Printf("signing %d bytes with key %s", len(toSign), RSAPublicKey(key.PublicKey().(*rsa.PublicKey)).ID())
-		sig, err = key.SignData(toSign)
+		fmt.Printf("signing %d bytes with key %s, payload (base64 encoded):\n%s\n",
+			len(toSign),
+			RSAPublicKey(key.PublicKey().(*rsa.PublicKey)).ID(),
+			base64.StdEncoding.EncodeToString(toSign),
+		)
+
+		digest := tpmHashBytes(toSign)
+		fmt.Printf("Step 1: hashed the payload with SHA3_384. digest base64 encoded:\n%s\n", base64.StdEncoding.EncodeToString(digest))
+
+		fmt.Printf("Step 2: sign the digest (hash again with sha2_256 and encrypt with RSA key)\n")
+		sig, err = key.SignData(digest)
 		if err != nil {
 			return fmt.Errorf("failed to sign: %s", err)
 		}
+
+		fmt.Printf("Step 3: created signature, base64 encoded:\n%s\n", base64.StdEncoding.EncodeToString(sig))
 
 		if !tpmVerifyEkSignature(key.PublicKey(), toSign, sig) {
 			return fmt.Errorf("signature verification failed")
 		}
 
 		id := RSAPublicKey(key.PublicKey().(*rsa.PublicKey)).ID()
-		fmt.Printf("signed message with key %s", id)
+		fmt.Printf("signed message with key %s\n", id)
 
 		return nil
 	}); err != nil {
@@ -94,6 +106,22 @@ func TpmDeterministicDeviceSerial() (string, error) {
 	return deviceUUID.String(), nil
 }
 
+var counter = 0
+
+func TpmTest() {
+	message := []byte(fmt.Sprintf("hello world #%d", counter))
+	counter++
+	fmt.Printf("Signing '%s'..\n", string(message))
+
+	signature, err := TpmSignBytes(message)
+	if err != nil {
+		fmt.Printf("failed: %s\n", err)
+	} else {
+		fmt.Printf("\nsuccess\n%s\n", base64.StdEncoding.EncodeToString(signature))
+	}
+	fmt.Println()
+}
+
 func withTpm(f func(key *client.Key) error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -104,7 +132,7 @@ func withTpm(f func(key *client.Key) error) (err error) {
 	tpmLock.Lock()
 	defer tpmLock.Unlock()
 
-	log.Printf("opening TPM")
+	log.Printf("opening TPM\n")
 	rwc, err := tpm2.OpenTPM("/dev/tpmrm0")
 	if err != nil {
 		return fmt.Errorf("failed to open TPM: %s", err)
@@ -133,6 +161,8 @@ func withTpm(f func(key *client.Key) error) (err error) {
 }
 
 func tpmVerifyEkSignature(pubKey crypto.PublicKey, message, signature []byte) bool {
+	message = tpmHashBytes(message)
+
 	hashAlgo := crypto.SHA256
 
 	hash := hashAlgo.New()
@@ -141,4 +171,10 @@ func tpmVerifyEkSignature(pubKey crypto.PublicKey, message, signature []byte) bo
 
 	return rsa.VerifyPKCS1v15(pubKey.(*rsa.PublicKey), hashAlgo, digest, signature) == nil
 
+}
+
+func tpmHashBytes(toHash []byte) []byte {
+	hash := crypto.SHA3_512.New()
+	hash.Write(toHash)
+	return hash.Sum(nil)
 }
