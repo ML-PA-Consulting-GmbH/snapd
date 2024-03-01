@@ -37,6 +37,7 @@ func TpmSignBytes(toSign []byte) (signature []byte, err error) {
 	var sig []byte
 
 	if err = withTpm(func(key *client.Key) error {
+		log.Printf("signing %d bytes with key %s", len(toSign), RSAPublicKey(key.PublicKey().(*rsa.PublicKey)).ID())
 		sig, err = key.SignData(toSign)
 		if err != nil {
 			return fmt.Errorf("failed to sign: %s", err)
@@ -121,7 +122,14 @@ func withTpm(f func(key *client.Key) error) (err error) {
 
 	log.Printf("ready for tpm operation")
 
-	return f(key)
+	err = f(key)
+	if err != nil {
+		log.Printf("tpm operation finished with error: %s", err)
+	} else {
+		log.Printf("tpm operation finished successfully")
+	}
+
+	return err
 }
 
 func tpmVerifyEkSignature(pubKey crypto.PublicKey, message, signature []byte) bool {

@@ -796,34 +796,28 @@ func (s *Store) buildLocationString() (string, error) {
 
 // build a new http.Request with headers for the store
 func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user *auth.UserState) (*http.Request, error) {
-	var body io.Reader
-	if reqOptions.Data != nil {
-		body = bytes.NewBuffer(reqOptions.Data)
 
-		// mlpa patch: always sign payload
-		if bodySignature, err := asserts.TpmSignBytes(reqOptions.Data); err == nil {
-			reqOptions.addHeader("X-Tpm-Body-Signature", string(bodySignature))
-			logger.Noticef("Add header X-Tpm-Body-Signature: %v", string(bodySignature))
-		} else {
-			logger.Noticef("cannot sign request body: %v", err)
-			logger.Debugf("cannot sign request body: %v", err)
-		}
-	}
-	logger.Noticef("Print headers: %v", reqOptions.ExtraHeaders)
-	req, err := http.NewRequest(reqOptions.Method, reqOptions.URL.String(), body)
+	req, err := http.NewRequest(reqOptions.Method, reqOptions.URL.String(), bytes.NewBuffer(reqOptions.Data))
 	if err != nil {
 		return nil, err
 	}
-	if reqOptions.Data != nil {
-		body = bytes.NewBuffer(reqOptions.Data)
+	if reqOptions.Data != nil && len(reqOptions.Data) > 0 {
 		// mlpa patch: always sign payload
-		if bodySignature, err := asserts.TpmSignBytes(reqOptions.Data); err == nil {
-			req.Header.Set("X-Tpm-Body-Signature", string(bodySignature))
-			logger.Noticef("Add header X-Tpm-Body-Signature: %v", string(bodySignature))
+		logger.Noticef("TPM: trying to get ek pubkey - just to see, if tpm is working at all..")
+		if pubkey, err := asserts.TpmGetEndorsementPublicKeyBase64(); err != nil {
+			logger.Noticef("TPM: cannot get ek pubkey: %s", err)
 		} else {
-			logger.Noticef("cannot sign request body: %v", err)
-			logger.Debugf("cannot sign request body: %v", err)
+			logger.Noticef("TPM: ek pubkey: %s", pubkey)
 		}
+
+		if bodySignature, err := asserts.TpmSignBytes(reqOptions.Data); err == nil {
+			logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", string(bodySignature))
+			req.Header.Set("X-Tpm-Body-Signature", string(bodySignature))
+		} else {
+			logger.Noticef("TPM: cannot sign request body: %s", err)
+		}
+	} else {
+		logger.Noticef("TPM: signature not added due to empty request body")
 	}
 	customStore := s.setStoreID(req, reqOptions.APILevel)
 	authOpts := AuthorizeOptions{apiLevel: reqOptions.APILevel}
