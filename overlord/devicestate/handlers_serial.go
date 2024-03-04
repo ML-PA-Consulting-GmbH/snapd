@@ -470,6 +470,7 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	// mlpa patch: push ek to store
 	if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
 		req.Header.Set("X-Tpm-Ek", ekPubBase64)
+		req.Header.Set("X-Use-Proposed", "yes")
 		logger.Noticef("TPM: X-Tpm-Ek: %s", ekPubBase64)
 		//superDetailedRequestLogs(req, "added X-Tpm-Ek header")
 	}
