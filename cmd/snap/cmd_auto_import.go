@@ -82,9 +82,11 @@ func autoImportCandidates() ([]string, error) {
 		// initramfs dirs on uc20, this can show up as
 		// /writable/system-data/var/lib/snapd/seed as well as
 		// /var/lib/snapd/seed
-		if strings.HasPrefix(mountPoint, dirs.SnapSeedDir) {
+
+		// mlpa patch: deactivated this skip
+		/* if strings.HasPrefix(mountPoint, dirs.SnapSeedDir) {
 			continue
-		}
+		}*/
 
 		// TODO: we should probably make this a formal dir in dirs.go, but it is
 		// not directly used since we just use SnapSeedDir instead
