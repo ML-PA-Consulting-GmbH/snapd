@@ -440,6 +440,13 @@ func prepareSerialRequest(t *state.Task, regCtx registrationContext, privKey ass
 
 var errPoll = errors.New("serial-request accepted, poll later")
 
+var logCount = 0
+
+func superDetailedRequestLogs(req *http.Request, message string) {
+	fmt.Printf("REQUEST log #%d (%s): method=%s, url=%s\n", logCount, message, req.Method, req.URL.String())
+	logCount++
+}
+
 func submitSerialRequest(t *state.Task, serialRequest string, client *http.Client, cfg *serialRequestConfig) (*asserts.Serial, *asserts.Batch, error) {
 	st := t.State()
 	st.Unlock()
@@ -449,14 +456,21 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	if err != nil {
 		return nil, nil, fmt.Errorf("internal error: cannot create serial-request request %q", cfg.serialRequestURL)
 	}
+	superDetailedRequestLogs(req, "created serial request")
+
 	req.Header.Set("User-Agent", snapdenv.UserAgent())
+	superDetailedRequestLogs(req, "added User-Agent header")
 	req.Header.Set("Snap-Device-Capabilities", strings.Join(registrationCapabilities, " "))
+	superDetailedRequestLogs(req, "added Snap-Device-Capabilities header")
 	cfg.applyHeaders(req)
+	superDetailedRequestLogs(req, "added headers from config object")
 	req.Header.Set("Content-Type", asserts.MediaType)
+	superDetailedRequestLogs(req, "added Content-Type header")
 
 	// mlpa patch: push ek to store
 	if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
 		req.Header.Set("X-Tpm-Ek", ekPubBase64)
+		superDetailedRequestLogs(req, "added X-Tpm-Ek header")
 	}
 
 	// mlpa patch: always sign payload
@@ -464,15 +478,21 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 		bodySerialSignatureBase64 := base64.StdEncoding.EncodeToString(bodySerialSignature)
 		logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", bodySerialSignatureBase64)
 		req.Header.Set("X-Tpm-Body-Signature", bodySerialSignatureBase64)
+		superDetailedRequestLogs(req, "added X-Tpm-Body-Signature header")
 	} else {
 		logger.Noticef("TPM: cannot sign serial request body: %s\nanalyzing problem..", err)
 	}
 
+	superDetailedRequestLogs(req, "sending request..")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, nil, retryErr(t, 0, "cannot deliver device serial request retry error: %v : method: %v , header: %v", err, req.Method, req.Header.Get("X-Tpm-Body-Signature"))
 	}
 	defer resp.Body.Close()
+
+	//fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s", logCount, resp.StatusCode, resp.Header.Get("Content-Type"), resp.)
+	superDetailedRequestLogs(resp.Request, "received response containing this request as reference")
+	fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s\n", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
 
 	switch resp.StatusCode {
 	case 200, 201:
