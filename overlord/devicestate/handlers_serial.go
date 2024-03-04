@@ -443,7 +443,7 @@ var errPoll = errors.New("serial-request accepted, poll later")
 var logCount = 0
 
 func superDetailedRequestLogs(req *http.Request, message string) {
-	fmt.Printf("REQUEST log #%d (%s): method=%s, url=%s\n", logCount, message, req.Method, req.URL.String())
+	logger.Noticef("REQUEST log #%d (%s): method=%s, url=%s\n", logCount, message, req.Method, req.URL.String())
 	logCount++
 }
 
@@ -470,13 +470,15 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	// mlpa patch: push ek to store
 	if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
 		req.Header.Set("X-Tpm-Ek", ekPubBase64)
+		logger.Noticef("TPM: X-Tpm-Ek: %s", ekPubBase64)
 		superDetailedRequestLogs(req, "added X-Tpm-Ek header")
 	}
 
 	// mlpa patch: always sign payload
 	if bodySerialSignature, err := asserts.TpmSignBytes([]byte(serialRequest)); err == nil {
 		bodySerialSignatureBase64 := base64.StdEncoding.EncodeToString(bodySerialSignature)
-		logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", bodySerialSignatureBase64)
+		logger.Noticef("TPM: Body, base64 encoded: %s", base64.StdEncoding.EncodeToString([]byte(serialRequest)))
+		logger.Noticef("TPM: X-Tpm-Body-Signature: %v", bodySerialSignatureBase64)
 		req.Header.Set("X-Tpm-Body-Signature", bodySerialSignatureBase64)
 		superDetailedRequestLogs(req, "added X-Tpm-Body-Signature header")
 	} else {
@@ -492,7 +494,7 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 
 	//fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s", logCount, resp.StatusCode, resp.Header.Get("Content-Type"), resp.)
 	superDetailedRequestLogs(resp.Request, "received response containing this request as reference")
-	fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s\n", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
+	logger.Noticef("RESPONSE log #%d: status=%d, content-type=%s\n", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
 
 	switch resp.StatusCode {
 	case 200, 201:
