@@ -40,3 +40,18 @@ func TestTpmPushEkWithHeader(t *testing.T) {
 
 	fmt.Printf("X-Tpm-Ek: %s\n", string(pubEncoded))
 }
+
+func TestGetDriveSerial(t *testing.T) {
+	serial, err := getDriveSerial("/dev/sda")
+	fmt.Println(serial)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, serial)
+}
+
+func TestGetMacAddresses(t *testing.T) {
+	macs, err := getMacAddresses()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, macs)
+	fmt.Println(macs)
+	fmt.Println(err)
+}

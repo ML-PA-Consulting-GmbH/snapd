@@ -12,7 +12,7 @@ const (
 
 func main() {
 	runTest("Generating deterministic serial", func() (string, error) {
-		if serial, err := asserts.TpmDeterministicDeviceSerial(); err != nil {
+		if serial, err := asserts.DeterministicDeviceSerial(); err != nil {
 			return "", err
 		} else {
 			return serial, nil

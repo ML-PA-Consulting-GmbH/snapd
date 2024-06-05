@@ -802,7 +802,9 @@ func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user
 	if err != nil {
 		return nil, err
 	}
-	if reqOptions.Data != nil && len(reqOptions.Data) > 0 {
+	if !asserts.HasTpm() {
+		logger.Noticef("TPM: no tpm chip -> not signing request")
+	} else if reqOptions.Data != nil && len(reqOptions.Data) > 0 {
 		// mlpa patch: always sign payload
 		bodyBytes := reqOptions.Data
 		logger.Noticef("TPM: trying to sign %d bytes of request body", len(bodyBytes))
@@ -816,7 +818,7 @@ func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user
 			logger.Noticef("TPM: cannot sign request body: %s\nanalyzing problem..", err)
 		}
 	} else {
-		logger.Noticef("TPM: signature not added due to empty request body")
+		logger.Noticef("TPM: %s signature not added due to empty request body", req.URL)
 	}
 	customStore := s.setStoreID(req, reqOptions.APILevel)
 	authOpts := AuthorizeOptions{apiLevel: reqOptions.APILevel}
@@ -898,6 +900,7 @@ func (s *Store) extractSuggestedCurrency(resp *http.Response) {
 //	    }
 //	  ]
 //	}
+
 type ordersResult struct {
 	Orders []*order `json:"orders"`
 }
