@@ -216,52 +216,25 @@ vykqTFbo/YUaQNlv1Mxzp5VFk0PG
 
 	EncodedGenericClassicModel = `type: model
 authority-id: mlpa
+revision: 1
 series: 16
 brand-id: mlpa
-model: m2cp-sil0
+model: m2cp-imx93-yocto
 architecture: arm64
-base: core20
-classic: false
-grade: dangerous
-snaps:
-  -
-    default-channel: latest/stable
-    id: 0707a279d880749d576dcf814a5f0dff
-    name: m2cp-sil0-gadget
-    type: gadget
-  -
-    default-channel: latest/stable
-    id: 33bb07b4b91eb075ab233391d1cef1e6
-    name: m2cp-sil0-kernel
-    type: kernel
-  -
-    default-channel: latest/stable
-    id: 6ebf1fd79130484599c23588496cc282
-    name: core20
-    type: base
-  -
-    default-channel: latest/stable
-    id: 764abfd79ddd204333e6a06a970b6bf5
-    name: m2cp-gateway
-    type: app
-  -
-    default-channel: latest/stable
-    id: 4d709cc4c21d9177578b595485ec23ae
-    name: m2cp-message-hub
-    type: app
-timestamp: 2024-02-16T04:15:46.3847862Z
+classic: true
+timestamp: 2024-06-12T12:46:55.9153386Z
 sign-key-sha3-384: A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM
 
-AcLBUgQAAQoABgUCZc7hcgAAgKAQAGBq77va7hjb9vh3dDW4GfWNI9PwKmUtt4DnRLfUwsYt/Dj6
-/iXrV3P/PiCXQPZ3TwbDMnwD/pf8V5HaVGFzXMDl4ACdrmixsoNjYPMJgudq3hF+qSrwB34eBmPX
-l8ZGQJlswKX96zYqhsNWCIxJDoTS9X+nWbFQH9+N641lWwg6gXQy7raB8ecygb76Er8cTHWyj0pA
-D7aEcTE9Y5Q7xazVb3JTYTFGWb7+U2AX91HkhLRuF04oeK811oQJSWAWZVJPAaHXLh1G2AOL2ZVC
-puP6rAybwZQf7nP2uS9dJEG3wqUjdhX/XX2GRU84QwxrZmQODfL69SOM2/wQfWj9H8ntTdTSovhW
-xJJMPm/9WSuGRvXSiUK69aFGOn77od3H8JcjLrmnRhDe7LidSdrulKqIyvFcA9UOSq/nfCqW7snJ
-ZFjvNCTLmB0WHClqv4jj5ewGA3RInROz3EmVP2YQY4Wd81rG4CFgy9P17ndLvKhpqMhtEh5iQqdv
-ZmlndhHNVH4pgEnChj10UesEJkeQiBgBN1yTvJRedcItsx1yaeJAzLlMgxsUMeSLNfoNvPLUTDLR
-7JHTHA7MhuJyoJsdxi/r686khKLRQSKlq5JPDQpVZxQMtYpHoh2hyUDeYHMv2sTAZgL9CTr0Fsyp
-At9jstMeSzOtyXQXH7DsIaNzNh7m
+AcLBUgQAAQoABgUCZmmYwAAA8tkQAJM0e81AwpG1cdn9CgM+PIXmjL/2EY6hxKtN/zvf5kZdgjuj
+Abx/VXQhafboqLM7pat+bebF6ilKzBeXy0ZwMYHOyXh0iQPcKO55FKNaiufkA4ARR474G0KnBenK
+wm2x17BGgG959Vh0fuqgP/UH0IGR5wxV3fbtGzV+augf41Po+vggn90gig9q3IZ43wt7h5loLoWP
+WqCYac/yvJ5fzsoDl1e6VkXTI78M4DEYprr4HdiBGcZjP2Fbi5Hj+vQF2Z2Z+a2/i61ZZkLRnSbQ
+foJCmI090hgXlyT6+/Q/0r4rhN9Wp2wd6PFlZhtIJn+4hegUhPK9HQqizR2wzpuebP68lItS6Q/M
+xv6DnqVJ/eoekDJGAyPzw0CmcK7sx52rU45G6t97ATX0mA7YHlvG2Xg+v7S8PGiW0QL9VT/kuxm2
+li0ZIi8szb/LOGk1xIlmUi0XbxWUT/1vpy1uy0hj54G3dYVWwoa5afZFIJ+/WTVHSz+t7NYW2Zfi
+GxCgl1sUQvL8yuV0hBZbvpeCo+RceSHMslzLer6dZV1uWLh+MwuEiktHvY9KOlsLfhPNMxt8/51C
+SX63xwT/P0obHGJ1iGqkCGzG/chLX8weU3JbsVQEXZKr0KPTe+fSWWWw3ZEYFN3W+2NsG5GPxU06
+E5Wnkes6PW6lzGBCKXSAi1cnouks
 `
 
 	EncodedStagingTrustedAccount = `type: account
@@ -372,51 +345,24 @@ vykqTFbo/YUaQNlv1Mxzp5VFk0PG
 
 	EncodedStagingGenericClassicModel = `type: model
 authority-id: mlpa
+revision: 1
 series: 16
 brand-id: mlpa
-model: m2cp-sil0
+model: m2cp-imx93-yocto
 architecture: arm64
-base: core20
-classic: false
-grade: dangerous
-snaps:
-  -
-    default-channel: latest/stable
-    id: 0707a279d880749d576dcf814a5f0dff
-    name: m2cp-sil0-gadget
-    type: gadget
-  -
-    default-channel: latest/stable
-    id: 33bb07b4b91eb075ab233391d1cef1e6
-    name: m2cp-sil0-kernel
-    type: kernel
-  -
-    default-channel: latest/stable
-    id: 6ebf1fd79130484599c23588496cc282
-    name: core20
-    type: base
-  -
-    default-channel: latest/stable
-    id: 764abfd79ddd204333e6a06a970b6bf5
-    name: m2cp-gateway
-    type: app
-  -
-    default-channel: latest/stable
-    id: 4d709cc4c21d9177578b595485ec23ae
-    name: m2cp-message-hub
-    type: app
-timestamp: 2024-02-16T04:15:46.3847862Z
+classic: true
+timestamp: 2024-06-12T12:46:55.9153386Z
 sign-key-sha3-384: A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM
 
-AcLBUgQAAQoABgUCZc7hcgAAgKAQAGBq77va7hjb9vh3dDW4GfWNI9PwKmUtt4DnRLfUwsYt/Dj6
-/iXrV3P/PiCXQPZ3TwbDMnwD/pf8V5HaVGFzXMDl4ACdrmixsoNjYPMJgudq3hF+qSrwB34eBmPX
-l8ZGQJlswKX96zYqhsNWCIxJDoTS9X+nWbFQH9+N641lWwg6gXQy7raB8ecygb76Er8cTHWyj0pA
-D7aEcTE9Y5Q7xazVb3JTYTFGWb7+U2AX91HkhLRuF04oeK811oQJSWAWZVJPAaHXLh1G2AOL2ZVC
-puP6rAybwZQf7nP2uS9dJEG3wqUjdhX/XX2GRU84QwxrZmQODfL69SOM2/wQfWj9H8ntTdTSovhW
-xJJMPm/9WSuGRvXSiUK69aFGOn77od3H8JcjLrmnRhDe7LidSdrulKqIyvFcA9UOSq/nfCqW7snJ
-ZFjvNCTLmB0WHClqv4jj5ewGA3RInROz3EmVP2YQY4Wd81rG4CFgy9P17ndLvKhpqMhtEh5iQqdv
-ZmlndhHNVH4pgEnChj10UesEJkeQiBgBN1yTvJRedcItsx1yaeJAzLlMgxsUMeSLNfoNvPLUTDLR
-7JHTHA7MhuJyoJsdxi/r686khKLRQSKlq5JPDQpVZxQMtYpHoh2hyUDeYHMv2sTAZgL9CTr0Fsyp
-At9jstMeSzOtyXQXH7DsIaNzNh7m
+AcLBUgQAAQoABgUCZmmYwAAA8tkQAJM0e81AwpG1cdn9CgM+PIXmjL/2EY6hxKtN/zvf5kZdgjuj
+Abx/VXQhafboqLM7pat+bebF6ilKzBeXy0ZwMYHOyXh0iQPcKO55FKNaiufkA4ARR474G0KnBenK
+wm2x17BGgG959Vh0fuqgP/UH0IGR5wxV3fbtGzV+augf41Po+vggn90gig9q3IZ43wt7h5loLoWP
+WqCYac/yvJ5fzsoDl1e6VkXTI78M4DEYprr4HdiBGcZjP2Fbi5Hj+vQF2Z2Z+a2/i61ZZkLRnSbQ
+foJCmI090hgXlyT6+/Q/0r4rhN9Wp2wd6PFlZhtIJn+4hegUhPK9HQqizR2wzpuebP68lItS6Q/M
+xv6DnqVJ/eoekDJGAyPzw0CmcK7sx52rU45G6t97ATX0mA7YHlvG2Xg+v7S8PGiW0QL9VT/kuxm2
+li0ZIi8szb/LOGk1xIlmUi0XbxWUT/1vpy1uy0hj54G3dYVWwoa5afZFIJ+/WTVHSz+t7NYW2Zfi
+GxCgl1sUQvL8yuV0hBZbvpeCo+RceSHMslzLer6dZV1uWLh+MwuEiktHvY9KOlsLfhPNMxt8/51C
+SX63xwT/P0obHGJ1iGqkCGzG/chLX8weU3JbsVQEXZKr0KPTe+fSWWWw3ZEYFN3W+2NsG5GPxU06
+E5Wnkes6PW6lzGBCKXSAi1cnouks
 `
 )
