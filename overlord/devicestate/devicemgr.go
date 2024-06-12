@@ -452,8 +452,8 @@ func setClassicFallbackModel(st *state.State, device *auth.DeviceState) error {
 	if err != nil && !asserts.IsUnaccceptedUpdate(err) {
 		return fmt.Errorf(`cannot install "generic-classic" fallback model assertion: %v`, err)
 	}
-	device.Brand = "generic"
-	device.Model = "generic-classic"
+	device.Brand = "mlpa"
+	device.Model = "m2cp-imx93-yocto"
 	if err := internal.SetDevice(st, device); err != nil {
 		return err
 	}
