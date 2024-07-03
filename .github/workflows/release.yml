@@ -18,6 +18,10 @@ jobs:
       with:
         go-version: '1.22.5'
 
+    - name: Extract tag name
+      id: extract_tag
+      run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+
     - name: Pull dependencies
       run: |
         go mod tidy
@@ -26,10 +30,10 @@ jobs:
 
     - name: Create tarball
       run: |
-        tar cfah /tmp/snapd_${{ github.ref }}.tar .
+        tar cfah /tmp/snapd_${{ env.TAG_NAME }}.tar .
 
     - name: Upload release artifact
       uses: actions/upload-artifact@v2
       with:
-        name: snapd_${{ github.ref }}.tar
-        path: /tmp/snapd_${{ github.ref }}.tar
+        name: snapd_${{ env.TAG_NAME }}.tar
+        path: /tmp/snapd_${{ env.TAG_NAME }}.tar
