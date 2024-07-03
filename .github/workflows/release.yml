@@ -1,0 +1,51 @@
+name: Create Release Artifact
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.22.5'
+
+    - name: Create environment
+      run: |
+        set -x
+        set -e
+        set -u
+        set -o pipefail
+
+        DIR_SRC="work/src"
+        rm -rf work
+        mkdir -p $DIR_SRC
+
+    - name: Move source to working directory
+      run: mv . $DIR_SRC/snapd
+
+    - name: Build the project
+      run: |
+        cd $DIR_SRC/snapd
+        go mod tidy
+        go mod vendor
+        ./mkversion.sh
+
+    - name: Create tarball
+      run: |
+        cd $DIR_SRC
+        tar cfah ../../snapd_${{ github.ref }}.tar snapd
+
+    - name: Upload release artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: snapd_${{ github.ref }}.tar
+        path: snapd_${{ github.ref }}.tar
