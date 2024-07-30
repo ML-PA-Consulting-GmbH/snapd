@@ -258,6 +258,10 @@ func getDriveSerial(drive string) (serial string, err error) {
 		return "", fmt.Errorf("tpm:getDriveSerial() ID_NAME -> unknown block device model '%s'", model)
 	}
 
+	if serial == "" {
+		return "", fmt.Errorf("tpm:getDriveSerial() ID_SERIAL not found")
+	}
+
 	return serial, nil
 }
 
