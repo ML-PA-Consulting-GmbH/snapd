@@ -10,7 +10,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -254,10 +253,8 @@ func getDriveSerial(drive string) (serial string, err error) {
 		}
 	}
 
-	if !slices.Contains([]string{
-		"Q2J55L", // SIL0
-		"DG4008", // Phytec iMX93 Devboard
-	}, model) {
+	// this is a list of known devices that can be used for TPM ... more can be added as needed
+	if model != "Q2J55L" && model != "DG4008" {
 		return "", fmt.Errorf("tpm:getDriveSerial() ID_NAME -> unknown block device model '%s'", model)
 	}
 
