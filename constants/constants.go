@@ -14,410 +14,409 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
- package constants
+package constants
 
- const (
-	 BaseUrlSnapcraftDashboard        = "https://app-snapstore3-gateway-dev.azurewebsites.net/"
-	 BaseUrlSnapcraftDashboardStaging = "https://app-snapstore3-gateway-dev.azurewebsites.net/"
-	 BaseUrlSnapcraftApi              = "https://app-snapstore3-gateway-dev.azurewebsites.net/"
-	 BaseUrlSnapcraftStagingApi       = "https://app-snapstore3-gateway-dev.azurewebsites.net/"
-	 BaseUrlSnapcraftApiV2            = "https://app-snapstore3-gateway-dev.azurewebsites.net/v2/"
-	 BaseUrlSnapcraftStagingApiV2     = "https://app-snapstore3-gateway-dev.azurewebsites.net/v2/"
-	 AuthLocation                     = "app-snapstore3-gateway-dev.azurewebsites.net"
-	 AuthLocationStaging              = "app-snapstore3-gateway-dev.azurewebsites.net"
- 
-	 // snap ids
-	 ProdIdSnapd  = "0682f36da73c49d8a55effdf65533f9d"
-	 ProdIdCore   = "4de4a0fc199b4fb78a1fe3960a799eb5"
-	 ProdIdCore18 = "0fd6c61588f54084bd4531384a557efa"
-	 ProdIdCore20 = "6ebf1fd79130484599c23588496cc282"
-	 ProdIdCore22 = "775ff269aa144114901b5e7f84df6fe8"
- 
-	 StagingIdSnapd  = "0682f36da73c49d8a55effdf65533f9d"
-	 StagingIdCore   = "4de4a0fc199b4fb78a1fe3960a799eb5"
-	 StagingIdCore18 = "0fd6c61588f54084bd4531384a557efa"
-	 StagingIdCore20 = "6ebf1fd79130484599c23588496cc282"
-	 StagingIdCore22 = "775ff269aa144114901b5e7f84df6fe8"
- 
-	 AccountId = "mlpa"
- 
-	 EncodedRepairRootAccountKeyPublicKeySha3 = "rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY"
-	 EncodedRepairRootAccountKey              = `type: account-key
- authority-id: mlpa
- public-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- account-id: mlpa
- name: snapstore-key-root
- since: 2024-02-13T16:26:29.244773Z
- body-length: 717
- sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- 
- AcbBTQRWhcGAARAAw5YogAkggczGIm/Maf/5JucnTGchQ461P/mn8zxjNCth3tLST9D5NNLrOEE1
- T27GWMQbdzLSaPCzgx/dqDi4d7tnm16Mqwyk+Jab0u32s2MML4bJUctUgrgsjFyJpCaDp/oPXheE
- V7naS5yRXahmh9a5DspkZeM4Cl03EpSeIcR7hrj4412GT4epeQyTA3EjIMh6vAHL5M3gS0+Lge/2
- MNgQGqyYOX8tnNqOoWt+bw35gXaCyXBHZJgOKaIO/7EcXRxmE4XmekYiBSYrl2/ZtPIvnvwepgL1
- oLROx6kRxkrWOXoyxmm2g76zBwcwpG2Ml1Tu+Rv6We7hevJnUR2zQfTkMvFhbCBJpzuzuHeK7t+r
- /7NIJv9ibyY5ErrY1ucBvUmelovqzS4Xgg6fQTyVWpQYj4BdwmEpmpxYGSxSy/Fc7b7rnWNiXGiX
- S5jccm91OHnv483TmKW65kjmVv0Plt5S/HyFNVJJsr5S4IQ65Oy3fou7hgEFA89zGaD9LkbLMCN4
- Ei+DRP8nHl5xZfBfn+TV8sM+J1ZXdv6ylAEgh0aXPsHDPsk+UwvgHvlIwIj92S1pgYUFiureUzE2
- Pop71MsTi/3S6b2bGItwqwZiMoIGj11xww9Zz/rjMEICUQBhTLqhRcRR/8ZHajmB8vNXWgGP3DJv
- DIJ8Vus+2CQX2uUAEQEAAQ==
- 
- AcLBUgQAAQoABgUCZcuYNQAAzD0QAFnOdhDAlavCJiIaBskMp/iV92Lsd/zue18+obL8mc04W1/g
- YyrG7VKCw72qd3igGTvYCU9kR61sE8HAkH6y+OCAYa4bi6yrm/Div48JJTy5p+fnmwreFF28zVSZ
- uWJIVLiboPBNEhk9N9Jh57lrq3WEF6cP+lvdYC3nEhgEZPl4JspoiEqM0a09iq1CEAq1sVvbesvD
- 6G5uQT3+6Mz8/+BsF4mRbMg8KE7D1NqyxHgVvoB+SY+CyFulRJoxMF73QB8ORPdXqDRLMqu5FRi7
- oE7zdovpiHOk61nf4C8OFhtYlesvqwLy/r26LV7/xwUzGAQOrmXYNIffWjhGLbu14JAIBJ1Gr8o6
- s4Ley/F3Lj+iJKuaY5yuF10eYnc6R4GtCAEXEajOh5zPv//31bIhe1GDgd9Xc0x4qKDeP8obmaw+
- nNsvND8OWU+sQTMXfz1VsVzpJNSPZoqijqQmDe3x4Am+sVKTFx0v/nfkKpuQVk3IS5gAHQBqIuPN
- vYETMeDrfcLOBQ7K/3yI8IWd/pJEixktmi6njbW3ydD96Xg95TNPGjLhLDaO+75udAk4nzNMF/Xf
- UoLr2UX6pdwjGQBfMQebSjxVpil5mRAwqkHSzDTH+iOOXwGsOp06nWwJaOlOGhrqyhItMssK1DEV
- d9H+jCva0rutsBKAngK/dPee4Sj0
- `
- 
-	 EncodedStagingRepairRootAccountKey = `type: account-key
- authority-id: mlpa
- public-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- account-id: mlpa
- name: snapstore-key-root
- since: 2024-02-13T16:26:29.244773Z
- body-length: 717
- sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- 
- AcbBTQRWhcGAARAAw5YogAkggczGIm/Maf/5JucnTGchQ461P/mn8zxjNCth3tLST9D5NNLrOEE1
- T27GWMQbdzLSaPCzgx/dqDi4d7tnm16Mqwyk+Jab0u32s2MML4bJUctUgrgsjFyJpCaDp/oPXheE
- V7naS5yRXahmh9a5DspkZeM4Cl03EpSeIcR7hrj4412GT4epeQyTA3EjIMh6vAHL5M3gS0+Lge/2
- MNgQGqyYOX8tnNqOoWt+bw35gXaCyXBHZJgOKaIO/7EcXRxmE4XmekYiBSYrl2/ZtPIvnvwepgL1
- oLROx6kRxkrWOXoyxmm2g76zBwcwpG2Ml1Tu+Rv6We7hevJnUR2zQfTkMvFhbCBJpzuzuHeK7t+r
- /7NIJv9ibyY5ErrY1ucBvUmelovqzS4Xgg6fQTyVWpQYj4BdwmEpmpxYGSxSy/Fc7b7rnWNiXGiX
- S5jccm91OHnv483TmKW65kjmVv0Plt5S/HyFNVJJsr5S4IQ65Oy3fou7hgEFA89zGaD9LkbLMCN4
- Ei+DRP8nHl5xZfBfn+TV8sM+J1ZXdv6ylAEgh0aXPsHDPsk+UwvgHvlIwIj92S1pgYUFiureUzE2
- Pop71MsTi/3S6b2bGItwqwZiMoIGj11xww9Zz/rjMEICUQBhTLqhRcRR/8ZHajmB8vNXWgGP3DJv
- DIJ8Vus+2CQX2uUAEQEAAQ==
- 
- AcLBUgQAAQoABgUCZcuYNQAAzD0QAFnOdhDAlavCJiIaBskMp/iV92Lsd/zue18+obL8mc04W1/g
- YyrG7VKCw72qd3igGTvYCU9kR61sE8HAkH6y+OCAYa4bi6yrm/Div48JJTy5p+fnmwreFF28zVSZ
- uWJIVLiboPBNEhk9N9Jh57lrq3WEF6cP+lvdYC3nEhgEZPl4JspoiEqM0a09iq1CEAq1sVvbesvD
- 6G5uQT3+6Mz8/+BsF4mRbMg8KE7D1NqyxHgVvoB+SY+CyFulRJoxMF73QB8ORPdXqDRLMqu5FRi7
- oE7zdovpiHOk61nf4C8OFhtYlesvqwLy/r26LV7/xwUzGAQOrmXYNIffWjhGLbu14JAIBJ1Gr8o6
- s4Ley/F3Lj+iJKuaY5yuF10eYnc6R4GtCAEXEajOh5zPv//31bIhe1GDgd9Xc0x4qKDeP8obmaw+
- nNsvND8OWU+sQTMXfz1VsVzpJNSPZoqijqQmDe3x4Am+sVKTFx0v/nfkKpuQVk3IS5gAHQBqIuPN
- vYETMeDrfcLOBQ7K/3yI8IWd/pJEixktmi6njbW3ydD96Xg95TNPGjLhLDaO+75udAk4nzNMF/Xf
- UoLr2UX6pdwjGQBfMQebSjxVpil5mRAwqkHSzDTH+iOOXwGsOp06nWwJaOlOGhrqyhItMssK1DEV
- d9H+jCva0rutsBKAngK/dPee4Sj0
- `
- 
-	 EncodedCanonicalAccountSignKeySha3 = "rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY"
-	 EncodedCanonicalAccount            = `type: account
- authority-id: mlpa
- account-id: mlpa
- display-name: mlpa
- timestamp: 2024-02-13T16:26:31.7081421Z
- username: mlpa
- validation: certified
- sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- 
- AcLBUgQAAQoABgUCZcuYNwAAm8MQAAFLxh8V1OtiRloo72tH5w8695LXC+lWk9E+ggMKzcU37aOa
- WDi21AVgahWavqJJT3TwfDthKsSf9RcHS+4SqsTS2UqoY6FpaGO8y+Fk5pkJ64MDLWh3AW0ejnoU
- sbrUty7NRv+fiDcn1YxqrAlQOrFbvJlO+/Bo6lD3cStWQyotSOL/PsVZSMdDL514ULVkYmOZbF0k
- iZmqt1tPRK8gxGHFGs7BxshcgQ4WtFGoHApDZf0fmfKUWlRZ7sAOdeiDMDFfLwxP5nT2jiM0pF46
- qOfNngYPP4vr6OoJxcZsw852vEnptWk1iFeSDqJOzNgypxCXK7ul8lGDp0DSLntSpnkV7Ziy/1xU
- DBWJVeJrq4GdeMR+5cqQUtX7oBDcyT9eKrizAK7Ul5+ap+nuqPwjavk2PwwOmh+8TevneDJfLtS3
- XwQQYkYbY2BBprB/M6eU5YkRahkkXfFRguXhR7R7OC8kymE3x+VxzEeC+2hDmsv2N6jkWnJlEA04
- y5+8oBTj7VRB4/MSnMPy2QFbbNVUvciJnoJJB3gF8RPqP/8EEjCONs3NJ9sFr27jJKj9aRRPtJm7
- SxHX6RSQxQ3M/4Y2w5qygxpHbQ2ggui5gakNt80xOWJdCqIAs2sx4cS2TlCVBJOG4KW/H1CE4/2i
- of59POttQTvUdMQVPzpFY2lmJ8jv
- `
- 
-	 EncodedCanonicalRootAccountKey = `type: account-key
- authority-id: mlpa
- public-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- account-id: mlpa
- name: snapstore-key-root
- since: 2024-02-13T16:26:29.244773Z
- body-length: 717
- sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- 
- AcbBTQRWhcGAARAAw5YogAkggczGIm/Maf/5JucnTGchQ461P/mn8zxjNCth3tLST9D5NNLrOEE1
- T27GWMQbdzLSaPCzgx/dqDi4d7tnm16Mqwyk+Jab0u32s2MML4bJUctUgrgsjFyJpCaDp/oPXheE
- V7naS5yRXahmh9a5DspkZeM4Cl03EpSeIcR7hrj4412GT4epeQyTA3EjIMh6vAHL5M3gS0+Lge/2
- MNgQGqyYOX8tnNqOoWt+bw35gXaCyXBHZJgOKaIO/7EcXRxmE4XmekYiBSYrl2/ZtPIvnvwepgL1
- oLROx6kRxkrWOXoyxmm2g76zBwcwpG2Ml1Tu+Rv6We7hevJnUR2zQfTkMvFhbCBJpzuzuHeK7t+r
- /7NIJv9ibyY5ErrY1ucBvUmelovqzS4Xgg6fQTyVWpQYj4BdwmEpmpxYGSxSy/Fc7b7rnWNiXGiX
- S5jccm91OHnv483TmKW65kjmVv0Plt5S/HyFNVJJsr5S4IQ65Oy3fou7hgEFA89zGaD9LkbLMCN4
- Ei+DRP8nHl5xZfBfn+TV8sM+J1ZXdv6ylAEgh0aXPsHDPsk+UwvgHvlIwIj92S1pgYUFiureUzE2
- Pop71MsTi/3S6b2bGItwqwZiMoIGj11xww9Zz/rjMEICUQBhTLqhRcRR/8ZHajmB8vNXWgGP3DJv
- DIJ8Vus+2CQX2uUAEQEAAQ==
- 
- AcLBUgQAAQoABgUCZcuYNQAAzD0QAFnOdhDAlavCJiIaBskMp/iV92Lsd/zue18+obL8mc04W1/g
- YyrG7VKCw72qd3igGTvYCU9kR61sE8HAkH6y+OCAYa4bi6yrm/Div48JJTy5p+fnmwreFF28zVSZ
- uWJIVLiboPBNEhk9N9Jh57lrq3WEF6cP+lvdYC3nEhgEZPl4JspoiEqM0a09iq1CEAq1sVvbesvD
- 6G5uQT3+6Mz8/+BsF4mRbMg8KE7D1NqyxHgVvoB+SY+CyFulRJoxMF73QB8ORPdXqDRLMqu5FRi7
- oE7zdovpiHOk61nf4C8OFhtYlesvqwLy/r26LV7/xwUzGAQOrmXYNIffWjhGLbu14JAIBJ1Gr8o6
- s4Ley/F3Lj+iJKuaY5yuF10eYnc6R4GtCAEXEajOh5zPv//31bIhe1GDgd9Xc0x4qKDeP8obmaw+
- nNsvND8OWU+sQTMXfz1VsVzpJNSPZoqijqQmDe3x4Am+sVKTFx0v/nfkKpuQVk3IS5gAHQBqIuPN
- vYETMeDrfcLOBQ7K/3yI8IWd/pJEixktmi6njbW3ydD96Xg95TNPGjLhLDaO+75udAk4nzNMF/Xf
- UoLr2UX6pdwjGQBfMQebSjxVpil5mRAwqkHSzDTH+iOOXwGsOp06nWwJaOlOGhrqyhItMssK1DEV
- d9H+jCva0rutsBKAngK/dPee4Sj0
- `
- 
-	 EncodedGenericAccount = `type: account
- authority-id: mlpa
- account-id: mlpa
- display-name: mlpa
- timestamp: 2024-02-13T16:26:31.7081421Z
- username: mlpa
- validation: certified
- sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- 
- AcLBUgQAAQoABgUCZcuYNwAAm8MQAAFLxh8V1OtiRloo72tH5w8695LXC+lWk9E+ggMKzcU37aOa
- WDi21AVgahWavqJJT3TwfDthKsSf9RcHS+4SqsTS2UqoY6FpaGO8y+Fk5pkJ64MDLWh3AW0ejnoU
- sbrUty7NRv+fiDcn1YxqrAlQOrFbvJlO+/Bo6lD3cStWQyotSOL/PsVZSMdDL514ULVkYmOZbF0k
- iZmqt1tPRK8gxGHFGs7BxshcgQ4WtFGoHApDZf0fmfKUWlRZ7sAOdeiDMDFfLwxP5nT2jiM0pF46
- qOfNngYPP4vr6OoJxcZsw852vEnptWk1iFeSDqJOzNgypxCXK7ul8lGDp0DSLntSpnkV7Ziy/1xU
- DBWJVeJrq4GdeMR+5cqQUtX7oBDcyT9eKrizAK7Ul5+ap+nuqPwjavk2PwwOmh+8TevneDJfLtS3
- XwQQYkYbY2BBprB/M6eU5YkRahkkXfFRguXhR7R7OC8kymE3x+VxzEeC+2hDmsv2N6jkWnJlEA04
- y5+8oBTj7VRB4/MSnMPy2QFbbNVUvciJnoJJB3gF8RPqP/8EEjCONs3NJ9sFr27jJKj9aRRPtJm7
- SxHX6RSQxQ3M/4Y2w5qygxpHbQ2ggui5gakNt80xOWJdCqIAs2sx4cS2TlCVBJOG4KW/H1CE4/2i
- of59POttQTvUdMQVPzpFY2lmJ8jv
- `
- 
-	 EncodedGenericModelsAccountKeyPublicKeySha3 = "A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM"
-	 EncodedGenericModelsAccountKey              = `type: account-key
- authority-id: mlpa
- public-key-sha3-384: A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM
- account-id: mlpa
- name: snapstore-key-models
- since: 2024-02-13T16:26:30.653688Z
- body-length: 717
- sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- 
- AcbBTQRWhcGAARAAsVFdz8BogUonmUEVIYLPAz+ziTD7jLBygJMqMQo4BCdZOBSLMjunwebzd8V8
- x+xdQ245k5ThiXqyhKX4icwiXkqp0PCQjjxxtwboc6qTFsaa573/UnVVzMIdwFOdO/Xd8NqnSzr5
- +4Y9GzCHLGtk9QO9QSz1cNR+iJjO2V6ykWUefMEXaz5NooNOs3rOSrhOXNCMz46dWMMrG1xb22qt
- iRRuXP7uuDLONqssdWY0v8A0/0vmqV/NcOkk43x+Y14Idq7gbIXvgza4xnyatu97CXRaCJp8zP8a
- ldfp2A4V46EIAhKfLZKXUp01F324xGmrY2tparQM0/pgNkShfktFbIp4sIWLXGD5XslxgMGC0kwQ
- VdtZNsrabybSrM56FMkVW2DEHL3Ib5L7qGtc1GK4rNG3Iv2NMZU/B6+2me3OFtgeC1Ko5lik/cny
- yT3Akz4dzpkdGQW73BFfBWJRXh7ttaEFtm5M/XWSfZ/zcFpoTfCqYgIPAHF31MFtFtXP5Eiwvdzo
- NIb8d2QrIJCytX4QF+v4FVGFVv1AWC4DzOa732+Kn6tDcxuw73DEUkPv+xtcuNzrYX2B8j2lDAEP
- KFXZHaZWSKlD1zT42Oae3IaU5wuBz8O+wDKh1kOQslyBp6OdAGbdFpNQ9qrxuXRzhRJ/ahrnOSYl
- SVmWfqiuQI2v7RsAEQEAAQ==
- 
- AcLBUgQAAQoABgUCZcuYNgAAnrsQAIgX9PDuVeQKlcTaMpRseBgv3zqPUuz2LCumJYGsCzCIIzQ5
- ufNDprMnbSKB/oJHHdQhp6LTwgszViAWgsOOumAaTc2nDcVu2y6TDyfg0bn0l9h6wU127o42L2Zt
- ZCuxAjL8BJ4sey+d5xFinDuF/lpkoZ68shRGaL4n323rycb93gjYy+usIhx33sRVxOtQLG/k0p0F
- 5me/QnZe2GDA1N88It/IEcHL2qJ0WoUpbY9gee8WkjVsvtWWeNQuMazcu8os7Wdc2FhhNsF+4d+f
- sHAFGIRxHCnKYombqPpSNLJ0g/Su8vnMQkPbqXnrSb8ZlHSH98HyM7WFPt9EK+2LdpWBS711i/dG
- bZLX7f4Z7mSDGlujwdSj7/in5PNKQG6LGv/u3+nWaiguzdoRdCesrbIFDr9a0fT6+JqcwrHXM+10
- hgyfbsskqZWqcvTEeP+ZI9SkIm/f971s3gX2raabHHBFVf0AZ4+fiVrOws0DeeezKrF/+vZN6J0t
- PpArkh2OxWxy75ioQbNlNJmQhB4oRzqlJOB8/4I3A3zyT/O47ObQvhu/IWwkDnb/cI6jbRCDnaof
- juD9SbTI9m8jkqRGI8IrHT/YeStKgmXlDpyopkebv0BRJmaq6XSIuWRz3CoPG3Cto2sIsI1a/oRb
- vykqTFbo/YUaQNlv1Mxzp5VFk0PG
- `
- 
-	 EncodedGenericClassicModel = `type: model
- authority-id: mlpa
- series: 16
- brand-id: mlpa
- model: m2cp-sil0
- architecture: arm64
- base: core20
- classic: false
- grade: dangerous
- snaps:
-   -
-	 default-channel: latest/stable
-	 id: 0707a279d880749d576dcf814a5f0dff
-	 name: m2cp-sil0-gadget
-	 type: gadget
-   -
-	 default-channel: latest/stable
-	 id: 33bb07b4b91eb075ab233391d1cef1e6
-	 name: m2cp-sil0-kernel
-	 type: kernel
-   -
-	 default-channel: latest/stable
-	 id: 6ebf1fd79130484599c23588496cc282
-	 name: core20
-	 type: base
-   -
-	 default-channel: latest/stable
-	 id: 764abfd79ddd204333e6a06a970b6bf5
-	 name: m2cp-gateway
-	 type: app
-   -
-	 default-channel: latest/stable
-	 id: 4d709cc4c21d9177578b595485ec23ae
-	 name: m2cp-message-hub
-	 type: app
- timestamp: 2024-02-16T04:15:46.3847862Z
- sign-key-sha3-384: A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM
- 
- AcLBUgQAAQoABgUCZc7hcgAAgKAQAGBq77va7hjb9vh3dDW4GfWNI9PwKmUtt4DnRLfUwsYt/Dj6
- /iXrV3P/PiCXQPZ3TwbDMnwD/pf8V5HaVGFzXMDl4ACdrmixsoNjYPMJgudq3hF+qSrwB34eBmPX
- l8ZGQJlswKX96zYqhsNWCIxJDoTS9X+nWbFQH9+N641lWwg6gXQy7raB8ecygb76Er8cTHWyj0pA
- D7aEcTE9Y5Q7xazVb3JTYTFGWb7+U2AX91HkhLRuF04oeK811oQJSWAWZVJPAaHXLh1G2AOL2ZVC
- puP6rAybwZQf7nP2uS9dJEG3wqUjdhX/XX2GRU84QwxrZmQODfL69SOM2/wQfWj9H8ntTdTSovhW
- xJJMPm/9WSuGRvXSiUK69aFGOn77od3H8JcjLrmnRhDe7LidSdrulKqIyvFcA9UOSq/nfCqW7snJ
- ZFjvNCTLmB0WHClqv4jj5ewGA3RInROz3EmVP2YQY4Wd81rG4CFgy9P17ndLvKhpqMhtEh5iQqdv
- ZmlndhHNVH4pgEnChj10UesEJkeQiBgBN1yTvJRedcItsx1yaeJAzLlMgxsUMeSLNfoNvPLUTDLR
- 7JHTHA7MhuJyoJsdxi/r686khKLRQSKlq5JPDQpVZxQMtYpHoh2hyUDeYHMv2sTAZgL9CTr0Fsyp
- At9jstMeSzOtyXQXH7DsIaNzNh7m
- `
- 
-	 EncodedStagingTrustedAccount = `type: account
- authority-id: mlpa
- account-id: mlpa
- display-name: mlpa
- timestamp: 2024-02-13T16:26:31.7081421Z
- username: mlpa
- validation: certified
- sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- 
- AcLBUgQAAQoABgUCZcuYNwAAm8MQAAFLxh8V1OtiRloo72tH5w8695LXC+lWk9E+ggMKzcU37aOa
- WDi21AVgahWavqJJT3TwfDthKsSf9RcHS+4SqsTS2UqoY6FpaGO8y+Fk5pkJ64MDLWh3AW0ejnoU
- sbrUty7NRv+fiDcn1YxqrAlQOrFbvJlO+/Bo6lD3cStWQyotSOL/PsVZSMdDL514ULVkYmOZbF0k
- iZmqt1tPRK8gxGHFGs7BxshcgQ4WtFGoHApDZf0fmfKUWlRZ7sAOdeiDMDFfLwxP5nT2jiM0pF46
- qOfNngYPP4vr6OoJxcZsw852vEnptWk1iFeSDqJOzNgypxCXK7ul8lGDp0DSLntSpnkV7Ziy/1xU
- DBWJVeJrq4GdeMR+5cqQUtX7oBDcyT9eKrizAK7Ul5+ap+nuqPwjavk2PwwOmh+8TevneDJfLtS3
- XwQQYkYbY2BBprB/M6eU5YkRahkkXfFRguXhR7R7OC8kymE3x+VxzEeC+2hDmsv2N6jkWnJlEA04
- y5+8oBTj7VRB4/MSnMPy2QFbbNVUvciJnoJJB3gF8RPqP/8EEjCONs3NJ9sFr27jJKj9aRRPtJm7
- SxHX6RSQxQ3M/4Y2w5qygxpHbQ2ggui5gakNt80xOWJdCqIAs2sx4cS2TlCVBJOG4KW/H1CE4/2i
- of59POttQTvUdMQVPzpFY2lmJ8jv
- `
- 
-	 EncodedStagingRootAccountKey = `type: account-key
- authority-id: mlpa
- public-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- account-id: mlpa
- name: snapstore-key-root
- since: 2024-02-13T16:26:29.244773Z
- body-length: 717
- sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- 
- AcbBTQRWhcGAARAAw5YogAkggczGIm/Maf/5JucnTGchQ461P/mn8zxjNCth3tLST9D5NNLrOEE1
- T27GWMQbdzLSaPCzgx/dqDi4d7tnm16Mqwyk+Jab0u32s2MML4bJUctUgrgsjFyJpCaDp/oPXheE
- V7naS5yRXahmh9a5DspkZeM4Cl03EpSeIcR7hrj4412GT4epeQyTA3EjIMh6vAHL5M3gS0+Lge/2
- MNgQGqyYOX8tnNqOoWt+bw35gXaCyXBHZJgOKaIO/7EcXRxmE4XmekYiBSYrl2/ZtPIvnvwepgL1
- oLROx6kRxkrWOXoyxmm2g76zBwcwpG2Ml1Tu+Rv6We7hevJnUR2zQfTkMvFhbCBJpzuzuHeK7t+r
- /7NIJv9ibyY5ErrY1ucBvUmelovqzS4Xgg6fQTyVWpQYj4BdwmEpmpxYGSxSy/Fc7b7rnWNiXGiX
- S5jccm91OHnv483TmKW65kjmVv0Plt5S/HyFNVJJsr5S4IQ65Oy3fou7hgEFA89zGaD9LkbLMCN4
- Ei+DRP8nHl5xZfBfn+TV8sM+J1ZXdv6ylAEgh0aXPsHDPsk+UwvgHvlIwIj92S1pgYUFiureUzE2
- Pop71MsTi/3S6b2bGItwqwZiMoIGj11xww9Zz/rjMEICUQBhTLqhRcRR/8ZHajmB8vNXWgGP3DJv
- DIJ8Vus+2CQX2uUAEQEAAQ==
- 
- AcLBUgQAAQoABgUCZcuYNQAAzD0QAFnOdhDAlavCJiIaBskMp/iV92Lsd/zue18+obL8mc04W1/g
- YyrG7VKCw72qd3igGTvYCU9kR61sE8HAkH6y+OCAYa4bi6yrm/Div48JJTy5p+fnmwreFF28zVSZ
- uWJIVLiboPBNEhk9N9Jh57lrq3WEF6cP+lvdYC3nEhgEZPl4JspoiEqM0a09iq1CEAq1sVvbesvD
- 6G5uQT3+6Mz8/+BsF4mRbMg8KE7D1NqyxHgVvoB+SY+CyFulRJoxMF73QB8ORPdXqDRLMqu5FRi7
- oE7zdovpiHOk61nf4C8OFhtYlesvqwLy/r26LV7/xwUzGAQOrmXYNIffWjhGLbu14JAIBJ1Gr8o6
- s4Ley/F3Lj+iJKuaY5yuF10eYnc6R4GtCAEXEajOh5zPv//31bIhe1GDgd9Xc0x4qKDeP8obmaw+
- nNsvND8OWU+sQTMXfz1VsVzpJNSPZoqijqQmDe3x4Am+sVKTFx0v/nfkKpuQVk3IS5gAHQBqIuPN
- vYETMeDrfcLOBQ7K/3yI8IWd/pJEixktmi6njbW3ydD96Xg95TNPGjLhLDaO+75udAk4nzNMF/Xf
- UoLr2UX6pdwjGQBfMQebSjxVpil5mRAwqkHSzDTH+iOOXwGsOp06nWwJaOlOGhrqyhItMssK1DEV
- d9H+jCva0rutsBKAngK/dPee4Sj0
- `
- 
-	 EncodedStagingGenericAccount = `type: account
- authority-id: mlpa
- account-id: mlpa
- display-name: mlpa
- timestamp: 2024-02-13T16:26:31.7081421Z
- username: mlpa
- validation: certified
- sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- 
- AcLBUgQAAQoABgUCZcuYNwAAm8MQAAFLxh8V1OtiRloo72tH5w8695LXC+lWk9E+ggMKzcU37aOa
- WDi21AVgahWavqJJT3TwfDthKsSf9RcHS+4SqsTS2UqoY6FpaGO8y+Fk5pkJ64MDLWh3AW0ejnoU
- sbrUty7NRv+fiDcn1YxqrAlQOrFbvJlO+/Bo6lD3cStWQyotSOL/PsVZSMdDL514ULVkYmOZbF0k
- iZmqt1tPRK8gxGHFGs7BxshcgQ4WtFGoHApDZf0fmfKUWlRZ7sAOdeiDMDFfLwxP5nT2jiM0pF46
- qOfNngYPP4vr6OoJxcZsw852vEnptWk1iFeSDqJOzNgypxCXK7ul8lGDp0DSLntSpnkV7Ziy/1xU
- DBWJVeJrq4GdeMR+5cqQUtX7oBDcyT9eKrizAK7Ul5+ap+nuqPwjavk2PwwOmh+8TevneDJfLtS3
- XwQQYkYbY2BBprB/M6eU5YkRahkkXfFRguXhR7R7OC8kymE3x+VxzEeC+2hDmsv2N6jkWnJlEA04
- y5+8oBTj7VRB4/MSnMPy2QFbbNVUvciJnoJJB3gF8RPqP/8EEjCONs3NJ9sFr27jJKj9aRRPtJm7
- SxHX6RSQxQ3M/4Y2w5qygxpHbQ2ggui5gakNt80xOWJdCqIAs2sx4cS2TlCVBJOG4KW/H1CE4/2i
- of59POttQTvUdMQVPzpFY2lmJ8jv
- `
- 
-	 EncodedStagingGenericModelsAccountKey = `type: account-key
- authority-id: mlpa
- public-key-sha3-384: A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM
- account-id: mlpa
- name: snapstore-key-models
- since: 2024-02-13T16:26:30.653688Z
- body-length: 717
- sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
- 
- AcbBTQRWhcGAARAAsVFdz8BogUonmUEVIYLPAz+ziTD7jLBygJMqMQo4BCdZOBSLMjunwebzd8V8
- x+xdQ245k5ThiXqyhKX4icwiXkqp0PCQjjxxtwboc6qTFsaa573/UnVVzMIdwFOdO/Xd8NqnSzr5
- +4Y9GzCHLGtk9QO9QSz1cNR+iJjO2V6ykWUefMEXaz5NooNOs3rOSrhOXNCMz46dWMMrG1xb22qt
- iRRuXP7uuDLONqssdWY0v8A0/0vmqV/NcOkk43x+Y14Idq7gbIXvgza4xnyatu97CXRaCJp8zP8a
- ldfp2A4V46EIAhKfLZKXUp01F324xGmrY2tparQM0/pgNkShfktFbIp4sIWLXGD5XslxgMGC0kwQ
- VdtZNsrabybSrM56FMkVW2DEHL3Ib5L7qGtc1GK4rNG3Iv2NMZU/B6+2me3OFtgeC1Ko5lik/cny
- yT3Akz4dzpkdGQW73BFfBWJRXh7ttaEFtm5M/XWSfZ/zcFpoTfCqYgIPAHF31MFtFtXP5Eiwvdzo
- NIb8d2QrIJCytX4QF+v4FVGFVv1AWC4DzOa732+Kn6tDcxuw73DEUkPv+xtcuNzrYX2B8j2lDAEP
- KFXZHaZWSKlD1zT42Oae3IaU5wuBz8O+wDKh1kOQslyBp6OdAGbdFpNQ9qrxuXRzhRJ/ahrnOSYl
- SVmWfqiuQI2v7RsAEQEAAQ==
- 
- AcLBUgQAAQoABgUCZcuYNgAAnrsQAIgX9PDuVeQKlcTaMpRseBgv3zqPUuz2LCumJYGsCzCIIzQ5
- ufNDprMnbSKB/oJHHdQhp6LTwgszViAWgsOOumAaTc2nDcVu2y6TDyfg0bn0l9h6wU127o42L2Zt
- ZCuxAjL8BJ4sey+d5xFinDuF/lpkoZ68shRGaL4n323rycb93gjYy+usIhx33sRVxOtQLG/k0p0F
- 5me/QnZe2GDA1N88It/IEcHL2qJ0WoUpbY9gee8WkjVsvtWWeNQuMazcu8os7Wdc2FhhNsF+4d+f
- sHAFGIRxHCnKYombqPpSNLJ0g/Su8vnMQkPbqXnrSb8ZlHSH98HyM7WFPt9EK+2LdpWBS711i/dG
- bZLX7f4Z7mSDGlujwdSj7/in5PNKQG6LGv/u3+nWaiguzdoRdCesrbIFDr9a0fT6+JqcwrHXM+10
- hgyfbsskqZWqcvTEeP+ZI9SkIm/f971s3gX2raabHHBFVf0AZ4+fiVrOws0DeeezKrF/+vZN6J0t
- PpArkh2OxWxy75ioQbNlNJmQhB4oRzqlJOB8/4I3A3zyT/O47ObQvhu/IWwkDnb/cI6jbRCDnaof
- juD9SbTI9m8jkqRGI8IrHT/YeStKgmXlDpyopkebv0BRJmaq6XSIuWRz3CoPG3Cto2sIsI1a/oRb
- vykqTFbo/YUaQNlv1Mxzp5VFk0PG
- `
- 
-	 EncodedStagingGenericClassicModel = `type: model
- authority-id: mlpa
- series: 16
- brand-id: mlpa
- model: m2cp-sil0
- architecture: arm64
- base: core20
- classic: false
- grade: dangerous
- snaps:
-   -
-	 default-channel: latest/stable
-	 id: 0707a279d880749d576dcf814a5f0dff
-	 name: m2cp-sil0-gadget
-	 type: gadget
-   -
-	 default-channel: latest/stable
-	 id: 33bb07b4b91eb075ab233391d1cef1e6
-	 name: m2cp-sil0-kernel
-	 type: kernel
-   -
-	 default-channel: latest/stable
-	 id: 6ebf1fd79130484599c23588496cc282
-	 name: core20
-	 type: base
-   -
-	 default-channel: latest/stable
-	 id: 764abfd79ddd204333e6a06a970b6bf5
-	 name: m2cp-gateway
-	 type: app
-   -
-	 default-channel: latest/stable
-	 id: 4d709cc4c21d9177578b595485ec23ae
-	 name: m2cp-message-hub
-	 type: app
- timestamp: 2024-02-16T04:15:46.3847862Z
- sign-key-sha3-384: A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM
- 
- AcLBUgQAAQoABgUCZc7hcgAAgKAQAGBq77va7hjb9vh3dDW4GfWNI9PwKmUtt4DnRLfUwsYt/Dj6
- /iXrV3P/PiCXQPZ3TwbDMnwD/pf8V5HaVGFzXMDl4ACdrmixsoNjYPMJgudq3hF+qSrwB34eBmPX
- l8ZGQJlswKX96zYqhsNWCIxJDoTS9X+nWbFQH9+N641lWwg6gXQy7raB8ecygb76Er8cTHWyj0pA
- D7aEcTE9Y5Q7xazVb3JTYTFGWb7+U2AX91HkhLRuF04oeK811oQJSWAWZVJPAaHXLh1G2AOL2ZVC
- puP6rAybwZQf7nP2uS9dJEG3wqUjdhX/XX2GRU84QwxrZmQODfL69SOM2/wQfWj9H8ntTdTSovhW
- xJJMPm/9WSuGRvXSiUK69aFGOn77od3H8JcjLrmnRhDe7LidSdrulKqIyvFcA9UOSq/nfCqW7snJ
- ZFjvNCTLmB0WHClqv4jj5ewGA3RInROz3EmVP2YQY4Wd81rG4CFgy9P17ndLvKhpqMhtEh5iQqdv
- ZmlndhHNVH4pgEnChj10UesEJkeQiBgBN1yTvJRedcItsx1yaeJAzLlMgxsUMeSLNfoNvPLUTDLR
- 7JHTHA7MhuJyoJsdxi/r686khKLRQSKlq5JPDQpVZxQMtYpHoh2hyUDeYHMv2sTAZgL9CTr0Fsyp
- At9jstMeSzOtyXQXH7DsIaNzNh7m
- `
- )
- 
+const (
+	BaseUrlSnapcraftDashboard        = "https://app-snapstore3-gateway-dev.azurewebsites.net/"
+	BaseUrlSnapcraftDashboardStaging = "https://app-snapstore3-gateway-dev.azurewebsites.net/"
+	BaseUrlSnapcraftApi              = "https://app-snapstore3-gateway-dev.azurewebsites.net/"
+	BaseUrlSnapcraftStagingApi       = "https://app-snapstore3-gateway-dev.azurewebsites.net/"
+	BaseUrlSnapcraftApiV2            = "https://app-snapstore3-gateway-dev.azurewebsites.net/v2/"
+	BaseUrlSnapcraftStagingApiV2     = "https://app-snapstore3-gateway-dev.azurewebsites.net/v2/"
+	AuthLocation                     = "app-snapstore3-gateway-dev.azurewebsites.net"
+	AuthLocationStaging              = "app-snapstore3-gateway-dev.azurewebsites.net"
+
+	// snap ids
+	ProdIdSnapd  = "0682f36da73c49d8a55effdf65533f9d"
+	ProdIdCore   = "4de4a0fc199b4fb78a1fe3960a799eb5"
+	ProdIdCore18 = "0fd6c61588f54084bd4531384a557efa"
+	ProdIdCore20 = "6ebf1fd79130484599c23588496cc282"
+	ProdIdCore22 = "775ff269aa144114901b5e7f84df6fe8"
+
+	StagingIdSnapd  = "0682f36da73c49d8a55effdf65533f9d"
+	StagingIdCore   = "4de4a0fc199b4fb78a1fe3960a799eb5"
+	StagingIdCore18 = "0fd6c61588f54084bd4531384a557efa"
+	StagingIdCore20 = "6ebf1fd79130484599c23588496cc282"
+	StagingIdCore22 = "775ff269aa144114901b5e7f84df6fe8"
+
+	AccountId = "mlpa"
+
+	EncodedRepairRootAccountKeyPublicKeySha3 = "rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY"
+	EncodedRepairRootAccountKey              = `type: account-key
+authority-id: mlpa
+public-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+account-id: mlpa
+name: snapstore-key-root
+since: 2024-02-13T16:26:29.244773Z
+body-length: 717
+sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+
+AcbBTQRWhcGAARAAw5YogAkggczGIm/Maf/5JucnTGchQ461P/mn8zxjNCth3tLST9D5NNLrOEE1
+T27GWMQbdzLSaPCzgx/dqDi4d7tnm16Mqwyk+Jab0u32s2MML4bJUctUgrgsjFyJpCaDp/oPXheE
+V7naS5yRXahmh9a5DspkZeM4Cl03EpSeIcR7hrj4412GT4epeQyTA3EjIMh6vAHL5M3gS0+Lge/2
+MNgQGqyYOX8tnNqOoWt+bw35gXaCyXBHZJgOKaIO/7EcXRxmE4XmekYiBSYrl2/ZtPIvnvwepgL1
+oLROx6kRxkrWOXoyxmm2g76zBwcwpG2Ml1Tu+Rv6We7hevJnUR2zQfTkMvFhbCBJpzuzuHeK7t+r
+/7NIJv9ibyY5ErrY1ucBvUmelovqzS4Xgg6fQTyVWpQYj4BdwmEpmpxYGSxSy/Fc7b7rnWNiXGiX
+S5jccm91OHnv483TmKW65kjmVv0Plt5S/HyFNVJJsr5S4IQ65Oy3fou7hgEFA89zGaD9LkbLMCN4
+Ei+DRP8nHl5xZfBfn+TV8sM+J1ZXdv6ylAEgh0aXPsHDPsk+UwvgHvlIwIj92S1pgYUFiureUzE2
+Pop71MsTi/3S6b2bGItwqwZiMoIGj11xww9Zz/rjMEICUQBhTLqhRcRR/8ZHajmB8vNXWgGP3DJv
+DIJ8Vus+2CQX2uUAEQEAAQ==
+
+AcLBUgQAAQoABgUCZcuYNQAAzD0QAFnOdhDAlavCJiIaBskMp/iV92Lsd/zue18+obL8mc04W1/g
+YyrG7VKCw72qd3igGTvYCU9kR61sE8HAkH6y+OCAYa4bi6yrm/Div48JJTy5p+fnmwreFF28zVSZ
+uWJIVLiboPBNEhk9N9Jh57lrq3WEF6cP+lvdYC3nEhgEZPl4JspoiEqM0a09iq1CEAq1sVvbesvD
+6G5uQT3+6Mz8/+BsF4mRbMg8KE7D1NqyxHgVvoB+SY+CyFulRJoxMF73QB8ORPdXqDRLMqu5FRi7
+oE7zdovpiHOk61nf4C8OFhtYlesvqwLy/r26LV7/xwUzGAQOrmXYNIffWjhGLbu14JAIBJ1Gr8o6
+s4Ley/F3Lj+iJKuaY5yuF10eYnc6R4GtCAEXEajOh5zPv//31bIhe1GDgd9Xc0x4qKDeP8obmaw+
+nNsvND8OWU+sQTMXfz1VsVzpJNSPZoqijqQmDe3x4Am+sVKTFx0v/nfkKpuQVk3IS5gAHQBqIuPN
+vYETMeDrfcLOBQ7K/3yI8IWd/pJEixktmi6njbW3ydD96Xg95TNPGjLhLDaO+75udAk4nzNMF/Xf
+UoLr2UX6pdwjGQBfMQebSjxVpil5mRAwqkHSzDTH+iOOXwGsOp06nWwJaOlOGhrqyhItMssK1DEV
+d9H+jCva0rutsBKAngK/dPee4Sj0
+`
+
+	EncodedStagingRepairRootAccountKey = `type: account-key
+authority-id: mlpa
+public-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+account-id: mlpa
+name: snapstore-key-root
+since: 2024-02-13T16:26:29.244773Z
+body-length: 717
+sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+
+AcbBTQRWhcGAARAAw5YogAkggczGIm/Maf/5JucnTGchQ461P/mn8zxjNCth3tLST9D5NNLrOEE1
+T27GWMQbdzLSaPCzgx/dqDi4d7tnm16Mqwyk+Jab0u32s2MML4bJUctUgrgsjFyJpCaDp/oPXheE
+V7naS5yRXahmh9a5DspkZeM4Cl03EpSeIcR7hrj4412GT4epeQyTA3EjIMh6vAHL5M3gS0+Lge/2
+MNgQGqyYOX8tnNqOoWt+bw35gXaCyXBHZJgOKaIO/7EcXRxmE4XmekYiBSYrl2/ZtPIvnvwepgL1
+oLROx6kRxkrWOXoyxmm2g76zBwcwpG2Ml1Tu+Rv6We7hevJnUR2zQfTkMvFhbCBJpzuzuHeK7t+r
+/7NIJv9ibyY5ErrY1ucBvUmelovqzS4Xgg6fQTyVWpQYj4BdwmEpmpxYGSxSy/Fc7b7rnWNiXGiX
+S5jccm91OHnv483TmKW65kjmVv0Plt5S/HyFNVJJsr5S4IQ65Oy3fou7hgEFA89zGaD9LkbLMCN4
+Ei+DRP8nHl5xZfBfn+TV8sM+J1ZXdv6ylAEgh0aXPsHDPsk+UwvgHvlIwIj92S1pgYUFiureUzE2
+Pop71MsTi/3S6b2bGItwqwZiMoIGj11xww9Zz/rjMEICUQBhTLqhRcRR/8ZHajmB8vNXWgGP3DJv
+DIJ8Vus+2CQX2uUAEQEAAQ==
+
+AcLBUgQAAQoABgUCZcuYNQAAzD0QAFnOdhDAlavCJiIaBskMp/iV92Lsd/zue18+obL8mc04W1/g
+YyrG7VKCw72qd3igGTvYCU9kR61sE8HAkH6y+OCAYa4bi6yrm/Div48JJTy5p+fnmwreFF28zVSZ
+uWJIVLiboPBNEhk9N9Jh57lrq3WEF6cP+lvdYC3nEhgEZPl4JspoiEqM0a09iq1CEAq1sVvbesvD
+6G5uQT3+6Mz8/+BsF4mRbMg8KE7D1NqyxHgVvoB+SY+CyFulRJoxMF73QB8ORPdXqDRLMqu5FRi7
+oE7zdovpiHOk61nf4C8OFhtYlesvqwLy/r26LV7/xwUzGAQOrmXYNIffWjhGLbu14JAIBJ1Gr8o6
+s4Ley/F3Lj+iJKuaY5yuF10eYnc6R4GtCAEXEajOh5zPv//31bIhe1GDgd9Xc0x4qKDeP8obmaw+
+nNsvND8OWU+sQTMXfz1VsVzpJNSPZoqijqQmDe3x4Am+sVKTFx0v/nfkKpuQVk3IS5gAHQBqIuPN
+vYETMeDrfcLOBQ7K/3yI8IWd/pJEixktmi6njbW3ydD96Xg95TNPGjLhLDaO+75udAk4nzNMF/Xf
+UoLr2UX6pdwjGQBfMQebSjxVpil5mRAwqkHSzDTH+iOOXwGsOp06nWwJaOlOGhrqyhItMssK1DEV
+d9H+jCva0rutsBKAngK/dPee4Sj0
+`
+
+	EncodedCanonicalAccountSignKeySha3 = "rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY"
+	EncodedCanonicalAccount            = `type: account
+authority-id: mlpa
+account-id: mlpa
+display-name: mlpa
+timestamp: 2024-02-13T16:26:31.7081421Z
+username: mlpa
+validation: certified
+sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+
+AcLBUgQAAQoABgUCZcuYNwAAm8MQAAFLxh8V1OtiRloo72tH5w8695LXC+lWk9E+ggMKzcU37aOa
+WDi21AVgahWavqJJT3TwfDthKsSf9RcHS+4SqsTS2UqoY6FpaGO8y+Fk5pkJ64MDLWh3AW0ejnoU
+sbrUty7NRv+fiDcn1YxqrAlQOrFbvJlO+/Bo6lD3cStWQyotSOL/PsVZSMdDL514ULVkYmOZbF0k
+iZmqt1tPRK8gxGHFGs7BxshcgQ4WtFGoHApDZf0fmfKUWlRZ7sAOdeiDMDFfLwxP5nT2jiM0pF46
+qOfNngYPP4vr6OoJxcZsw852vEnptWk1iFeSDqJOzNgypxCXK7ul8lGDp0DSLntSpnkV7Ziy/1xU
+DBWJVeJrq4GdeMR+5cqQUtX7oBDcyT9eKrizAK7Ul5+ap+nuqPwjavk2PwwOmh+8TevneDJfLtS3
+XwQQYkYbY2BBprB/M6eU5YkRahkkXfFRguXhR7R7OC8kymE3x+VxzEeC+2hDmsv2N6jkWnJlEA04
+y5+8oBTj7VRB4/MSnMPy2QFbbNVUvciJnoJJB3gF8RPqP/8EEjCONs3NJ9sFr27jJKj9aRRPtJm7
+SxHX6RSQxQ3M/4Y2w5qygxpHbQ2ggui5gakNt80xOWJdCqIAs2sx4cS2TlCVBJOG4KW/H1CE4/2i
+of59POttQTvUdMQVPzpFY2lmJ8jv
+`
+
+	EncodedCanonicalRootAccountKey = `type: account-key
+authority-id: mlpa
+public-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+account-id: mlpa
+name: snapstore-key-root
+since: 2024-02-13T16:26:29.244773Z
+body-length: 717
+sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+
+AcbBTQRWhcGAARAAw5YogAkggczGIm/Maf/5JucnTGchQ461P/mn8zxjNCth3tLST9D5NNLrOEE1
+T27GWMQbdzLSaPCzgx/dqDi4d7tnm16Mqwyk+Jab0u32s2MML4bJUctUgrgsjFyJpCaDp/oPXheE
+V7naS5yRXahmh9a5DspkZeM4Cl03EpSeIcR7hrj4412GT4epeQyTA3EjIMh6vAHL5M3gS0+Lge/2
+MNgQGqyYOX8tnNqOoWt+bw35gXaCyXBHZJgOKaIO/7EcXRxmE4XmekYiBSYrl2/ZtPIvnvwepgL1
+oLROx6kRxkrWOXoyxmm2g76zBwcwpG2Ml1Tu+Rv6We7hevJnUR2zQfTkMvFhbCBJpzuzuHeK7t+r
+/7NIJv9ibyY5ErrY1ucBvUmelovqzS4Xgg6fQTyVWpQYj4BdwmEpmpxYGSxSy/Fc7b7rnWNiXGiX
+S5jccm91OHnv483TmKW65kjmVv0Plt5S/HyFNVJJsr5S4IQ65Oy3fou7hgEFA89zGaD9LkbLMCN4
+Ei+DRP8nHl5xZfBfn+TV8sM+J1ZXdv6ylAEgh0aXPsHDPsk+UwvgHvlIwIj92S1pgYUFiureUzE2
+Pop71MsTi/3S6b2bGItwqwZiMoIGj11xww9Zz/rjMEICUQBhTLqhRcRR/8ZHajmB8vNXWgGP3DJv
+DIJ8Vus+2CQX2uUAEQEAAQ==
+
+AcLBUgQAAQoABgUCZcuYNQAAzD0QAFnOdhDAlavCJiIaBskMp/iV92Lsd/zue18+obL8mc04W1/g
+YyrG7VKCw72qd3igGTvYCU9kR61sE8HAkH6y+OCAYa4bi6yrm/Div48JJTy5p+fnmwreFF28zVSZ
+uWJIVLiboPBNEhk9N9Jh57lrq3WEF6cP+lvdYC3nEhgEZPl4JspoiEqM0a09iq1CEAq1sVvbesvD
+6G5uQT3+6Mz8/+BsF4mRbMg8KE7D1NqyxHgVvoB+SY+CyFulRJoxMF73QB8ORPdXqDRLMqu5FRi7
+oE7zdovpiHOk61nf4C8OFhtYlesvqwLy/r26LV7/xwUzGAQOrmXYNIffWjhGLbu14JAIBJ1Gr8o6
+s4Ley/F3Lj+iJKuaY5yuF10eYnc6R4GtCAEXEajOh5zPv//31bIhe1GDgd9Xc0x4qKDeP8obmaw+
+nNsvND8OWU+sQTMXfz1VsVzpJNSPZoqijqQmDe3x4Am+sVKTFx0v/nfkKpuQVk3IS5gAHQBqIuPN
+vYETMeDrfcLOBQ7K/3yI8IWd/pJEixktmi6njbW3ydD96Xg95TNPGjLhLDaO+75udAk4nzNMF/Xf
+UoLr2UX6pdwjGQBfMQebSjxVpil5mRAwqkHSzDTH+iOOXwGsOp06nWwJaOlOGhrqyhItMssK1DEV
+d9H+jCva0rutsBKAngK/dPee4Sj0
+`
+
+	EncodedGenericAccount = `type: account
+authority-id: mlpa
+account-id: mlpa
+display-name: mlpa
+timestamp: 2024-02-13T16:26:31.7081421Z
+username: mlpa
+validation: certified
+sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+
+AcLBUgQAAQoABgUCZcuYNwAAm8MQAAFLxh8V1OtiRloo72tH5w8695LXC+lWk9E+ggMKzcU37aOa
+WDi21AVgahWavqJJT3TwfDthKsSf9RcHS+4SqsTS2UqoY6FpaGO8y+Fk5pkJ64MDLWh3AW0ejnoU
+sbrUty7NRv+fiDcn1YxqrAlQOrFbvJlO+/Bo6lD3cStWQyotSOL/PsVZSMdDL514ULVkYmOZbF0k
+iZmqt1tPRK8gxGHFGs7BxshcgQ4WtFGoHApDZf0fmfKUWlRZ7sAOdeiDMDFfLwxP5nT2jiM0pF46
+qOfNngYPP4vr6OoJxcZsw852vEnptWk1iFeSDqJOzNgypxCXK7ul8lGDp0DSLntSpnkV7Ziy/1xU
+DBWJVeJrq4GdeMR+5cqQUtX7oBDcyT9eKrizAK7Ul5+ap+nuqPwjavk2PwwOmh+8TevneDJfLtS3
+XwQQYkYbY2BBprB/M6eU5YkRahkkXfFRguXhR7R7OC8kymE3x+VxzEeC+2hDmsv2N6jkWnJlEA04
+y5+8oBTj7VRB4/MSnMPy2QFbbNVUvciJnoJJB3gF8RPqP/8EEjCONs3NJ9sFr27jJKj9aRRPtJm7
+SxHX6RSQxQ3M/4Y2w5qygxpHbQ2ggui5gakNt80xOWJdCqIAs2sx4cS2TlCVBJOG4KW/H1CE4/2i
+of59POttQTvUdMQVPzpFY2lmJ8jv
+`
+
+	EncodedGenericModelsAccountKeyPublicKeySha3 = "A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM"
+	EncodedGenericModelsAccountKey              = `type: account-key
+authority-id: mlpa
+public-key-sha3-384: A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM
+account-id: mlpa
+name: snapstore-key-models
+since: 2024-02-13T16:26:30.653688Z
+body-length: 717
+sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+
+AcbBTQRWhcGAARAAsVFdz8BogUonmUEVIYLPAz+ziTD7jLBygJMqMQo4BCdZOBSLMjunwebzd8V8
+x+xdQ245k5ThiXqyhKX4icwiXkqp0PCQjjxxtwboc6qTFsaa573/UnVVzMIdwFOdO/Xd8NqnSzr5
++4Y9GzCHLGtk9QO9QSz1cNR+iJjO2V6ykWUefMEXaz5NooNOs3rOSrhOXNCMz46dWMMrG1xb22qt
+iRRuXP7uuDLONqssdWY0v8A0/0vmqV/NcOkk43x+Y14Idq7gbIXvgza4xnyatu97CXRaCJp8zP8a
+ldfp2A4V46EIAhKfLZKXUp01F324xGmrY2tparQM0/pgNkShfktFbIp4sIWLXGD5XslxgMGC0kwQ
+VdtZNsrabybSrM56FMkVW2DEHL3Ib5L7qGtc1GK4rNG3Iv2NMZU/B6+2me3OFtgeC1Ko5lik/cny
+yT3Akz4dzpkdGQW73BFfBWJRXh7ttaEFtm5M/XWSfZ/zcFpoTfCqYgIPAHF31MFtFtXP5Eiwvdzo
+NIb8d2QrIJCytX4QF+v4FVGFVv1AWC4DzOa732+Kn6tDcxuw73DEUkPv+xtcuNzrYX2B8j2lDAEP
+KFXZHaZWSKlD1zT42Oae3IaU5wuBz8O+wDKh1kOQslyBp6OdAGbdFpNQ9qrxuXRzhRJ/ahrnOSYl
+SVmWfqiuQI2v7RsAEQEAAQ==
+
+AcLBUgQAAQoABgUCZcuYNgAAnrsQAIgX9PDuVeQKlcTaMpRseBgv3zqPUuz2LCumJYGsCzCIIzQ5
+ufNDprMnbSKB/oJHHdQhp6LTwgszViAWgsOOumAaTc2nDcVu2y6TDyfg0bn0l9h6wU127o42L2Zt
+ZCuxAjL8BJ4sey+d5xFinDuF/lpkoZ68shRGaL4n323rycb93gjYy+usIhx33sRVxOtQLG/k0p0F
+5me/QnZe2GDA1N88It/IEcHL2qJ0WoUpbY9gee8WkjVsvtWWeNQuMazcu8os7Wdc2FhhNsF+4d+f
+sHAFGIRxHCnKYombqPpSNLJ0g/Su8vnMQkPbqXnrSb8ZlHSH98HyM7WFPt9EK+2LdpWBS711i/dG
+bZLX7f4Z7mSDGlujwdSj7/in5PNKQG6LGv/u3+nWaiguzdoRdCesrbIFDr9a0fT6+JqcwrHXM+10
+hgyfbsskqZWqcvTEeP+ZI9SkIm/f971s3gX2raabHHBFVf0AZ4+fiVrOws0DeeezKrF/+vZN6J0t
+PpArkh2OxWxy75ioQbNlNJmQhB4oRzqlJOB8/4I3A3zyT/O47ObQvhu/IWwkDnb/cI6jbRCDnaof
+juD9SbTI9m8jkqRGI8IrHT/YeStKgmXlDpyopkebv0BRJmaq6XSIuWRz3CoPG3Cto2sIsI1a/oRb
+vykqTFbo/YUaQNlv1Mxzp5VFk0PG
+`
+
+	EncodedGenericClassicModel = `type: model
+authority-id: mlpa
+series: 16
+brand-id: mlpa
+model: m2cp-sil0
+architecture: arm64
+base: core20
+classic: false
+grade: dangerous
+snaps:
+-
+	default-channel: latest/stable
+	id: 0707a279d880749d576dcf814a5f0dff
+	name: m2cp-sil0-gadget
+	type: gadget
+-
+	default-channel: latest/stable
+	id: 33bb07b4b91eb075ab233391d1cef1e6
+	name: m2cp-sil0-kernel
+	type: kernel
+-
+	default-channel: latest/stable
+	id: 6ebf1fd79130484599c23588496cc282
+	name: core20
+	type: base
+-
+	default-channel: latest/stable
+	id: 764abfd79ddd204333e6a06a970b6bf5
+	name: m2cp-gateway
+	type: app
+-
+	default-channel: latest/stable
+	id: 4d709cc4c21d9177578b595485ec23ae
+	name: m2cp-message-hub
+	type: app
+timestamp: 2024-02-16T04:15:46.3847862Z
+sign-key-sha3-384: A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM
+
+AcLBUgQAAQoABgUCZc7hcgAAgKAQAGBq77va7hjb9vh3dDW4GfWNI9PwKmUtt4DnRLfUwsYt/Dj6
+/iXrV3P/PiCXQPZ3TwbDMnwD/pf8V5HaVGFzXMDl4ACdrmixsoNjYPMJgudq3hF+qSrwB34eBmPX
+l8ZGQJlswKX96zYqhsNWCIxJDoTS9X+nWbFQH9+N641lWwg6gXQy7raB8ecygb76Er8cTHWyj0pA
+D7aEcTE9Y5Q7xazVb3JTYTFGWb7+U2AX91HkhLRuF04oeK811oQJSWAWZVJPAaHXLh1G2AOL2ZVC
+puP6rAybwZQf7nP2uS9dJEG3wqUjdhX/XX2GRU84QwxrZmQODfL69SOM2/wQfWj9H8ntTdTSovhW
+xJJMPm/9WSuGRvXSiUK69aFGOn77od3H8JcjLrmnRhDe7LidSdrulKqIyvFcA9UOSq/nfCqW7snJ
+ZFjvNCTLmB0WHClqv4jj5ewGA3RInROz3EmVP2YQY4Wd81rG4CFgy9P17ndLvKhpqMhtEh5iQqdv
+ZmlndhHNVH4pgEnChj10UesEJkeQiBgBN1yTvJRedcItsx1yaeJAzLlMgxsUMeSLNfoNvPLUTDLR
+7JHTHA7MhuJyoJsdxi/r686khKLRQSKlq5JPDQpVZxQMtYpHoh2hyUDeYHMv2sTAZgL9CTr0Fsyp
+At9jstMeSzOtyXQXH7DsIaNzNh7m
+`
+
+	EncodedStagingTrustedAccount = `type: account
+authority-id: mlpa
+account-id: mlpa
+display-name: mlpa
+timestamp: 2024-02-13T16:26:31.7081421Z
+username: mlpa
+validation: certified
+sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+
+AcLBUgQAAQoABgUCZcuYNwAAm8MQAAFLxh8V1OtiRloo72tH5w8695LXC+lWk9E+ggMKzcU37aOa
+WDi21AVgahWavqJJT3TwfDthKsSf9RcHS+4SqsTS2UqoY6FpaGO8y+Fk5pkJ64MDLWh3AW0ejnoU
+sbrUty7NRv+fiDcn1YxqrAlQOrFbvJlO+/Bo6lD3cStWQyotSOL/PsVZSMdDL514ULVkYmOZbF0k
+iZmqt1tPRK8gxGHFGs7BxshcgQ4WtFGoHApDZf0fmfKUWlRZ7sAOdeiDMDFfLwxP5nT2jiM0pF46
+qOfNngYPP4vr6OoJxcZsw852vEnptWk1iFeSDqJOzNgypxCXK7ul8lGDp0DSLntSpnkV7Ziy/1xU
+DBWJVeJrq4GdeMR+5cqQUtX7oBDcyT9eKrizAK7Ul5+ap+nuqPwjavk2PwwOmh+8TevneDJfLtS3
+XwQQYkYbY2BBprB/M6eU5YkRahkkXfFRguXhR7R7OC8kymE3x+VxzEeC+2hDmsv2N6jkWnJlEA04
+y5+8oBTj7VRB4/MSnMPy2QFbbNVUvciJnoJJB3gF8RPqP/8EEjCONs3NJ9sFr27jJKj9aRRPtJm7
+SxHX6RSQxQ3M/4Y2w5qygxpHbQ2ggui5gakNt80xOWJdCqIAs2sx4cS2TlCVBJOG4KW/H1CE4/2i
+of59POttQTvUdMQVPzpFY2lmJ8jv
+`
+
+	EncodedStagingRootAccountKey = `type: account-key
+authority-id: mlpa
+public-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+account-id: mlpa
+name: snapstore-key-root
+since: 2024-02-13T16:26:29.244773Z
+body-length: 717
+sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+
+AcbBTQRWhcGAARAAw5YogAkggczGIm/Maf/5JucnTGchQ461P/mn8zxjNCth3tLST9D5NNLrOEE1
+T27GWMQbdzLSaPCzgx/dqDi4d7tnm16Mqwyk+Jab0u32s2MML4bJUctUgrgsjFyJpCaDp/oPXheE
+V7naS5yRXahmh9a5DspkZeM4Cl03EpSeIcR7hrj4412GT4epeQyTA3EjIMh6vAHL5M3gS0+Lge/2
+MNgQGqyYOX8tnNqOoWt+bw35gXaCyXBHZJgOKaIO/7EcXRxmE4XmekYiBSYrl2/ZtPIvnvwepgL1
+oLROx6kRxkrWOXoyxmm2g76zBwcwpG2Ml1Tu+Rv6We7hevJnUR2zQfTkMvFhbCBJpzuzuHeK7t+r
+/7NIJv9ibyY5ErrY1ucBvUmelovqzS4Xgg6fQTyVWpQYj4BdwmEpmpxYGSxSy/Fc7b7rnWNiXGiX
+S5jccm91OHnv483TmKW65kjmVv0Plt5S/HyFNVJJsr5S4IQ65Oy3fou7hgEFA89zGaD9LkbLMCN4
+Ei+DRP8nHl5xZfBfn+TV8sM+J1ZXdv6ylAEgh0aXPsHDPsk+UwvgHvlIwIj92S1pgYUFiureUzE2
+Pop71MsTi/3S6b2bGItwqwZiMoIGj11xww9Zz/rjMEICUQBhTLqhRcRR/8ZHajmB8vNXWgGP3DJv
+DIJ8Vus+2CQX2uUAEQEAAQ==
+
+AcLBUgQAAQoABgUCZcuYNQAAzD0QAFnOdhDAlavCJiIaBskMp/iV92Lsd/zue18+obL8mc04W1/g
+YyrG7VKCw72qd3igGTvYCU9kR61sE8HAkH6y+OCAYa4bi6yrm/Div48JJTy5p+fnmwreFF28zVSZ
+uWJIVLiboPBNEhk9N9Jh57lrq3WEF6cP+lvdYC3nEhgEZPl4JspoiEqM0a09iq1CEAq1sVvbesvD
+6G5uQT3+6Mz8/+BsF4mRbMg8KE7D1NqyxHgVvoB+SY+CyFulRJoxMF73QB8ORPdXqDRLMqu5FRi7
+oE7zdovpiHOk61nf4C8OFhtYlesvqwLy/r26LV7/xwUzGAQOrmXYNIffWjhGLbu14JAIBJ1Gr8o6
+s4Ley/F3Lj+iJKuaY5yuF10eYnc6R4GtCAEXEajOh5zPv//31bIhe1GDgd9Xc0x4qKDeP8obmaw+
+nNsvND8OWU+sQTMXfz1VsVzpJNSPZoqijqQmDe3x4Am+sVKTFx0v/nfkKpuQVk3IS5gAHQBqIuPN
+vYETMeDrfcLOBQ7K/3yI8IWd/pJEixktmi6njbW3ydD96Xg95TNPGjLhLDaO+75udAk4nzNMF/Xf
+UoLr2UX6pdwjGQBfMQebSjxVpil5mRAwqkHSzDTH+iOOXwGsOp06nWwJaOlOGhrqyhItMssK1DEV
+d9H+jCva0rutsBKAngK/dPee4Sj0
+`
+
+	EncodedStagingGenericAccount = `type: account
+authority-id: mlpa
+account-id: mlpa
+display-name: mlpa
+timestamp: 2024-02-13T16:26:31.7081421Z
+username: mlpa
+validation: certified
+sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+
+AcLBUgQAAQoABgUCZcuYNwAAm8MQAAFLxh8V1OtiRloo72tH5w8695LXC+lWk9E+ggMKzcU37aOa
+WDi21AVgahWavqJJT3TwfDthKsSf9RcHS+4SqsTS2UqoY6FpaGO8y+Fk5pkJ64MDLWh3AW0ejnoU
+sbrUty7NRv+fiDcn1YxqrAlQOrFbvJlO+/Bo6lD3cStWQyotSOL/PsVZSMdDL514ULVkYmOZbF0k
+iZmqt1tPRK8gxGHFGs7BxshcgQ4WtFGoHApDZf0fmfKUWlRZ7sAOdeiDMDFfLwxP5nT2jiM0pF46
+qOfNngYPP4vr6OoJxcZsw852vEnptWk1iFeSDqJOzNgypxCXK7ul8lGDp0DSLntSpnkV7Ziy/1xU
+DBWJVeJrq4GdeMR+5cqQUtX7oBDcyT9eKrizAK7Ul5+ap+nuqPwjavk2PwwOmh+8TevneDJfLtS3
+XwQQYkYbY2BBprB/M6eU5YkRahkkXfFRguXhR7R7OC8kymE3x+VxzEeC+2hDmsv2N6jkWnJlEA04
+y5+8oBTj7VRB4/MSnMPy2QFbbNVUvciJnoJJB3gF8RPqP/8EEjCONs3NJ9sFr27jJKj9aRRPtJm7
+SxHX6RSQxQ3M/4Y2w5qygxpHbQ2ggui5gakNt80xOWJdCqIAs2sx4cS2TlCVBJOG4KW/H1CE4/2i
+of59POttQTvUdMQVPzpFY2lmJ8jv
+`
+
+	EncodedStagingGenericModelsAccountKey = `type: account-key
+authority-id: mlpa
+public-key-sha3-384: A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM
+account-id: mlpa
+name: snapstore-key-models
+since: 2024-02-13T16:26:30.653688Z
+body-length: 717
+sign-key-sha3-384: rvApXlkmMilnUM45AS8h3Nq9NEJePwGOtIzGGq2XSgTEsPkrHeCNQnGrTJgiYxbY
+
+AcbBTQRWhcGAARAAsVFdz8BogUonmUEVIYLPAz+ziTD7jLBygJMqMQo4BCdZOBSLMjunwebzd8V8
+x+xdQ245k5ThiXqyhKX4icwiXkqp0PCQjjxxtwboc6qTFsaa573/UnVVzMIdwFOdO/Xd8NqnSzr5
++4Y9GzCHLGtk9QO9QSz1cNR+iJjO2V6ykWUefMEXaz5NooNOs3rOSrhOXNCMz46dWMMrG1xb22qt
+iRRuXP7uuDLONqssdWY0v8A0/0vmqV/NcOkk43x+Y14Idq7gbIXvgza4xnyatu97CXRaCJp8zP8a
+ldfp2A4V46EIAhKfLZKXUp01F324xGmrY2tparQM0/pgNkShfktFbIp4sIWLXGD5XslxgMGC0kwQ
+VdtZNsrabybSrM56FMkVW2DEHL3Ib5L7qGtc1GK4rNG3Iv2NMZU/B6+2me3OFtgeC1Ko5lik/cny
+yT3Akz4dzpkdGQW73BFfBWJRXh7ttaEFtm5M/XWSfZ/zcFpoTfCqYgIPAHF31MFtFtXP5Eiwvdzo
+NIb8d2QrIJCytX4QF+v4FVGFVv1AWC4DzOa732+Kn6tDcxuw73DEUkPv+xtcuNzrYX2B8j2lDAEP
+KFXZHaZWSKlD1zT42Oae3IaU5wuBz8O+wDKh1kOQslyBp6OdAGbdFpNQ9qrxuXRzhRJ/ahrnOSYl
+SVmWfqiuQI2v7RsAEQEAAQ==
+
+AcLBUgQAAQoABgUCZcuYNgAAnrsQAIgX9PDuVeQKlcTaMpRseBgv3zqPUuz2LCumJYGsCzCIIzQ5
+ufNDprMnbSKB/oJHHdQhp6LTwgszViAWgsOOumAaTc2nDcVu2y6TDyfg0bn0l9h6wU127o42L2Zt
+ZCuxAjL8BJ4sey+d5xFinDuF/lpkoZ68shRGaL4n323rycb93gjYy+usIhx33sRVxOtQLG/k0p0F
+5me/QnZe2GDA1N88It/IEcHL2qJ0WoUpbY9gee8WkjVsvtWWeNQuMazcu8os7Wdc2FhhNsF+4d+f
+sHAFGIRxHCnKYombqPpSNLJ0g/Su8vnMQkPbqXnrSb8ZlHSH98HyM7WFPt9EK+2LdpWBS711i/dG
+bZLX7f4Z7mSDGlujwdSj7/in5PNKQG6LGv/u3+nWaiguzdoRdCesrbIFDr9a0fT6+JqcwrHXM+10
+hgyfbsskqZWqcvTEeP+ZI9SkIm/f971s3gX2raabHHBFVf0AZ4+fiVrOws0DeeezKrF/+vZN6J0t
+PpArkh2OxWxy75ioQbNlNJmQhB4oRzqlJOB8/4I3A3zyT/O47ObQvhu/IWwkDnb/cI6jbRCDnaof
+juD9SbTI9m8jkqRGI8IrHT/YeStKgmXlDpyopkebv0BRJmaq6XSIuWRz3CoPG3Cto2sIsI1a/oRb
+vykqTFbo/YUaQNlv1Mxzp5VFk0PG
+`
+
+	EncodedStagingGenericClassicModel = `type: model
+authority-id: mlpa
+series: 16
+brand-id: mlpa
+model: m2cp-sil0
+architecture: arm64
+base: core20
+classic: false
+grade: dangerous
+snaps:
+-
+	default-channel: latest/stable
+	id: 0707a279d880749d576dcf814a5f0dff
+	name: m2cp-sil0-gadget
+	type: gadget
+-
+	default-channel: latest/stable
+	id: 33bb07b4b91eb075ab233391d1cef1e6
+	name: m2cp-sil0-kernel
+	type: kernel
+-
+	default-channel: latest/stable
+	id: 6ebf1fd79130484599c23588496cc282
+	name: core20
+	type: base
+-
+	default-channel: latest/stable
+	id: 764abfd79ddd204333e6a06a970b6bf5
+	name: m2cp-gateway
+	type: app
+-
+	default-channel: latest/stable
+	id: 4d709cc4c21d9177578b595485ec23ae
+	name: m2cp-message-hub
+	type: app
+timestamp: 2024-02-16T04:15:46.3847862Z
+sign-key-sha3-384: A8DmNGrpSue33SEyy6DnR-86cbLHyKgA8N2OX0aTzif1L3zTC1iwm3FErA-hbFwM
+
+AcLBUgQAAQoABgUCZc7hcgAAgKAQAGBq77va7hjb9vh3dDW4GfWNI9PwKmUtt4DnRLfUwsYt/Dj6
+/iXrV3P/PiCXQPZ3TwbDMnwD/pf8V5HaVGFzXMDl4ACdrmixsoNjYPMJgudq3hF+qSrwB34eBmPX
+l8ZGQJlswKX96zYqhsNWCIxJDoTS9X+nWbFQH9+N641lWwg6gXQy7raB8ecygb76Er8cTHWyj0pA
+D7aEcTE9Y5Q7xazVb3JTYTFGWb7+U2AX91HkhLRuF04oeK811oQJSWAWZVJPAaHXLh1G2AOL2ZVC
+puP6rAybwZQf7nP2uS9dJEG3wqUjdhX/XX2GRU84QwxrZmQODfL69SOM2/wQfWj9H8ntTdTSovhW
+xJJMPm/9WSuGRvXSiUK69aFGOn77od3H8JcjLrmnRhDe7LidSdrulKqIyvFcA9UOSq/nfCqW7snJ
+ZFjvNCTLmB0WHClqv4jj5ewGA3RInROz3EmVP2YQY4Wd81rG4CFgy9P17ndLvKhpqMhtEh5iQqdv
+ZmlndhHNVH4pgEnChj10UesEJkeQiBgBN1yTvJRedcItsx1yaeJAzLlMgxsUMeSLNfoNvPLUTDLR
+7JHTHA7MhuJyoJsdxi/r686khKLRQSKlq5JPDQpVZxQMtYpHoh2hyUDeYHMv2sTAZgL9CTr0Fsyp
+At9jstMeSzOtyXQXH7DsIaNzNh7m
+`
+)
