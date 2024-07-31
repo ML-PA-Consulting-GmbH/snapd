@@ -224,27 +224,27 @@ base: core20
 classic: false
 grade: dangerous
 snaps:
--
+  -
 	default-channel: latest/stable
 	id: 0707a279d880749d576dcf814a5f0dff
 	name: m2cp-sil0-gadget
 	type: gadget
--
+  -
 	default-channel: latest/stable
 	id: 33bb07b4b91eb075ab233391d1cef1e6
 	name: m2cp-sil0-kernel
 	type: kernel
--
+  -
 	default-channel: latest/stable
 	id: 6ebf1fd79130484599c23588496cc282
 	name: core20
 	type: base
--
+  -
 	default-channel: latest/stable
 	id: 764abfd79ddd204333e6a06a970b6bf5
 	name: m2cp-gateway
 	type: app
--
+  -
 	default-channel: latest/stable
 	id: 4d709cc4c21d9177578b595485ec23ae
 	name: m2cp-message-hub
@@ -380,27 +380,27 @@ base: core20
 classic: false
 grade: dangerous
 snaps:
--
+  -
 	default-channel: latest/stable
 	id: 0707a279d880749d576dcf814a5f0dff
 	name: m2cp-sil0-gadget
 	type: gadget
--
+  -
 	default-channel: latest/stable
 	id: 33bb07b4b91eb075ab233391d1cef1e6
 	name: m2cp-sil0-kernel
 	type: kernel
--
+  -
 	default-channel: latest/stable
 	id: 6ebf1fd79130484599c23588496cc282
 	name: core20
 	type: base
--
+  -
 	default-channel: latest/stable
 	id: 764abfd79ddd204333e6a06a970b6bf5
 	name: m2cp-gateway
 	type: app
--
+  -
 	default-channel: latest/stable
 	id: 4d709cc4c21d9177578b595485ec23ae
 	name: m2cp-message-hub
