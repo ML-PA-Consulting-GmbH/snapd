@@ -31,6 +31,8 @@ jobs:
 
     - name: Create tarball
       run: |
+          rm -rf .git
+          rm -rf .github
           tar cfah /tmp/snapd_${{ env.TAG_NAME }}.tar.xz .  
 
     - name: Get release ID
