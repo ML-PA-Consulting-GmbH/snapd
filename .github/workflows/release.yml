@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
+      - '*.*.*-yocto'
 
 jobs:
   build:
@@ -30,7 +31,7 @@ jobs:
 
     - name: Create tarball
       run: |
-        tar cfah /tmp/snapd_${{ env.TAG_NAME }}.tar .
+          tar cfah /tmp/snapd_${{ env.TAG_NAME }}.tar.xz .  
 
     - name: Get release ID
       id: get_release
@@ -46,7 +47,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets?name=snapd_${{ env.TAG_NAME }}.tar"
-        asset_path: /tmp/snapd_${{ env.TAG_NAME }}.tar
-        asset_name: snapd_${{ env.TAG_NAME }}.tar
+        upload_url: "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets?name=snapd_${{ env.TAG_NAME }}.tar.xz"
+        asset_path: /tmp/snapd_${{ env.TAG_NAME }}.tar.xz
+        asset_name: snapd_${{ env.TAG_NAME }}.tar.xz
         asset_content_type: application/x-tar
