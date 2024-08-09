@@ -137,8 +137,7 @@ var (
 
 	SysfsDir string
 
-	FeaturesDir         string
-	SnapCgroupPolicyDir string
+	FeaturesDir string
 )
 
 const (
@@ -390,7 +389,7 @@ func SetRootDir(rootdir string) {
 	SnapBootstrapRunDir = filepath.Join(SnapRunDir, "snap-bootstrap")
 
 	SnapdStoreSSLCertsDir = filepath.Join(rootdir, snappyDir, "ssl/store-certs")
-	SnapCgroupPolicyDir = filepath.Join(rootdir, snappyDir, "cgroup")
+
 	// keep in sync with the debian/snapd.socket file:
 	SnapdSocket = filepath.Join(rootdir, "/run/snapd.socket")
 	SnapSocket = filepath.Join(rootdir, "/run/snapd-snap.socket")
