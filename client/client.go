@@ -509,6 +509,7 @@ func (client *Client) doSyncWithOpts(method, path string, query url.Values, head
 		return nil, err
 	}
 	if err := rsp.err(client, statusCode); err != nil {
+		fmt.Printf("dosync with options failed, assuming '%s' is a new user. Lookup error: %s\n", path, err)
 		return nil, err
 	}
 	if rsp.Type != "sync" {
@@ -699,8 +700,11 @@ func (rsp *response) err(cli *Client, statusCode int) error {
 		} else {
 			cli.maintenance = nil
 		}
+		fmt.Printf("dosync  err with options status code, assuming '%v' is Lookup error: %s\n", statusCode, maintErr.Error())
 	}
+
 	if rsp.Type != "error" {
+		fmt.Printf("rsp type assuming '%v' is Lookup error: %s\n", statusCode, rsp.Type)
 		return nil
 	}
 	var resultErr Error
@@ -708,6 +712,7 @@ func (rsp *response) err(cli *Client, statusCode int) error {
 	if err != nil || resultErr.Message == "" {
 		return fmt.Errorf("server error: %q", http.StatusText(statusCode))
 	}
+	fmt.Printf("status error type assuming '%v' is Lookup error: %s, %v\n", resultErr.Message, rsp.Type, rsp.Result)
 	resultErr.StatusCode = statusCode
 
 	return &resultErr
