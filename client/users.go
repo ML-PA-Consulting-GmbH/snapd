@@ -23,6 +23,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+
+	"github.com/snapcore/snapd/logger"
 )
 
 // CreateUserResult holds the result of a user creation.
@@ -66,8 +68,10 @@ func (client *Client) doUserAction(act *userAction, result interface{}) error {
 	if err != nil {
 		return err
 	}
-
+	logger.Debugf("before do sync userLookup failed, assuming '%s' is a new user. Lookup error: %s\n", data, err)
 	_, err = client.doSync("POST", "/v2/users", nil, nil, bytes.NewReader(data), result)
+	logger.Debugf("after userLookup failed, assuming '%s' is a new user. Lookup error: %s\n", data, err)
+	fmt.Printf("userLookup failed, assuming '%s' is a new user. Lookup error: %s\n", data, err)
 	return err
 }
 
@@ -78,6 +82,7 @@ func (client *Client) CreateUser(options *CreateUserOptions) (*CreateUserResult,
 	}
 
 	var result []*CreateUserResult
+
 	err := client.doUserAction(&userAction{Action: "create", CreateUserOptions: options}, &result)
 	if err != nil {
 		return nil, fmt.Errorf("while creating user: %v", err)

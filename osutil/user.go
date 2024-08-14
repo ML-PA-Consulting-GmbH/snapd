@@ -203,11 +203,10 @@ func AddUser(name string, opts *AddUserOptions) error {
 	if !IsValidUsername(name) {
 		return fmt.Errorf("cannot add user %q: name contains invalid characters", name)
 	}
-
 	// Does user already exist?
 	_, err := userLookup(name)
 	if err != nil {
-		fmt.Printf("userLookup failed, assuming '%s' is a new user. Lookup error: %s\n", name, err)
+		fmt.Printf("userLookup AddUser failed, assuming '%s' is a new user. Lookup error: %s\n", name, err)
 		cmdStr := []string{
 			"adduser",
 			"--force-badname",
