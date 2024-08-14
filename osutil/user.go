@@ -204,20 +204,27 @@ func AddUser(name string, opts *AddUserOptions) error {
 		return fmt.Errorf("cannot add user %q: name contains invalid characters", name)
 	}
 
-	cmdStr := []string{
-		"adduser",
-		"--force-badname",
-		"--gecos", opts.Gecos,
-		"--disabled-password",
-	}
-	if opts.ExtraUsers {
-		cmdStr = append(cmdStr, "--extrausers")
-	}
-	cmdStr = append(cmdStr, name)
+	// Does user already exist?
+	_, err := userLookup(name)
+	if err != nil {
+		fmt.Printf("userLookup failed, assuming '%s' is a new user. Lookup error: %s\n", name, err)
+		cmdStr := []string{
+			"adduser",
+			"--force-badname",
+			"--gecos", opts.Gecos,
+			"--disabled-password",
+		}
+		if opts.ExtraUsers {
+			cmdStr = append(cmdStr, "--extrausers")
+		}
+		cmdStr = append(cmdStr, name)
 
-	cmd := exec.Command(cmdStr[0], cmdStr[1:]...)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("adduser failed with: %s", OutputErr(output, err))
+		cmd := exec.Command(cmdStr[0], cmdStr[1:]...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("adduser failed with: %s", OutputErr(output, err))
+		}
+	} else {
+		fmt.Printf("userLookup succeeded, assuming '%s' already exists\n", name)
 	}
 
 	if opts.Sudoer {
