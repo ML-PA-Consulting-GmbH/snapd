@@ -700,7 +700,7 @@ func (rsp *response) err(cli *Client, statusCode int) error {
 		} else {
 			cli.maintenance = nil
 		}
-		fmt.Printf("dosync  err with options status code, assuming '%v' is Lookup error: %s\n", statusCode, maintErr.Error())
+		fmt.Printf("dosync  err with options status code, assuming '%v' is Lookup error: %s\n", statusCode, maintErr.Message)
 	}
 
 	if rsp.Type != "error" {
