@@ -26,7 +26,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -379,7 +378,6 @@ func (client *Client) do(method, path string, query url.Values, headers map[stri
 	opts = ensureDoOpts(opts)
 
 	client.checkMaintenanceJSON()
-
 	var rsp *http.Response
 	ctx := context.Background()
 	if opts.Timeout <= 0 {
@@ -415,12 +413,14 @@ func (client *Client) do(method, path string, query url.Values, headers map[stri
 		}
 	}
 	if err != nil {
+		fmt.Printf("client do failed, assuming '%s' is a new user. Lookup error: %s\n", path, err)
 		return 0, err
 	}
 	defer rsp.Body.Close()
 
 	if v != nil {
 		if err := decodeInto(rsp.Body, v); err != nil {
+			fmt.Printf("client do decode into failed, assuming '%v' Lookup error: %s\n", rsp.StatusCode, err)
 			return rsp.StatusCode, err
 		}
 	}
@@ -437,7 +437,7 @@ func decodeInto(reader io.Reader, v interface{}) error {
 	dec := json.NewDecoder(reader)
 	if err := dec.Decode(v); err != nil {
 		r := dec.Buffered()
-		buf, err1 := ioutil.ReadAll(r)
+		buf, err1 := io.ReadAll(r)
 		if err1 != nil {
 			buf = []byte(fmt.Sprintf("error reading buffered response body: %s", err1))
 		}
@@ -502,7 +502,7 @@ func (client *Client) doSyncWithOpts(method, path string, query url.Values, head
 	// change we probably shouldn't make right now, not to mention it probably
 	// requires adjustments in other areas too
 	client.checkMaintenanceJSON()
-
+	fmt.Printf("dosync with options failed, assuming '%s' is a new user. Lookup error: %s\n", path, query)
 	var rsp response
 	statusCode, err := client.do(method, path, query, headers, body, &rsp, opts)
 	if err != nil {
