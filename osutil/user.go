@@ -34,13 +34,13 @@ import (
 )
 
 var (
-	userLookup  = lookupUserReplacement // user.Lookup
+	userLookup  = LookupUserReplacement // user.Lookup
 	userCurrent = user.Current
 	sudoersDotD = "/etc/sudoers.d"
 )
 
 // lookupUserReplacement is a replacement for user.Lookup, because the original doesn't work in snapd context
-func lookupUserReplacement(username string) (*user.User, error) {
+func LookupUserReplacement(username string) (*user.User, error) {
 	cmdUID := exec.Command("id", "-u", username)
 	uidOutput, err := cmdUID.Output()
 	if err != nil {

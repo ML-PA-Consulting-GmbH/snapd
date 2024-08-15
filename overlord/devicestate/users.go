@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os/user"
 	"path/filepath"
 	"time"
 
@@ -40,7 +39,7 @@ import (
 var (
 	osutilAddUser = osutil.AddUser
 	osutilDelUser = osutil.DelUser
-	userLookup    = user.Lookup
+	userLookup    = osutil.LookupUserReplacement
 )
 
 // UserError is returned when invalid or insufficient data is supplied,
@@ -340,6 +339,7 @@ func addUser(state *state.State, username string, email string, expiration time.
 	if err := osutilAddUser(username, opts); err != nil {
 		return nil, fmt.Errorf("cannot add user %q: %s", username, err)
 	}
+	logger.Debugf("Before setuplocalUser: %v\n", email)
 	if err := setupLocalUser(state, username, email, expiration); err != nil {
 		return nil, err
 	}
