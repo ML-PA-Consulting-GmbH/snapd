@@ -215,15 +215,25 @@ func AddUser(name string, opts *AddUserOptions) error {
 			"--gecos", opts.Gecos,
 			"--disabled-password",
 		}
+		fmt.Printf("hello0")
 		if opts.ExtraUsers {
 			cmdStr = append(cmdStr, "--extrausers")
 		}
+		fmt.Printf("hello1")
 		cmdStr = append(cmdStr, name)
-
+		fmt.Printf("hello2")
+		fmt.Printf("Executing command from adduser combined:  '%v' \n", cmdStr)
+		fmt.Printf("hello3")
 		cmd := exec.Command(cmdStr[0], cmdStr[1:]...)
+		fmt.Printf("cmd out stdeerr: %v, stdin: %v  stdout: %v, cmdErr: %v\n", cmd.Stderr, cmd.Stdin, cmd.Stdout, cmd.Err)
+		fmt.Printf("hello4")
 		if output, err := cmd.CombinedOutput(); err != nil {
+			fmt.Printf("In err Output from cmd executer: %v", output)
 			return fmt.Errorf("adduser failed with: %s", OutputErr(output, err))
+		} else {
+			fmt.Printf("Output from cmd executer: %v", output)
 		}
+		fmt.Printf("Adding user successfull")
 	} else {
 		fmt.Printf("userLookup succeeded, assuming '%s' already exists\n", name)
 	}
