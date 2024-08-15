@@ -215,35 +215,29 @@ func AddUser(name string, opts *AddUserOptions) error {
 			"--gecos", opts.Gecos,
 			"--disabled-password",
 		}
-		fmt.Printf("hello0")
 		if opts.ExtraUsers {
 			cmdStr = append(cmdStr, "--extrausers")
 		}
-		fmt.Printf("hello1")
 		cmdStr = append(cmdStr, name)
-		fmt.Printf("hello2")
 		fmt.Printf("Executing command from adduser combined:  '%v' \n", cmdStr)
-		fmt.Printf("hello3")
 		cmd := exec.Command(cmdStr[0], cmdStr[1:]...)
-		fmt.Printf("cmd out stdeerr: %v, stdin: %v  stdout: %v, cmdErr: %v\n", cmd.Stderr, cmd.Stdin, cmd.Stdout, cmd.Err)
-		fmt.Printf("hello4")
 		if output, err := cmd.CombinedOutput(); err != nil {
-			fmt.Printf("In err Output from cmd executer: %v", output)
-			return fmt.Errorf("adduser failed with: %s", OutputErr(output, err))
+			fmt.Printf("In err Output from cmd executer: %s\n", string(output))
+			//return fmt.Errorf("adduser failed with: %s", OutputErr(output, err))
+			fmt.Printf("adduser failed with: %s", OutputErr(output, err))
 		} else {
-			fmt.Printf("Output from cmd executer: %v", output)
+			fmt.Printf("Adding user successfull: %s\n", string(output))
 		}
-		fmt.Printf("Adding user successfull")
 	} else {
 		fmt.Printf("userLookup succeeded, assuming '%s' already exists\n", name)
 	}
-
+	fmt.Printf("Next add user to sudoer\n")
 	if opts.Sudoer {
 		if err := AtomicWriteFile(sudoersFile(name), []byte(fmt.Sprintf(sudoersTemplate, name)), 0400, 0); err != nil {
 			return fmt.Errorf("cannot create file under sudoers.d: %s", err)
 		}
 	}
-
+	fmt.Printf("Next add user to if passwort exist\n")
 	if opts.Password != "" {
 		cmdStr := []string{
 			"usermod",
@@ -255,6 +249,7 @@ func AddUser(name string, opts *AddUserOptions) error {
 			return fmt.Errorf("setting password failed: %s", OutputErr(output, err))
 		}
 	}
+	fmt.Printf("Next add user to if passwort change\n")
 	if opts.ForcePasswordChange {
 		if opts.Password == "" {
 			return fmt.Errorf("cannot force password change when no password is provided")
@@ -269,15 +264,16 @@ func AddUser(name string, opts *AddUserOptions) error {
 			return fmt.Errorf("cannot force password change: %s", OutputErr(output, err))
 		}
 	}
-
+	fmt.Printf("userlookup again\n")
 	u, err := userLookup(name)
 	if err != nil {
-		return fmt.Errorf("cannot find user %q: %s", name, err)
+		fmt.Printf("cannot find user %q: %s\n", name, err)
 	}
+	fmt.Printf("After userlookup user: %v, username: %v\n", u.Name, u.Username)
 
 	uid, gid, err := UidGid(u)
 	if err != nil {
-		return err
+		fmt.Printf("Error UidGid: %v\n", err)
 	}
 
 	sshDir := filepath.Join(u.HomeDir, ".ssh")
