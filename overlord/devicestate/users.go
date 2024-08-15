@@ -69,14 +69,11 @@ func CreateUser(st *state.State, sudoer bool, email string, expiration time.Time
 	if email == "" {
 		return nil, &UserError{Err: fmt.Errorf("cannot create user: 'email' field is empty")}
 	}
-	logger.Debugf("CreateUser from Store: %v\n", email)
 
 	storeService := snapstate.Store(st, nil)
 	username, opts, err := getUserDetailsFromStore(st, storeService, email)
 	if err != nil {
-		logger.Debugf("getDetails from store failed:: %v\n", err)
 		return nil, &UserError{Err: fmt.Errorf("cannot create user %q: %s", email, err)}
-
 	}
 
 	opts.Sudoer = sudoer
@@ -158,21 +155,17 @@ func RemoveUser(st *state.State, username string, opts *RemoveUserOptions) (*aut
 func getUserDetailsFromStore(st *state.State, theStore snapstate.StoreService, email string) (string, *osutil.AddUserOptions, error) {
 	st.Unlock()
 	defer st.Lock()
-	logger.Debugf("Email from Store: %v\n", email)
 	v, err := theStore.UserInfo(email)
 	if err != nil {
-		logger.Debugf("Email error from Store, email %v  , error: %v\n", email, err)
 		return "", nil, err
 	}
 	if len(v.SSHKeys) == 0 {
-		logger.Debugf("Email error from Store, email %v  ,  no ssh key error: %v\n", email, err)
 		return "", nil, fmt.Errorf("no ssh keys found")
 	}
 
 	// Amend information where the key came from to ensure it can
 	// be update/replaced later
 	for i, k := range v.SSHKeys {
-		logger.Debugf("Email ssh public keys from Store, email %v  ,  :  keys: %v\n", email, k)
 		v.SSHKeys[i] = fmt.Sprintf(`%s # snapd {"origin":"store","email":%q}`, k, email)
 	}
 
@@ -181,7 +174,6 @@ func getUserDetailsFromStore(st *state.State, theStore snapstate.StoreService, e
 		SSHKeys: v.SSHKeys,
 		Gecos:   gecos,
 	}
-	logger.Debugf("Email ssh public keys from Store, email %v  ,  gecos: %v\n", email, gecos)
 	return v.Username, opts, nil
 }
 
@@ -335,11 +327,9 @@ func setupLocalUser(state *state.State, username, email string, expiration time.
 
 func addUser(state *state.State, username string, email string, expiration time.Time, opts *osutil.AddUserOptions) (*CreatedUser, error) {
 	opts.ExtraUsers = !release.OnClassic
-	logger.Debugf("In adduser after non error from store failed:: %v\n", email)
 	if err := osutilAddUser(username, opts); err != nil {
 		return nil, fmt.Errorf("cannot add user %q: %s", username, err)
 	}
-	logger.Debugf("Before setuplocalUser: %v\n", email)
 	if err := setupLocalUser(state, username, email, expiration); err != nil {
 		return nil, err
 	}

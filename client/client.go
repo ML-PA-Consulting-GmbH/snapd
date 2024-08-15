@@ -503,14 +503,12 @@ func (client *Client) doSyncWithOpts(method, path string, query url.Values, head
 	// change we probably shouldn't make right now, not to mention it probably
 	// requires adjustments in other areas too
 	client.checkMaintenanceJSON()
-	fmt.Printf("dosync with options failed, assuming '%s' is a new user. Lookup error: %s\n", path, query)
 	var rsp response
 	statusCode, err := client.do(method, path, query, headers, body, &rsp, opts)
 	if err != nil {
 		return nil, err
 	}
 	if err := rsp.err(client, statusCode); err != nil {
-		fmt.Printf("dosync with options failed, assuming '%s' is a new user. Lookup error: %s\n", path, err)
 		return nil, err
 	}
 	if rsp.Type != "sync" {
@@ -541,7 +539,6 @@ func (client *Client) doAsyncFull(method, path string, query url.Values, headers
 		return nil, "", err
 	}
 	if err := rsp.err(client, statusCode); err != nil {
-		fmt.Printf("More debug: query:  %v   , headers: %v \n", query, headers)
 		return nil, "", err
 	}
 	if rsp.Type != "async" {
@@ -705,7 +702,6 @@ func (rsp *response) err(cli *Client, statusCode int) error {
 	}
 
 	if rsp.Type != "error" {
-		fmt.Printf("rsp type assuming '%v' is Lookup error: %s\n", statusCode, rsp.Type)
 		return nil
 	}
 	var resultErr Error
@@ -713,7 +709,6 @@ func (rsp *response) err(cli *Client, statusCode int) error {
 	if err != nil || resultErr.Message == "" {
 		return fmt.Errorf("server error: %q", http.StatusText(statusCode))
 	}
-	fmt.Printf("status error type message: '%v' is kind: %v,  value: %v, statuscode: %v\n", resultErr.Message, resultErr.Kind, resultErr.Value, statusCode)
 	resultErr.StatusCode = statusCode
 
 	return &resultErr
