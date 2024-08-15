@@ -330,7 +330,7 @@ func AddUser(name string, opts *AddUserOptions) error {
 		fmt.Printf("in auth error ssh keys user : %v\n", u.Username)
 		return fmt.Errorf("cannot write %s: %s", authKeys, err)
 	}
-	fmt.Printf("User successfully full created")
+	fmt.Printf("User successfully full created\n")
 	return nil
 }
 
