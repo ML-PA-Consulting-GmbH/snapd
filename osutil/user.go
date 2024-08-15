@@ -199,8 +199,10 @@ func AddUser(name string, opts *AddUserOptions) error {
 	if opts == nil {
 		opts = &AddUserOptions{}
 	}
+	fmt.Printf("AddUser : %v\n", name)
 
 	if !IsValidUsername(name) {
+		fmt.Printf("AddUser, in invalid username : %v\n", name)
 		return fmt.Errorf("cannot add user %q: name contains invalid characters", name)
 	}
 	// Does user already exist?

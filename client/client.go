@@ -283,6 +283,7 @@ func (client *Client) raw(ctx context.Context, method, urlpath string, query url
 
 	rsp, err := client.doer.Do(req)
 	if err != nil {
+		fmt.Printf("raw request error in resp: '%v' , header response: %v\n", rsp.Header, err)
 		return nil, ConnectionError{err}
 	}
 
@@ -540,6 +541,7 @@ func (client *Client) doAsyncFull(method, path string, query url.Values, headers
 		return nil, "", err
 	}
 	if err := rsp.err(client, statusCode); err != nil {
+		fmt.Printf("More debug: query:  %v   , headers: %v \n", query, headers)
 		return nil, "", err
 	}
 	if rsp.Type != "async" {
@@ -700,7 +702,6 @@ func (rsp *response) err(cli *Client, statusCode int) error {
 		} else {
 			cli.maintenance = nil
 		}
-		//fmt.Printf("dosync  err with options status code, assuming '%v' is Lookup error: %s\n", statusCode, maintErr.Message)
 	}
 
 	if rsp.Type != "error" {
@@ -712,7 +713,7 @@ func (rsp *response) err(cli *Client, statusCode int) error {
 	if err != nil || resultErr.Message == "" {
 		return fmt.Errorf("server error: %q", http.StatusText(statusCode))
 	}
-	fmt.Printf("status error type assuming '%v' is Lookup error: %s, %v\n", resultErr.Message, rsp.Type, rsp.Result)
+	fmt.Printf("status error type message: '%v' is kind: %v,  value: %v, statuscode: %v\n", resultErr.Message, resultErr.Kind, resultErr.Value, statusCode)
 	resultErr.StatusCode = statusCode
 
 	return &resultErr
