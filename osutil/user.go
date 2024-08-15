@@ -261,8 +261,8 @@ func AddUser(name string, opts *AddUserOptions) error {
 		cmd := exec.Command(cmdStr[0], cmdStr[1:]...)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			fmt.Printf("In err Output from cmd executer: %s\n", string(output))
-			//return fmt.Errorf("adduser failed with: %s", OutputErr(output, err))
-			fmt.Printf("adduser failed with: %s", OutputErr(output, err))
+			return fmt.Errorf("adduser failed with: %s", OutputErr(output, err))
+
 		} else {
 			fmt.Printf("Adding user successfull: %s\n", string(output))
 		}
@@ -305,13 +305,13 @@ func AddUser(name string, opts *AddUserOptions) error {
 	fmt.Printf("userlookup again\n")
 	u, err := userLookup(name)
 	if err != nil {
-		fmt.Printf("cannot find user %q: %s\n", name, err)
+		return fmt.Errorf("cannot find user %q: %s", name, err)
 	}
 	fmt.Printf("After userlookup user: %v, username: %v\n", u.Name, u.Username)
 
 	uid, gid, err := UidGid(u)
 	if err != nil {
-		fmt.Printf("Error UidGid: %v\n", err)
+		return fmt.Errorf("Error UidGid: %v\n", err)
 	}
 
 	sshDir := filepath.Join(u.HomeDir, ".ssh")
