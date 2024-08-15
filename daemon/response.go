@@ -324,10 +324,10 @@ func (rr *journalLineReaderSeqResponse) ServeHTTP(w http.ResponseWriter, r *http
 	}
 	if err != nil && err != io.EOF {
 		fmt.Fprintf(writer, `\x1E{"error": %q}\n`, err)
-		logger.Noticef("cannot stream response; problem reading: %v", err)
+		logger.Noticef("EOF error: cannot stream response; problem reading: %v", err)
 	}
 	if err := writer.Flush(); err != nil {
-		logger.Noticef("cannot stream response; problem writing: %v", err)
+		logger.Noticef("Flush error: cannot stream response; problem writing: %v", err)
 	}
 	rr.Close()
 }
