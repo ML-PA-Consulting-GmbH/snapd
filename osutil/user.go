@@ -308,22 +308,29 @@ func AddUser(name string, opts *AddUserOptions) error {
 		return fmt.Errorf("cannot find user %q: %s", name, err)
 	}
 	fmt.Printf("After userlookup user: %v, username: %v\n", u.Name, u.Username)
+	fmt.Printf("Before gid user id: %v, user grp id: %v\n", u.Uid, u.Gid)
 
 	uid, gid, err := UidGid(u)
+	fmt.Printf("in gid user id: %v, user grp id: %v\n", u.Uid, u.Gid)
 	if err != nil {
-		return fmt.Errorf("Error UidGid: %v\n", err)
+		fmt.Printf("In error gid user: %v, username: %v\n", u.Name, u.Username)
+		return fmt.Errorf("Error UidGid: %v", err)
 	}
-
+	fmt.Printf("After gid user: %v, username: %v\n", u.Name, u.Username)
+	fmt.Printf("Before ssh homedir user : %v\n", u.HomeDir)
 	sshDir := filepath.Join(u.HomeDir, ".ssh")
 	if err := MkdirAllChown(sshDir, 0700, uid, gid); err != nil {
 		return fmt.Errorf("cannot create %s: %s", sshDir, err)
 	}
 	authKeys := filepath.Join(sshDir, "authorized_keys")
 	authKeysContent := strings.Join(opts.SSHKeys, "\n")
+	fmt.Printf("in ssh keys content from user : %v, content: %v\n", u.Username, authKeysContent)
+	fmt.Printf("in auth ssh keys user : %v\n", u.Username)
 	if err := AtomicWriteFileChown(authKeys, []byte(authKeysContent), 0600, 0, uid, gid); err != nil {
+		fmt.Printf("in auth error ssh keys user : %v\n", u.Username)
 		return fmt.Errorf("cannot write %s: %s", authKeys, err)
 	}
-
+	fmt.Printf("User successfully full created")
 	return nil
 }
 
@@ -423,14 +430,17 @@ func UserMaybeSudoUser() (*user.User, error) {
 // XXX this should go away soon
 func UidGid(u *user.User) (sys.UserID, sys.GroupID, error) {
 	// XXX this will be wrong for high uids on 32-bit arches (for now)
+	fmt.Printf("IN funtion uidgid user: %v, username: %v, id user: %v,  grpuser: %v\n", u.Name, u.Username, u.Uid, u.Gid)
 	uid, err := strconv.Atoi(u.Uid)
 	if err != nil {
+		fmt.Printf("IN error uid funtion user: %v, username: %v, id user: %v,  grpuser: %v\n", u.Name, u.Username, u.Uid, u.Gid)
 		return sys.FlagID, sys.FlagID, fmt.Errorf("cannot parse user id %s: %s", u.Uid, err)
 	}
 	gid, err := strconv.Atoi(u.Gid)
 	if err != nil {
+		fmt.Printf("IN error gid funtion user: %v, username: %v, id user: %v,  grpuser: %v\n", u.Name, u.Username, u.Uid, u.Gid)
 		return sys.FlagID, sys.FlagID, fmt.Errorf("cannot parse group id %s: %s", u.Gid, err)
 	}
-
+	fmt.Printf("IN end of funtion uidgid funtion user: %v, username: %v, id user: %v,  grpuser: %v\n", u.Name, u.Username, uid, gid)
 	return sys.UserID(uid), sys.GroupID(gid), nil
 }
