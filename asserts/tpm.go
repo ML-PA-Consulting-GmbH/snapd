@@ -106,17 +106,23 @@ func seedToSerial(seed string) string {
 
 func DeterministicDeviceSerial() (string, error) {
 	if HasTpm() {
+		fmt.Printf("DeterministicDeviceSerial Check tpm of err stat: %v", HasTpm())
 		return TpmDeterministicDeviceSerial()
 	}
+	fmt.Printf("NoTpmDeterministicDeviceSerial Check tpm of create serial")
 	return NoTpmDeterministicDeviceSerial()
 }
 
 func NoTpmDeterministicDeviceSerial() (string, error) {
+	fmt.Printf("NoTpmDeterministicDeviceSerial before in range")
 	for _, device := range []string{"/dev/mmcblk0", "/dev/mmcblk1", "/dev/mmcblk2"} {
+		fmt.Printf("Check if device has exist in range")
 		if serial, err := getDriveSerial(device); err == nil {
+			fmt.Printf("Check if device has serial in range %v", serial)
 			return seedToSerial(serial), nil
 		}
 	}
+	fmt.Printf("No device found")
 	return "", fmt.Errorf("failed building deterministic serial - no seeding sources found")
 }
 
@@ -154,6 +160,7 @@ func TpmTest() {
 
 func HasTpm() bool {
 	_, err := os.Stat("/dev/tpmrm0")
+	fmt.Printf("Check tpm of err stat: %v", err)
 	return !os.IsNotExist(err)
 }
 
