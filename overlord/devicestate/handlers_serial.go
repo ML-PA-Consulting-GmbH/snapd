@@ -466,26 +466,28 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	//superDetailedRequestLogs(req, "added headers from config object")
 	req.Header.Set("Content-Type", asserts.MediaType)
 	//superDetailedRequestLogs(req, "added Content-Type header")
-
-	// mlpa patch: push ek to store
-	if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
-		req.Header.Set("X-Tpm-Ek", ekPubBase64)
-		req.Header.Set("X-Use-Proposed", "yes")
-		logger.Noticef("TPM: X-Tpm-Ek: %s", ekPubBase64)
-		//superDetailedRequestLogs(req, "added X-Tpm-Ek header")
-	}
-
-	// mlpa patch: always sign payload
-	if bodySerialSignature, err := asserts.TpmSignBytes([]byte(serialRequest)); err == nil {
-		bodySerialSignatureBase64 := base64.StdEncoding.EncodeToString(bodySerialSignature)
-		logger.Noticef("TPM: Body, base64 encoded: %s", base64.StdEncoding.EncodeToString([]byte(serialRequest)))
-		logger.Noticef("TPM: X-Tpm-Body-Signature: %v", bodySerialSignatureBase64)
-		req.Header.Set("X-Tpm-Body-Signature", bodySerialSignatureBase64)
-		//superDetailedRequestLogs(req, "added X-Tpm-Body-Signature header")
+	if asserts.HasTpm() {
+		logger.Noticef("No TPM Device, sending unsigned.")
 	} else {
-		logger.Noticef("TPM: cannot sign serial request body: %s\nanalyzing problem..", err)
-	}
+		// mlpa patch: push ek to store
+		if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
+			req.Header.Set("X-Tpm-Ek", ekPubBase64)
+			req.Header.Set("X-Use-Proposed", "yes")
+			logger.Noticef("TPM: X-Tpm-Ek: %s", ekPubBase64)
+			//superDetailedRequestLogs(req, "added X-Tpm-Ek header")
+		}
 
+		// mlpa patch: always sign payload
+		if bodySerialSignature, err := asserts.TpmSignBytes([]byte(serialRequest)); err == nil {
+			bodySerialSignatureBase64 := base64.StdEncoding.EncodeToString(bodySerialSignature)
+			logger.Noticef("TPM: Body, base64 encoded: %s", base64.StdEncoding.EncodeToString([]byte(serialRequest)))
+			logger.Noticef("TPM: X-Tpm-Body-Signature: %v", bodySerialSignatureBase64)
+			req.Header.Set("X-Tpm-Body-Signature", bodySerialSignatureBase64)
+			//superDetailedRequestLogs(req, "added X-Tpm-Body-Signature header")
+		} else {
+			logger.Noticef("TPM: cannot sign serial request body: %s\nanalyzing problem..", err)
+		}
+	}
 	//superDetailedRequestLogs(req, "sending request..")
 	resp, err := client.Do(req)
 	if err != nil {
