@@ -467,7 +467,7 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	req.Header.Set("Content-Type", asserts.MediaType)
 	//superDetailedRequestLogs(req, "added Content-Type header")
 	if asserts.HasTpm() {
-		logger.Noticef("No TPM Device, sending unsigned.")
+		logger.Noticef("No TPM Device, sending unsigned.\n")
 	} else {
 		// mlpa patch: push ek to store
 		if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
