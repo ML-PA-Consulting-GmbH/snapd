@@ -21,7 +21,6 @@ package daemon
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"regexp"
 	"time"
@@ -355,8 +354,6 @@ func createUser(c *Command, createData postUserCreateData) Response {
 			SSHKeys:  cu.SSHKeys,
 		})
 	}
-	fmt.Printf("User response username: %v", createdUsersResponse[0].Username)
-	fmt.Printf("User response: %v", createdUsersResponse)
 
 	return SyncResponse(createdUsersResponse)
 }
