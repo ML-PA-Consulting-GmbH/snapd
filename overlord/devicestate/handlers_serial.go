@@ -488,16 +488,16 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 			logger.Noticef("TPM: cannot sign serial request body: %s\nanalyzing problem..", err)
 		}
 	}
-	//superDetailedRequestLogs(req, "sending request..")
+	superDetailedRequestLogs(req, "sending request..")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, nil, retryErr(t, 0, "cannot deliver device serial request retry error: %v : method: %v , header: %v", err, req.Method, req.Header.Get("X-Tpm-Body-Signature"))
 	}
 	defer resp.Body.Close()
 
-	//fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s", logCount, resp.StatusCode, resp.Header.Get("Content-Type"), resp.)
-	//superDetailedRequestLogs(resp.Request, "received response containing this request as reference")
-	//logger.Noticef("RESPONSE log #%d: status=%d, content-type=%s\n", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
+	fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s", logCount, resp.StatusCode, resp.Header.Get("Content-Type"), resp.)
+	superDetailedRequestLogs(resp.Request, "received response containing this request as reference")
+	logger.Noticef("RESPONSE log #%d: status=%d, content-type=%s\n", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
 
 	switch resp.StatusCode {
 	case 200, 201:
