@@ -505,12 +505,12 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	bodyString := string(bodyBytes)
 	switch resp.StatusCode {
 	case 200, 201:
+		fmt.Printf("######## Body response success code 200,201: %v\n", bodyString)
 	case 202:
-		fmt.Printf("###### Body response success: %v\n", bodyString)
+		fmt.Printf("######## Body response success code 202: %v\n", bodyString)
 		return nil, nil, errPoll
 	default:
-
-		fmt.Printf("###### Body response from store error body: %v\n", bodyString)
+		fmt.Printf("######## Body response from store error body: %v\n", bodyString)
 		return nil, nil, retryBadStatus(t, 0, "cannot deliver device serial request bad request", resp)
 	}
 
