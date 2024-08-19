@@ -804,21 +804,23 @@ func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user
 	}
 	if !asserts.HasTpm() {
 		logger.Noticef("TPM: no tpm chip -> not signing request")
-	} else if reqOptions.Data != nil && len(reqOptions.Data) > 0 {
-		// mlpa patch: always sign payload
-		bodyBytes := reqOptions.Data
-		logger.Noticef("TPM: trying to sign %d bytes of request body", len(bodyBytes))
-		logger.Noticef(base64.StdEncoding.EncodeToString(bodyBytes))
-
-		if bodySignature, err := asserts.TpmSignBytes(bodyBytes); err == nil {
-			bodySignatureBase64 := base64.StdEncoding.EncodeToString(bodySignature)
-			logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", bodySignatureBase64)
-			req.Header.Set("X-Tpm-Body-Signature", bodySignatureBase64)
-		} else {
-			logger.Noticef("TPM: cannot sign request body: %s\nanalyzing problem..", err)
-		}
 	} else {
-		logger.Noticef("TPM: %s signature not added due to empty request body", req.URL)
+		if reqOptions.Data != nil && len(reqOptions.Data) > 0 {
+			// mlpa patch: always sign payload
+			bodyBytes := reqOptions.Data
+			logger.Noticef("TPM: trying to sign %d bytes of request body", len(bodyBytes))
+			logger.Noticef(base64.StdEncoding.EncodeToString(bodyBytes))
+
+			if bodySignature, err := asserts.TpmSignBytes(bodyBytes); err == nil {
+				bodySignatureBase64 := base64.StdEncoding.EncodeToString(bodySignature)
+				logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", bodySignatureBase64)
+				req.Header.Set("X-Tpm-Body-Signature", bodySignatureBase64)
+			} else {
+				logger.Noticef("TPM: cannot sign request body: %s\nanalyzing problem..", err)
+			}
+		} else {
+			logger.Noticef("TPM: %s signature not added due to empty request body", req.URL)
+		}
 	}
 	customStore := s.setStoreID(req, reqOptions.APILevel)
 	authOpts := AuthorizeOptions{apiLevel: reqOptions.APILevel}
