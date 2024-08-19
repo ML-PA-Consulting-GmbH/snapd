@@ -495,7 +495,7 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	}
 	defer resp.Body.Close()
 
-	fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s", logCount, resp.StatusCode, resp.Header.Get("Content-Type"), resp.)
+	fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
 	superDetailedRequestLogs(resp.Request, "received response containing this request as reference")
 	logger.Noticef("RESPONSE log #%d: status=%d, content-type=%s\n", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
 
