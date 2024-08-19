@@ -442,10 +442,10 @@ var errPoll = errors.New("serial-request accepted, poll later")
 
 var logCount = 0
 
-func superDetailedRequestLogs(req *http.Request, message string) {
+/*func superDetailedRequestLogs(req *http.Request, message string) {
 	logger.Noticef("REQUEST log #%d (%s): method=%s, url=%s\n", logCount, message, req.Method, req.URL.String())
 	logCount++
-}
+}*/
 
 func submitSerialRequest(t *state.Task, serialRequest string, client *http.Client, cfg *serialRequestConfig) (*asserts.Serial, *asserts.Batch, error) {
 	st := t.State()
@@ -498,19 +498,20 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	//fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
 	//superDetailedRequestLogs(resp.Request, "received response containing this request as reference")
 	//logger.Noticef("RESPONSE log #%d: status=%d, content-type=%s\n", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
-	bodyBytes, err := io.ReadAll(resp.Body)
+
+	/*bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Printf("ERROR: %v", err.Error())
 	}
-	bodyString := string(bodyBytes)
+	bodyString := string(bodyBytes)*/
 	switch resp.StatusCode {
 	case 200, 201:
-		fmt.Printf("######## Body response success code 200,201: %v\n", bodyString)
+		//fmt.Printf("######## Body response success code 200,201: %v\n", bodyString)
 	case 202:
-		fmt.Printf("######## Body response success code 202: %v\n", bodyString)
+		//fmt.Printf("######## Body response success code 202: %v\n", bodyString)
 		return nil, nil, errPoll
 	default:
-		fmt.Printf("######## Body response from store error body: %v\n", bodyString)
+		//fmt.Printf("######## Body response from store error body: %v\n", bodyString)
 		return nil, nil, retryBadStatus(t, 0, "cannot deliver device serial request bad request", resp)
 	}
 

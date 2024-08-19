@@ -47,7 +47,10 @@ const gpioControlConnectedPlugAppArmor = `
 # apparmor needs the symlink targets which on most platforms the path
 # below (see also PR#12816)
 /sys/devices/platform/**/gpio/gpio[0-9]*/{active_low,direction,value,edge} rw,
+/dev/gpiochip[0-9]* rw,
 `
+
+var gpioControlConnectedPlugUDev = []string{`KERNEL=="gpiochip[0-9]*"`}
 
 func init() {
 	registerIface(&commonInterface{
@@ -58,5 +61,6 @@ func init() {
 		baseDeclarationPlugs:  gpioControlBaseDeclarationPlugs,
 		baseDeclarationSlots:  gpioControlBaseDeclarationSlots,
 		connectedPlugAppArmor: gpioControlConnectedPlugAppArmor,
+		connectedPlugUDev:     gpioControlConnectedPlugUDev,
 	})
 }
