@@ -488,22 +488,29 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 			logger.Noticef("TPM: cannot sign serial request body: %s\nanalyzing problem..", err)
 		}
 	}
-	superDetailedRequestLogs(req, "sending request..")
+	//superDetailedRequestLogs(req, "sending request..")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, nil, retryErr(t, 0, "cannot deliver device serial request retry error: %v : method: %v , header: %v", err, req.Method, req.Header.Get("X-Tpm-Body-Signature"))
 	}
 	defer resp.Body.Close()
 
-	fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
-	superDetailedRequestLogs(resp.Request, "received response containing this request as reference")
-	logger.Noticef("RESPONSE log #%d: status=%d, content-type=%s\n", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
-
+	//fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
+	//superDetailedRequestLogs(resp.Request, "received response containing this request as reference")
+	//logger.Noticef("RESPONSE log #%d: status=%d, content-type=%s\n", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("ERROR: %v", err.Error())
+	}
+	bodyString := string(bodyBytes)
 	switch resp.StatusCode {
 	case 200, 201:
 	case 202:
+		fmt.Printf("###### Body response success: %v\n", bodyString)
 		return nil, nil, errPoll
 	default:
+
+		fmt.Printf("###### Body response from store error body: %v\n", bodyString)
 		return nil, nil, retryBadStatus(t, 0, "cannot deliver device serial request bad request", resp)
 	}
 
