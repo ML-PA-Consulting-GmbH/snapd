@@ -524,14 +524,18 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 		if err == io.EOF {
 			break
 		}
+		fmt.Printf("######## assertion type : %v\n", string(got.HeaderString("type")))
 		if err != nil { // assume broken i/o
+			fmt.Printf("######## cannot read response to request for a serial : %v\n", err)
 			return nil, nil, retryErr(t, 0, "cannot read response to request for a serial: %v", err)
 		}
 		if got.Type() == asserts.SerialType {
 			if serial != nil {
+				fmt.Printf("######## cannot accept more than a single device serial : %v\n", got.Type())
 				return nil, nil, fmt.Errorf("cannot accept more than a single device serial assertion from the device service")
 			}
 			serial = got.(*asserts.Serial)
+			fmt.Printf("######## is serial assertion : %v\n", serial)
 		} else {
 			if batch == nil {
 				batch = asserts.NewBatch(nil)
@@ -542,7 +546,7 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 		}
 		// TODO: consider a size limit?
 	}
-
+	fmt.Printf("######## end of serial assertion : %v\n", serial)
 	if serial == nil {
 		return nil, nil, fmt.Errorf("cannot proceed, received assertion stream from the device service missing device serial assertion")
 	}

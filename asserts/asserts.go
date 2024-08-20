@@ -871,25 +871,31 @@ func (d *Decoder) Decode() (Assertion, error) {
 			}
 			return nil, io.EOF
 		}
+		fmt.Printf("######## Parsing headandSep error: %v\n", headAndSep)
 		return nil, fmt.Errorf("error reading assertion headers: %v", err)
 	}
 
 	headLen := len(headAndSep) - len(nlnl)
 	headers, err := parseHeaders(headAndSep[:headLen])
+	fmt.Printf("######## Parsing header respone: %v\n", headers)
 	if err != nil {
+		fmt.Printf("######## Parsing type error: %v\n", headers)
 		return nil, fmt.Errorf("parsing assertion headers: %v", err)
 	}
 
 	typeStr, _ := headers["type"].(string)
 	typ := Type(typeStr)
+	fmt.Printf("######## Parsing type: %v\n", typeStr)
 
 	length, err := checkIntWithDefault(headers, "body-length", 0)
 	if err != nil {
 		return nil, fmt.Errorf("assertion: %v", err)
 	}
 	if typMaxBodySize := d.typeMaxBodySize[typ]; typMaxBodySize != 0 && length > typMaxBodySize {
+		fmt.Printf("######## assertion body length: %v, ### %v\n", length, typ.Name)
 		return nil, fmt.Errorf("assertion body length %d exceeds maximum body size %d for %q assertions", length, typMaxBodySize, typ.Name)
 	} else if length > d.defaultMaxBodySize {
+		fmt.Printf("######## assertion body length: %v, ### %v\n", length, typ.Name)
 		return nil, fmt.Errorf("assertion body length %d exceeds maximum body size", length)
 	}
 
@@ -904,12 +910,14 @@ func (d *Decoder) Decode() (Assertion, error) {
 		if err != nil {
 			return nil, err
 		}
+		fmt.Printf("######## assertion body: %v\n", string(body))
 		contentBuf.Write(body)
 	}
 
 	// try to read the end of body a.k.a content/signature separator
 	endOfBody, err := d.readUntil(nlnl, d.maxSigSize)
 	if err != nil && err != io.EOF {
+		fmt.Printf("######## assertion error EOF body: %v\n", string(endOfBody))
 		return nil, fmt.Errorf("error reading assertion trailer: %v", err)
 	}
 
@@ -918,11 +926,13 @@ func (d *Decoder) Decode() (Assertion, error) {
 		// we got the nlnl content/signature separator, read the signature now and the assertion/assertion nlnl separation
 		sig, err = d.readUntil(nlnl, d.maxSigSize)
 		if err != nil && err != io.EOF {
+			fmt.Printf("######## assertion reading error EOF body signature : %v\n", string(sig))
 			return nil, fmt.Errorf("error reading assertion signature: %v", err)
 		}
 	} else {
 		// we got the signature directly which is a ok format only if body length == 0
 		if length > 0 {
+			fmt.Printf("######## missing content/signature separator : %v\n", string(sig))
 			return nil, fmt.Errorf("missing content/signature separator")
 		}
 		sig = endOfBody
@@ -939,7 +949,7 @@ func (d *Decoder) Decode() (Assertion, error) {
 	if length > 0 {
 		finalBody = finalContent[headLen+len(nlnl):]
 	}
-
+	fmt.Printf("######## final assemble body : %v\n", string(finalBody))
 	finalSig := make([]byte, len(sig))
 	copy(finalSig, sig)
 
