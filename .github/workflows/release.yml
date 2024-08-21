@@ -32,7 +32,8 @@ jobs:
       run: |
           rm -rf .git
           rm -rf .github
-          tar cfah /tmp/snapd_${{ env.TAG_NAME }}.tar.xz .  
+          tar cfah /tmp/snapd_${{ env.TAG_NAME }}.tar.xz .
+          ls -la ../
 
     - name: Get release ID
       id: get_release
