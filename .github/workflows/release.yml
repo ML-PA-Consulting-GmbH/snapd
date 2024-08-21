@@ -28,12 +28,15 @@ jobs:
         go mod vendor
         ./mkversion.sh
 
-    - name: Create tarball
+    - name: Create tarballs
       run: |
           rm -rf .git
           rm -rf .github
           tar cfah /tmp/snapd_${{ env.TAG_NAME }}.tar.xz .
-          ls -la ../
+          cd .. 
+          cp -r snapd snapd-${{ env.TAG_NAME }}
+          tar cfah /tmp/snapd_${{ env.TAG_NAME }}.vendor.tar.xz snapd-${{ env.TAG_NAME }}
+
 
     - name: Get release ID
       id: get_release
@@ -52,4 +55,14 @@ jobs:
         upload_url: "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets?name=snapd_${{ env.TAG_NAME }}.tar.xz"
         asset_path: /tmp/snapd_${{ env.TAG_NAME }}.tar.xz
         asset_name: snapd_${{ env.TAG_NAME }}.tar.xz
+        asset_content_type: application/x-tar
+
+    - name: Upload release asset yocto version
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets?name=snapd_${{ env.TAG_NAME }}.vendor.tar.xz"
+        asset_path: /tmp/snapd_${{ env.TAG_NAME }}.vendor.tar.xz
+        asset_name: snapd_${{ env.TAG_NAME }}.vendor.tar.xz
         asset_content_type: application/x-tar
