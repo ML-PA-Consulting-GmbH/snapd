@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path/filepath"
 	"time"
@@ -91,7 +92,7 @@ func (s *deviceMgrSystemsBaseSuite) SetUpTest(c *C) {
 		Brands:       s.brands,
 	}
 
-	s.model = s.makeModelAssertionInState(c, "canonical", "pc-20", map[string]interface{}{
+	s.model = s.makeModelAssertionInState(c, constants.AccountId, "pc-20", map[string]interface{}{
 		"architecture": "amd64",
 		// UC20
 		"grade": "dangerous",
@@ -122,7 +123,7 @@ func (s *deviceMgrSystemsBaseSuite) SetUpTest(c *C) {
 		},
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-20",
 		Serial: "serialserialserial",
 	})
@@ -172,10 +173,10 @@ func (s *deviceMgrSystemsSuite) SetUpTest(c *C) {
 	otherBrandAcc := s.brands.Account("other-brand")
 
 	// add essential snaps
-	seed20.MakeAssertedSnap(c, "name: snapd\nversion: 1\ntype: snapd", nil, snap.R(1), "canonical", seed20.StoreSigning.Database)
-	seed20.MakeAssertedSnap(c, "name: pc\nversion: 1\ntype: gadget\nbase: core20", nil, snap.R(1), "canonical", seed20.StoreSigning.Database)
-	seed20.MakeAssertedSnap(c, "name: pc-kernel\nversion: 1\ntype: kernel", nil, snap.R(1), "canonical", seed20.StoreSigning.Database)
-	seed20.MakeAssertedSnap(c, "name: core20\nversion: 1\ntype: base", nil, snap.R(1), "canonical", seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: snapd\nversion: 1\ntype: snapd", nil, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: pc\nversion: 1\ntype: gadget\nbase: core20", nil, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: pc-kernel\nversion: 1\ntype: kernel", nil, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: core20\nversion: 1\ntype: base", nil, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
 
 	model1 := seed20.MakeSeed(c, "20191119", "my-brand", "my-model", map[string]interface{}{
 		"display-name": "my fancy model",
@@ -1380,8 +1381,8 @@ func (s *deviceMgrSystemsCreateSuite) makeSnapInState(c *C, name string, rev sna
 	info := snaptest.MakeSnapFileAndDir(c, snapYamls[name], snapFiles[name], si)
 	// asserted?
 	if !rev.Unset() && !rev.Local() {
-		s.setupSnapDecl(c, info, "canonical")
-		s.setupSnapRevision(c, info, "canonical", rev)
+		s.setupSnapDecl(c, info, constants.AccountId)
+		s.setupSnapRevision(c, info, constants.AccountId, rev)
 	}
 	snapstate.Set(s.state, info.InstanceName(), &snapstate.SnapState{
 		SnapType: string(info.Type()),
@@ -1537,14 +1538,14 @@ func (s *deviceMgrSystemsCreateSuite) TestDeviceManagerCreateRecoverySystemRemod
 		SideInfo: &snap.SideInfo{RealName: "foo", SnapID: s.ss.AssertedSnapID("foo"), Revision: snap.R(99)},
 		SnapPath: fooSnap,
 	}
-	s.setupSnapDeclForNameAndID(c, "foo", s.ss.AssertedSnapID("foo"), "canonical")
-	s.setupSnapRevisionForFileAndID(c, fooSnap, s.ss.AssertedSnapID("foo"), "canonical", snap.R(99))
+	s.setupSnapDeclForNameAndID(c, "foo", s.ss.AssertedSnapID("foo"), constants.AccountId)
+	s.setupSnapRevisionForFileAndID(c, fooSnap, s.ss.AssertedSnapID("foo"), constants.AccountId, snap.R(99))
 	snapsupBar := snapstate.SnapSetup{
 		SideInfo: &snap.SideInfo{RealName: "bar", SnapID: s.ss.AssertedSnapID("bar"), Revision: snap.R(100)},
 		SnapPath: barSnap,
 	}
-	s.setupSnapDeclForNameAndID(c, "bar", s.ss.AssertedSnapID("bar"), "canonical")
-	s.setupSnapRevisionForFileAndID(c, barSnap, s.ss.AssertedSnapID("bar"), "canonical", snap.R(100))
+	s.setupSnapDeclForNameAndID(c, "bar", s.ss.AssertedSnapID("bar"), constants.AccountId)
+	s.setupSnapRevisionForFileAndID(c, barSnap, s.ss.AssertedSnapID("bar"), constants.AccountId, snap.R(100))
 	// when download completes, the files will be at /var/lib/snapd/snap
 	c.Assert(os.MkdirAll(filepath.Dir(snapsupFoo.MountFile()), 0755), IsNil)
 	c.Assert(os.Rename(fooSnap, snapsupFoo.MountFile()), IsNil)
@@ -1579,7 +1580,7 @@ func (s *deviceMgrSystemsCreateSuite) TestDeviceManagerCreateRecoverySystemRemod
 
 	// downloads are only accepted if the tasks are executed as part of
 	// remodel, so procure a new model
-	newModel := s.brands.Model("canonical", "pc-20", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-20", map[string]interface{}{
 		"architecture": "amd64",
 		// UC20
 		"grade": "dangerous",
@@ -1745,7 +1746,7 @@ func (s *deviceMgrSystemsCreateSuite) TestDeviceManagerCreateRecoverySystemRemod
 
 	// downloads are only accepted if the tasks are executed as part of
 	// remodel, so procure a new model
-	newModel := s.brands.Model("canonical", "pc-20", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-20", map[string]interface{}{
 		"architecture": "amd64",
 		// UC20
 		"grade": "dangerous",

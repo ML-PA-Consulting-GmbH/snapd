@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"net/http"
 	"net/url"
 	"os"
@@ -115,7 +116,7 @@ func (s *toolingSuite) setupSnaps(c *C, publishers map[string]string, defaultsYa
 
 func (s *toolingSuite) TestNewToolingStore(c *C) {
 	// default
-	u, err := url.Parse("https://api.snapcraft.io/")
+	u, err := url.Parse(constants.BaseUrlSnapcraftApi)
 	c.Assert(err, IsNil)
 
 	tsto, err := tooling.NewToolingStore()
@@ -507,7 +508,7 @@ func (s *toolingSuite) TestSimpleCreds(c *C) {
 func (s *toolingSuite) setupSequenceFormingAssertion(c *C) {
 	vs, err := s.StoreSigning.Sign(asserts.ValidationSetType, map[string]interface{}{
 		"type":         "validation-set",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
 		"account-id":   "canonical",
 		"name":         "base-set",
@@ -549,7 +550,7 @@ func (s *toolingSuite) TestAssertionSequenceFormingFetcherSimple(c *C) {
 
 	seq := &asserts.AtSequence{
 		Type:        asserts.ValidationSetType,
-		SequenceKey: []string{"16", "canonical", "base-set"},
+		SequenceKey: []string{"16", constants.AccountId, "base-set"},
 		Sequence:    1,
 	}
 

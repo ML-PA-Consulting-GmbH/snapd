@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"encoding/pem"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -225,7 +226,7 @@ func MockDeviceService(c *C, bhv *DeviceServiceBehavior) (mockServer *httptest.S
 				c.Check(mod.Model(), Equals, model)
 			}
 			serial, ancillary, err := bhv.SignSerial(c, bhv, map[string]interface{}{
-				"authority-id":        "canonical",
+				"authority-id":        constants.AccountId,
 				"brand-id":            brandID,
 				"model":               model,
 				"serial":              serialStr,

@@ -22,6 +22,7 @@ package devicestate_test
 import (
 	"compress/gzip"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -630,7 +631,7 @@ func (s *deviceMgrInstallModeSuite) TestInstallRestoresPreseedArtifactModelMisma
 	s.makeMockInstalledPcKernelAndGadget(c, "", "")
 	devicestate.SetSystemMode(s.mgr, "install")
 
-	mismatchedModel := s.brands.Model("canonical", "my-model", map[string]interface{}{
+	mismatchedModel := s.brands.Model(constants.AccountId, "my-model", map[string]interface{}{
 		"display-name": "my model",
 		"architecture": "amd64",
 		"base":         "core20",
@@ -1397,7 +1398,7 @@ func (s *deviceMgrInstallModeSuite) TestInstallCheckEncrypted(c *C) {
 
 	s.makeMockInstalledPcGadget(c, "", "")
 
-	mockModel := s.makeModelAssertionInState(c, "canonical", "pc", map[string]interface{}{
+	mockModel := s.makeModelAssertionInState(c, constants.AccountId, "pc", map[string]interface{}{
 		"display-name": "my model",
 		"architecture": "amd64",
 		"base":         "core20",
@@ -1417,7 +1418,7 @@ func (s *deviceMgrInstallModeSuite) TestInstallCheckEncrypted(c *C) {
 			}},
 	})
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc",
 	})
 	deviceCtx := &snapstatetest.TrivialDeviceContext{DeviceModel: mockModel}

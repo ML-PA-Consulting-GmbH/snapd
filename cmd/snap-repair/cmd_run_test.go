@@ -20,13 +20,14 @@
 package main_test
 
 import (
+	"github.com/snapcore/snapd/asserts"
+	"github.com/snapcore/snapd/asserts/sysdb"
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path/filepath"
 
 	. "gopkg.in/check.v1"
 
-	"github.com/snapcore/snapd/asserts"
-	"github.com/snapcore/snapd/asserts/sysdb"
 	repair "github.com/snapcore/snapd/cmd/snap-repair"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/osutil"
@@ -77,7 +78,7 @@ exit 0
 	c.Check(err, IsNil)
 	c.Check(r.Stdout(), HasLen, 0)
 
-	c.Check(osutil.FileExists(filepath.Join(dirs.SnapRepairRunDir, "canonical", "1", "r0.done")), Equals, true)
+	c.Check(osutil.FileExists(filepath.Join(dirs.SnapRepairRunDir, constants.AccountId, "1", "r0.done")), Equals, true)
 }
 
 func (r *repairSuite) TestRunAlreadyLocked(c *C) {

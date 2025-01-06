@@ -21,6 +21,7 @@ package devicestate_test
 
 import (
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -105,7 +106,7 @@ func (t *firstBootBaseTest) setupBaseTest(c *C, s *seedtest.SeedSnaps) {
 	t.systemctl = testutil.MockCommand(c, "systemctl", "")
 	t.AddCleanup(t.systemctl.Restore)
 
-	s.SetupAssertSigning("canonical")
+	s.SetupAssertSigning(constants.AccountId)
 	s.Brands.Register("my-brand", brandPrivKey, map[string]interface{}{
 		"verification": "verified",
 	})
@@ -209,7 +210,7 @@ func checkTrivialSeeding(c *C, tsAll []*state.TaskSet) {
 func modelHeaders(modelStr string, reqSnaps ...string) map[string]interface{} {
 	headers := map[string]interface{}{
 		"architecture": "amd64",
-		"store":        "canonical",
+		"store":        constants.AccountId,
 	}
 	if strings.HasSuffix(modelStr, "-classic") {
 		headers["classic"] = "true"
@@ -441,14 +442,14 @@ func (s *firstBoot16BaseTest) makeCoreSnaps(c *C, extraGadgetYaml string) (coreF
 	snapYaml := `name: core
 version: 1.0
 type: os`
-	coreFname, coreDecl, coreRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), "canonical")
+	coreFname, coreDecl, coreRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.AccountId)
 	s.WriteAssertions("core.asserts", coreRev, coreDecl)
 
 	// put kernel snap into the SnapBlobDir
 	snapYaml = `name: pc-kernel
 version: 1.0
 type: kernel`
-	kernelFname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), "canonical")
+	kernelFname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.AccountId)
 	s.WriteAssertions("kernel.asserts", kernelRev, kernelDecl)
 
 	gadgetYaml := `
@@ -464,7 +465,7 @@ volumes:
 	snapYaml = `name: pc
 version: 1.0
 type: gadget`
-	gadgetFname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), "canonical")
+	gadgetFname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, snapYaml, files, snap.R(1), constants.AccountId)
 	s.WriteAssertions("gadget.asserts", gadgetRev, gadgetDecl)
 
 	return coreFname, kernelFname, gadgetFname
@@ -845,7 +846,7 @@ func (s *firstBoot16Suite) TestPopulateFromSeedConfigureHappy(c *C) {
 defaults:
     foodidididididididididididididid:
        foo-cfg: foo.
-    99T7MUlRhtI3U0QFgl5mXXESAiSwt776:  # core
+    ` + constants.ProdIdCore + `:  # core
        core-cfg: core_cfg_defl
     pckernelidididididididididididid:
        pc-kernel-cfg: pc-kernel_cfg_defl
@@ -1331,7 +1332,7 @@ func (s *firstBoot16BaseTest) makeCore18Snaps(c *C, opts *core18SnapsOpts) (core
 	core18Yaml := `name: core18
 version: 1.0
 type: base`
-	core18Fname, core18Decl, core18Rev := s.MakeAssertedSnap(c, core18Yaml, files, snap.R(1), "canonical")
+	core18Fname, core18Decl, core18Rev := s.MakeAssertedSnap(c, core18Yaml, files, snap.R(1), constants.AccountId)
 	s.WriteAssertions("core18.asserts", core18Rev, core18Decl)
 
 	snapdYaml := `name: snapd
@@ -1344,7 +1345,7 @@ VERSION=2.54.3+git1.g479e745-dirty
 SNAPD_APPARMOR_REEXEC=1
 `},
 	}
-	snapdFname, snapdDecl, snapdRev := s.MakeAssertedSnap(c, snapdYaml, snapdSnapFiles, snap.R(2), "canonical")
+	snapdFname, snapdDecl, snapdRev := s.MakeAssertedSnap(c, snapdYaml, snapdSnapFiles, snap.R(2), constants.AccountId)
 	s.WriteAssertions("snapd.asserts", snapdRev, snapdDecl)
 
 	var kernelFname string
@@ -1352,7 +1353,7 @@ SNAPD_APPARMOR_REEXEC=1
 		kernelYaml := `name: pc-kernel
 version: 1.0
 type: kernel`
-		fname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, kernelYaml, files, snap.R(1), "canonical")
+		fname, kernelDecl, kernelRev := s.MakeAssertedSnap(c, kernelYaml, files, snap.R(1), constants.AccountId)
 		s.WriteAssertions("kernel.asserts", kernelRev, kernelDecl)
 		kernelFname = fname
 	}
@@ -1373,7 +1374,7 @@ version: 1.0
 type: gadget
 base: core18
 `
-		fname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, gaYaml, files, snap.R(1), "canonical")
+		fname, gadgetDecl, gadgetRev := s.MakeAssertedSnap(c, gaYaml, files, snap.R(1), constants.AccountId)
 		s.WriteAssertions("gadget.asserts", gadgetRev, gadgetDecl)
 		gadgetFname = fname
 	}
@@ -2289,7 +2290,7 @@ func (s *firstBoot16Suite) mockServer(c *C, reqID string) *httptest.Server {
 }
 
 func (s *firstBoot16Suite) signSerial(c *C, bhv *devicestatetest.DeviceServiceBehavior, headers map[string]interface{}, body []byte) (serial asserts.Assertion, ancillary []asserts.Assertion, err error) {
-	signing := assertstest.NewStoreStack("canonical", nil)
+	signing := assertstest.NewStoreStack(constants.AccountId, nil)
 	a, err := signing.Sign(asserts.SerialType, headers, body, "")
 	return a, nil, err
 }
@@ -2401,9 +2402,9 @@ snaps:
 func (s *firstBoot16Suite) TestPopulateFromSeedCore18ValidationSetTrackingHappy(c *C) {
 	a, err := s.StoreSigning.Sign(asserts.ValidationSetType, map[string]interface{}{
 		"type":         "validation-set",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
-		"account-id":   "canonical",
+		"account-id":   constants.AccountId,
 		"name":         "base-set",
 		"sequence":     "1",
 		"snaps": []interface{}{
@@ -2425,7 +2426,7 @@ func (s *firstBoot16Suite) TestPopulateFromSeedCore18ValidationSetTrackingHappy(
 	c.Assert(err, IsNil)
 
 	headers := map[string]interface{}{
-		"account-id": "canonical",
+		"account-id": constants.AccountId,
 		"name":       "base-set",
 		"sequence":   "1",
 		"mode":       "enforce",
@@ -2438,10 +2439,10 @@ func (s *firstBoot16Suite) TestPopulateFromSeedCore18ValidationSetTrackingHappy(
 
 	// Ensure that we are now tracking the validation-set
 	var tr assertstate.ValidationSetTracking
-	err = assertstate.GetValidationSet(s.overlord.State(), "canonical", "base-set", &tr)
+	err = assertstate.GetValidationSet(s.overlord.State(), constants.AccountId, "base-set", &tr)
 	c.Assert(err, IsNil)
 	c.Check(tr, DeepEquals, assertstate.ValidationSetTracking{
-		AccountID: "canonical",
+		AccountID: constants.AccountId,
 		Name:      "base-set",
 		Mode:      assertstate.Enforce,
 		Current:   1,
@@ -2452,9 +2453,9 @@ func (s *firstBoot16Suite) TestPopulateFromSeedCore18ValidationSetTrackingHappy(
 func (s *firstBoot16Suite) TestPopulateFromSeedCore18ValidationSetTrackingUnmetCriteria(c *C) {
 	a, err := s.StoreSigning.Sign(asserts.ValidationSetType, map[string]interface{}{
 		"type":         "validation-set",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
-		"account-id":   "canonical",
+		"account-id":   constants.AccountId,
 		"name":         "base-set",
 		"sequence":     "1",
 		"snaps": []interface{}{
@@ -2477,7 +2478,7 @@ func (s *firstBoot16Suite) TestPopulateFromSeedCore18ValidationSetTrackingUnmetC
 	c.Assert(err, IsNil)
 
 	headers := map[string]interface{}{
-		"account-id": "canonical",
+		"account-id": constants.AccountId,
 		"name":       "base-set",
 		"sequence":   "1",
 		"mode":       "enforce",
@@ -2487,5 +2488,5 @@ func (s *firstBoot16Suite) TestPopulateFromSeedCore18ValidationSetTrackingUnmetC
 	s.overlord.State().Lock()
 	defer s.overlord.State().Unlock()
 	c.Assert(chg.Status(), Equals, state.ErrorStatus)
-	c.Check(chg.Err().Error(), testutil.Contains, "pc-kernel (required at revision 7 by sets canonical/base-set))")
+	c.Check(chg.Err().Error(), testutil.Contains, "pc-kernel (required at revision 7 by sets "+constants.AccountId+"/base-set))")
 }

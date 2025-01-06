@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -90,7 +91,7 @@ func makeReadOnly(c *C, dir string) (restore func()) {
 }
 
 func (s *baseRunnerSuite) SetUpSuite(c *C) {
-	s.storeSigning = assertstest.NewStoreStack("canonical", nil)
+	s.storeSigning = assertstest.NewStoreStack(constants.AccountId, nil)
 
 	brandPrivKey, _ := assertstest.GenerateKey(752)
 
@@ -118,11 +119,11 @@ func (s *baseRunnerSuite) SetUpSuite(c *C) {
 
 	repairsKey, _ := assertstest.GenerateKey(752)
 
-	repairRootSigning := assertstest.NewSigningDB("canonical", repairRootKey)
+	repairRootSigning := assertstest.NewSigningDB(constants.AccountId, repairRootKey)
 
 	s.repairsAcctKey = assertstest.NewAccountKey(repairRootSigning, s.storeSigning.TrustedAccount, nil, repairsKey.PublicKey(), "")
 
-	s.repairsSigning = assertstest.NewSigningDB("canonical", repairsKey)
+	s.repairsSigning = assertstest.NewSigningDB(constants.AccountId, repairsKey)
 }
 
 func (s *baseRunnerSuite) SetUpTest(c *C) {
@@ -204,8 +205,8 @@ var _ = Suite(&runnerSuite{})
 
 var (
 	testKey = `type: account-key
-authority-id: canonical
-account-id: canonical
+authority-id: ` + constants.AccountId + `
+account-id: ` + constants.AccountId + `
 name: repair
 public-key-sha3-384: KPIl7M4vQ9d4AUjkoU41TGAwtOMLc_bWUCeW8AvdRWD4_xcP60Oo4ABsFNo6BtXj
 since: 2015-11-16T15:04:00Z
@@ -219,8 +220,8 @@ AXNpZw==
 `
 
 	testRepair = `type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 2
 summary: repair two
 architectures:
@@ -240,7 +241,7 @@ script
 AXNpZw==
 `
 	testHeadersResp = `{"headers":
-{"architectures":["amd64","arm64"],"authority-id":"canonical","body-length":"7","brand-id":"canonical","models":["xyz/frobinator"],"repair-id":"2","series":["16"],"sign-key-sha3-384":"KPIl7M4vQ9d4AUjkoU41TGAwtOMLc_bWUCeW8AvdRWD4_xcP60Oo4ABsFNo6BtXj","timestamp":"2017-03-30T12:22:16Z","type":"repair"}}`
+{"architectures":["amd64","arm64"],"authority-id":"` + constants.AccountId + `","body-length":"7","brand-id":"` + constants.AccountId + `","models":["xyz/frobinator"],"repair-id":"2","series":["16"],"sign-key-sha3-384":"KPIl7M4vQ9d4AUjkoU41TGAwtOMLc_bWUCeW8AvdRWD4_xcP60Oo4ABsFNo6BtXj","timestamp":"2017-03-30T12:22:16Z","type":"repair"}}`
 )
 
 func mustParseURL(s string) *url.URL {
@@ -269,7 +270,7 @@ func (s *runnerSuite) TestFetchJustRepair(c *C) {
 		ua := r.Header.Get("User-Agent")
 		c.Check(strings.Contains(ua, "snap-repair"), Equals, true)
 		c.Check(r.Header.Get("Accept"), Equals, "application/x.ubuntu.assertion")
-		c.Check(r.URL.Path, Equals, "/repairs/canonical/2")
+		c.Check(r.URL.Path, Equals, "/repairs/"+constants.AccountId+"/2")
 		io.WriteString(w, testRepair)
 	}))
 
@@ -282,11 +283,11 @@ func (s *runnerSuite) TestFetchJustRepair(c *C) {
 	r := s.mockBrokenTimeNowSetToEpoch(c, runner)
 	defer r()
 
-	repair, aux, err := runner.Fetch("canonical", 2, -1)
+	repair, aux, err := runner.Fetch(constants.AccountId, 2, -1)
 	c.Assert(err, IsNil)
 	c.Check(repair, NotNil)
 	c.Check(aux, HasLen, 0)
-	c.Check(repair.BrandID(), Equals, "canonical")
+	c.Check(repair.BrandID(), Equals, constants.AccountId)
 	c.Check(repair.RepairID(), Equals, 2)
 	c.Check(repair.Body(), DeepEquals, []byte("script\n"))
 
@@ -301,7 +302,7 @@ func (s *runnerSuite) TestFetchScriptTooBig(c *C) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		n++
 		c.Check(r.Header.Get("Accept"), Equals, "application/x.ubuntu.assertion")
-		c.Check(r.URL.Path, Equals, "/repairs/canonical/2")
+		c.Check(r.URL.Path, Equals, "/repairs/"+constants.AccountId+"/2")
 		io.WriteString(w, testRepair)
 	}))
 
@@ -311,7 +312,7 @@ func (s *runnerSuite) TestFetchScriptTooBig(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	_, _, err := runner.Fetch("canonical", 2, -1)
+	_, _, err := runner.Fetch(constants.AccountId, 2, -1)
 	c.Assert(err, ErrorMatches, `assertion body length 7 exceeds maximum body size 4 for "repair".*`)
 	c.Assert(n, Equals, 1)
 }
@@ -341,7 +342,7 @@ func (s *runnerSuite) TestFetch500(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	_, _, err := runner.Fetch("canonical", 2, -1)
+	_, _, err := runner.Fetch(constants.AccountId, 2, -1)
 	c.Assert(err, ErrorMatches, "cannot fetch repair, unexpected status 500")
 	c.Assert(n, Equals, 5)
 }
@@ -362,7 +363,7 @@ func (s *runnerSuite) TestFetchEmpty(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	_, _, err := runner.Fetch("canonical", 2, -1)
+	_, _, err := runner.Fetch(constants.AccountId, 2, -1)
 	c.Assert(err, Equals, io.ErrUnexpectedEOF)
 	c.Assert(n, Equals, 5)
 }
@@ -384,7 +385,7 @@ func (s *runnerSuite) TestFetchBroken(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	_, _, err := runner.Fetch("canonical", 2, -1)
+	_, _, err := runner.Fetch(constants.AccountId, 2, -1)
 	c.Assert(err, Equals, io.ErrUnexpectedEOF)
 	c.Assert(n, Equals, 5)
 }
@@ -408,7 +409,7 @@ func (s *runnerSuite) TestFetchNotFound(c *C) {
 	r := s.mockBrokenTimeNowSetToEpoch(c, runner)
 	defer r()
 
-	_, _, err := runner.Fetch("canonical", 2, -1)
+	_, _, err := runner.Fetch(constants.AccountId, 2, -1)
 	c.Assert(err, Equals, repair.ErrRepairNotFound)
 	c.Assert(n, Equals, 1)
 
@@ -435,7 +436,7 @@ func (s *runnerSuite) TestFetchIfNoneMatchNotModified(c *C) {
 	r := s.mockBrokenTimeNowSetToEpoch(c, runner)
 	defer r()
 
-	_, _, err := runner.Fetch("canonical", 2, 0)
+	_, _, err := runner.Fetch(constants.AccountId, 2, 0)
 	c.Assert(err, Equals, repair.ErrRepairNotModified)
 	c.Assert(n, Equals, 1)
 
@@ -453,7 +454,7 @@ func (s *runnerSuite) TestFetchIgnoreSupersededRevision(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	_, _, err := runner.Fetch("canonical", 2, 2)
+	_, _, err := runner.Fetch(constants.AccountId, 2, 2)
 	c.Assert(err, Equals, repair.ErrRepairNotModified)
 }
 
@@ -469,14 +470,14 @@ func (s *runnerSuite) TestFetchIdMismatch(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	_, _, err := runner.Fetch("canonical", 4, -1)
-	c.Assert(err, ErrorMatches, `cannot fetch repair, repair id mismatch canonical/2 != canonical/4`)
+	_, _, err := runner.Fetch(constants.AccountId, 4, -1)
+	c.Assert(err, ErrorMatches, `cannot fetch repair, repair id mismatch `+constants.AccountId+`/2 != `+constants.AccountId+`/4`)
 }
 
 func (s *runnerSuite) TestFetchWrongFirstType(c *C) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c.Check(r.Header.Get("Accept"), Equals, "application/x.ubuntu.assertion")
-		c.Check(r.URL.Path, Equals, "/repairs/canonical/2")
+		c.Check(r.URL.Path, Equals, "/repairs/"+constants.AccountId+"/2")
 		io.WriteString(w, testKey)
 	}))
 
@@ -486,14 +487,14 @@ func (s *runnerSuite) TestFetchWrongFirstType(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	_, _, err := runner.Fetch("canonical", 2, -1)
+	_, _, err := runner.Fetch(constants.AccountId, 2, -1)
 	c.Assert(err, ErrorMatches, `cannot fetch repair, unexpected first assertion "account-key"`)
 }
 
 func (s *runnerSuite) TestFetchRepairPlusKey(c *C) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c.Check(r.Header.Get("Accept"), Equals, "application/x.ubuntu.assertion")
-		c.Check(r.URL.Path, Equals, "/repairs/canonical/2")
+		c.Check(r.URL.Path, Equals, "/repairs/"+constants.AccountId+"/2")
 		io.WriteString(w, testRepair)
 		io.WriteString(w, "\n")
 		io.WriteString(w, testKey)
@@ -505,7 +506,7 @@ func (s *runnerSuite) TestFetchRepairPlusKey(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	repair, aux, err := runner.Fetch("canonical", 2, -1)
+	repair, aux, err := runner.Fetch(constants.AccountId, 2, -1)
 	c.Assert(err, IsNil)
 	c.Check(repair, NotNil)
 	c.Check(aux, HasLen, 1)
@@ -518,7 +519,7 @@ func (s *runnerSuite) TestPeek(c *C) {
 		ua := r.Header.Get("User-Agent")
 		c.Check(strings.Contains(ua, "snap-repair"), Equals, true)
 		c.Check(r.Header.Get("Accept"), Equals, "application/json")
-		c.Check(r.URL.Path, Equals, "/repairs/canonical/2")
+		c.Check(r.URL.Path, Equals, "/repairs/"+constants.AccountId+"/2")
 		io.WriteString(w, testHeadersResp)
 	}))
 
@@ -531,7 +532,7 @@ func (s *runnerSuite) TestPeek(c *C) {
 	r := s.mockBrokenTimeNowSetToEpoch(c, runner)
 	defer r()
 
-	h, err := runner.Peek("canonical", 2)
+	h, err := runner.Peek(constants.AccountId, 2)
 	c.Assert(err, IsNil)
 	c.Check(h["series"], DeepEquals, []interface{}{"16"})
 	c.Check(h["architectures"], DeepEquals, []interface{}{"amd64", "arm64"})
@@ -556,7 +557,7 @@ func (s *runnerSuite) TestPeek500(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	_, err := runner.Peek("canonical", 2)
+	_, err := runner.Peek(constants.AccountId, 2)
 	c.Assert(err, ErrorMatches, "cannot peek repair headers, unexpected status 500")
 	c.Assert(n, Equals, 5)
 }
@@ -578,7 +579,7 @@ func (s *runnerSuite) TestPeekInvalid(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	_, err := runner.Peek("canonical", 2)
+	_, err := runner.Peek(constants.AccountId, 2)
 	c.Assert(err, Equals, io.ErrUnexpectedEOF)
 	c.Assert(n, Equals, 5)
 }
@@ -599,7 +600,7 @@ func (s *runnerSuite) TestPeekNotFound(c *C) {
 	r := s.mockBrokenTimeNowSetToEpoch(c, runner)
 	defer r()
 
-	_, err := runner.Peek("canonical", 2)
+	_, err := runner.Peek(constants.AccountId, 2)
 	c.Assert(err, Equals, repair.ErrRepairNotFound)
 	c.Assert(n, Equals, 1)
 
@@ -618,8 +619,8 @@ func (s *runnerSuite) TestPeekIdMismatch(c *C) {
 	runner := repair.NewRunner()
 	runner.BaseURL = mustParseURL(mockServer.URL)
 
-	_, err := runner.Peek("canonical", 4)
-	c.Assert(err, ErrorMatches, `cannot peek repair headers, repair id mismatch canonical/2 != canonical/4`)
+	_, err := runner.Peek(constants.AccountId, 4)
+	c.Assert(err, ErrorMatches, `cannot peek repair headers, repair id mismatch `+constants.AccountId+`/2 != `+constants.AccountId+`/4`)
 }
 
 func (s *runnerSuite) TestLoadState(c *C) {
@@ -673,7 +674,7 @@ func (s *runnerSuite) TestSaveState(c *C) {
 	err := runner.LoadState()
 	c.Assert(err, IsNil)
 
-	runner.SetSequence("canonical", []*repair.RepairState{
+	runner.SetSequence(constants.AccountId, []*repair.RepairState{
 		{Sequence: 1, Revision: 3},
 	})
 	// mark as modified
@@ -690,7 +691,7 @@ func (s *runnerSuite) TestSaveState(c *C) {
 			"mode":  "",
 		},
 		"sequences": map[string]interface{}{
-			"canonical": []interface{}{
+			constants.AccountId: []interface{}{
 				map[string]interface{}{
 					// all json numbers are floats
 					"sequence": 1.0,
@@ -785,8 +786,8 @@ func (s *runnerSuite) TestApplicable(c *C) {
 
 var (
 	nextRepairs = []string{`type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 1
 summary: repair one
 timestamp: 2017-07-01T12:00:00Z
@@ -798,8 +799,8 @@ scriptA
 
 AXNpZw==`,
 		`type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 2
 summary: repair two
 series:
@@ -814,8 +815,8 @@ scriptB
 AXNpZw==`,
 		`type: repair
 revision: 2
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 3
 summary: repair three rev2
 series:
@@ -832,8 +833,8 @@ AXNpZw==
 
 	repair3Rev4 = `type: repair
 revision: 4
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 3
 summary: repair three rev4
 series:
@@ -849,8 +850,8 @@ AXNpZw==
 `
 
 	repair4 = `type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 4
 summary: repair four
 timestamp: 2017-07-03T12:00:00Z
@@ -882,9 +883,9 @@ func makeMockServer(c *C, seqRepairs *[]string, redirectFirst bool) *httptest.Se
 			urlPath = strings.TrimPrefix(urlPath, "/final")
 		}
 
-		c.Check(strings.HasPrefix(urlPath, "/repairs/canonical/"), Equals, true)
+		c.Check(strings.HasPrefix(urlPath, "/repairs/"+constants.AccountId+"/"), Equals, true)
 
-		seq, err := strconv.Atoi(strings.TrimPrefix(urlPath, "/repairs/canonical/"))
+		seq, err := strconv.Atoi(strings.TrimPrefix(urlPath, "/repairs/"+constants.AccountId+"/"))
 		c.Assert(err, IsNil)
 
 		if seq > len(*seqRepairs) {
@@ -922,8 +923,8 @@ func makeMockServer(c *C, seqRepairs *[]string, redirectFirst bool) *httptest.Se
 func (s *runnerSuite) TestTrustedRepairRootKeys(c *C) {
 	acctKeys := repair.TrustedRepairRootKeys()
 	c.Check(acctKeys, HasLen, 1)
-	c.Check(acctKeys[0].AccountID(), Equals, "canonical")
-	c.Check(acctKeys[0].PublicKeyID(), Equals, "nttW6NfBXI_E-00u38W-KH6eiksfQNXuI7IiumoV49_zkbhM0sYTzSnFlwZC-W4t")
+	c.Check(acctKeys[0].AccountID(), Equals, constants.AccountId)
+	c.Check(acctKeys[0].PublicKeyID(), Equals, constants.EncodedRepairRootAccountKeyPublicKeySha3 /*"nttW6NfBXI_E-00u38W-KH6eiksfQNXuI7IiumoV49_zkbhM0sYTzSnFlwZC-W4t" */)
 }
 
 func (s *runnerSuite) TestVerify(c *C) {
@@ -935,7 +936,7 @@ func (s *runnerSuite) TestVerify(c *C) {
 	runner := repair.NewRunner()
 
 	a, err := s.repairsSigning.Sign(asserts.RepairType, map[string]interface{}{
-		"brand-id":  "canonical",
+		"brand-id":  constants.AccountId,
 		"repair-id": "2",
 		"summary":   "repair two",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -973,18 +974,18 @@ func (s *runnerSuite) testNext(c *C, redirectFirst bool) {
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	rpr, err := runner.Next("canonical")
+	rpr, err := runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 	c.Check(rpr.RepairID(), Equals, 1)
-	c.Check(osutil.FileExists(filepath.Join(dirs.SnapRepairAssertsDir, "canonical", "1", "r0.repair")), Equals, true)
+	c.Check(osutil.FileExists(filepath.Join(dirs.SnapRepairAssertsDir, constants.AccountId, "1", "r0.repair")), Equals, true)
 
-	rpr, err = runner.Next("canonical")
+	rpr, err = runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 	c.Check(rpr.RepairID(), Equals, 3)
-	c.Check(filepath.Join(dirs.SnapRepairAssertsDir, "canonical", "3", "r2.repair"), testutil.FileEquals, seqRepairs[2])
+	c.Check(filepath.Join(dirs.SnapRepairAssertsDir, constants.AccountId, "3", "r2.repair"), testutil.FileEquals, seqRepairs[2])
 
 	// no more
-	rpr, err = runner.Next("canonical")
+	rpr, err = runner.Next(constants.AccountId)
 	c.Check(err, Equals, repair.ErrRepairNotFound)
 
 	expectedSeq := []*repair.RepairState{
@@ -992,10 +993,10 @@ func (s *runnerSuite) testNext(c *C, redirectFirst bool) {
 		{Sequence: 2, Status: repair.SkipStatus},
 		{Sequence: 3, Revision: 2},
 	}
-	c.Check(runner.Sequence("canonical"), DeepEquals, expectedSeq)
+	c.Check(runner.Sequence(constants.AccountId), DeepEquals, expectedSeq)
 	// on disk
 	seqs := s.loadSequences(c)
-	c.Check(seqs["canonical"], DeepEquals, expectedSeq)
+	c.Check(seqs[constants.AccountId], DeepEquals, expectedSeq)
 
 	// start fresh run with new runner
 	// will refetch repair 3
@@ -1007,11 +1008,11 @@ func (s *runnerSuite) testNext(c *C, redirectFirst bool) {
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	rpr, err = runner.Next("canonical")
+	rpr, err = runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 	c.Check(rpr.RepairID(), Equals, 1)
 
-	rpr, err = runner.Next("canonical")
+	rpr, err = runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 	c.Check(rpr.RepairID(), Equals, 3)
 	// refetched new revision!
@@ -1019,16 +1020,16 @@ func (s *runnerSuite) testNext(c *C, redirectFirst bool) {
 	c.Check(rpr.Body(), DeepEquals, []byte("scriptC2\n"))
 
 	// new repair
-	rpr, err = runner.Next("canonical")
+	rpr, err = runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 	c.Check(rpr.RepairID(), Equals, 4)
 	c.Check(rpr.Body(), DeepEquals, []byte("scriptD\n"))
 
 	// no more
-	rpr, err = runner.Next("canonical")
+	rpr, err = runner.Next(constants.AccountId)
 	c.Check(err, Equals, repair.ErrRepairNotFound)
 
-	c.Check(runner.Sequence("canonical"), DeepEquals, []*repair.RepairState{
+	c.Check(runner.Sequence(constants.AccountId), DeepEquals, []*repair.RepairState{
 		{Sequence: 1},
 		{Sequence: 2, Status: repair.SkipStatus},
 		{Sequence: 3, Revision: 4},
@@ -1048,8 +1049,8 @@ func (s *runnerSuite) TestNextRedirect(c *C) {
 
 func (s *runnerSuite) TestNextImmediateSkip(c *C) {
 	seqRepairs := []string{`type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 1
 summary: repair one
 series:
@@ -1071,22 +1072,22 @@ AXNpZw==`}
 	runner.LoadState()
 
 	// not applicable => not returned
-	_, err := runner.Next("canonical")
+	_, err := runner.Next(constants.AccountId)
 	c.Check(err, Equals, repair.ErrRepairNotFound)
 
 	expectedSeq := []*repair.RepairState{
 		{Sequence: 1, Status: repair.SkipStatus},
 	}
-	c.Check(runner.Sequence("canonical"), DeepEquals, expectedSeq)
+	c.Check(runner.Sequence(constants.AccountId), DeepEquals, expectedSeq)
 	// on disk
 	seqs := s.loadSequences(c)
-	c.Check(seqs["canonical"], DeepEquals, expectedSeq)
+	c.Check(seqs[constants.AccountId], DeepEquals, expectedSeq)
 }
 
 func (s *runnerSuite) TestNextRefetchSkip(c *C) {
 	seqRepairs := []string{`type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 1
 summary: repair one
 series:
@@ -1114,22 +1115,22 @@ AXNpZw==`}
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	_, err := runner.Next("canonical")
+	_, err := runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 
 	expectedSeq := []*repair.RepairState{
 		{Sequence: 1},
 	}
-	c.Check(runner.Sequence("canonical"), DeepEquals, expectedSeq)
+	c.Check(runner.Sequence(constants.AccountId), DeepEquals, expectedSeq)
 	// on disk
 	seqs := s.loadSequences(c)
-	c.Check(seqs["canonical"], DeepEquals, expectedSeq)
+	c.Check(seqs[constants.AccountId], DeepEquals, expectedSeq)
 
 	// new fresh run, repair becomes now unapplicable
 	seqRepairs[0] = `type: repair
-authority-id: canonical
+authority-id: ` + constants.AccountId + `
 revision: 1
-brand-id: canonical
+brand-id: ` + constants.AccountId + `
 repair-id: 1
 summary: repair one rev1
 series:
@@ -1149,16 +1150,16 @@ AXNpZw==`
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	_, err = runner.Next("canonical")
+	_, err = runner.Next(constants.AccountId)
 	c.Check(err, Equals, repair.ErrRepairNotFound)
 
 	expectedSeq = []*repair.RepairState{
 		{Sequence: 1, Revision: 1, Status: repair.SkipStatus},
 	}
-	c.Check(runner.Sequence("canonical"), DeepEquals, expectedSeq)
+	c.Check(runner.Sequence(constants.AccountId), DeepEquals, expectedSeq)
 	// on disk
 	seqs = s.loadSequences(c)
-	c.Check(seqs["canonical"], DeepEquals, expectedSeq)
+	c.Check(seqs[constants.AccountId], DeepEquals, expectedSeq)
 }
 
 func (s *runnerSuite) TestNext500(c *C) {
@@ -1176,7 +1177,7 @@ func (s *runnerSuite) TestNext500(c *C) {
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	_, err := runner.Next("canonical")
+	_, err := runner.Next(constants.AccountId)
 	c.Assert(err, ErrorMatches, "cannot peek repair headers, unexpected status 500")
 }
 
@@ -1197,7 +1198,7 @@ func (s *runnerSuite) TestNextNotFound(c *C) {
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	_, err := runner.Next("canonical")
+	_, err := runner.Next(constants.AccountId)
 	c.Assert(err, Equals, repair.ErrRepairNotFound)
 
 	// we saved new time lower bound
@@ -1216,8 +1217,8 @@ func (s *runnerSuite) TestNextNotFound(c *C) {
 
 func (s *runnerSuite) TestNextSaveStateError(c *C) {
 	seqRepairs := []string{`type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 1
 summary: repair one
 series:
@@ -1242,14 +1243,14 @@ AXNpZw==`}
 	restore := makeReadOnly(c, dirs.SnapRepairDir)
 	defer restore()
 
-	_, err := runner.Next("canonical")
+	_, err := runner.Next(constants.AccountId)
 	c.Check(err, ErrorMatches, `cannot save repair state:.*`)
 }
 
 func (s *runnerSuite) TestNextVerifyNoKey(c *C) {
 	seqRepairs := []string{`type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 1
 summary: repair one
 timestamp: 2017-07-02T12:00:00Z
@@ -1268,21 +1269,21 @@ AXNpZw==`}
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	_, err := runner.Next("canonical")
-	c.Check(err, ErrorMatches, `cannot verify repair canonical-1: cannot find public key.*`)
+	_, err := runner.Next(constants.AccountId)
+	c.Check(err, ErrorMatches, `cannot verify repair `+constants.AccountId+`-1: cannot find public key.*`)
 
-	c.Check(runner.Sequence("canonical"), HasLen, 0)
+	c.Check(runner.Sequence(constants.AccountId), HasLen, 0)
 }
 
 func (s *runnerSuite) TestNextVerifySelfSigned(c *C) {
 	randoKey, _ := assertstest.GenerateKey(752)
 
-	randomSigning := assertstest.NewSigningDB("canonical", randoKey)
+	randomSigning := assertstest.NewSigningDB(constants.AccountId, randoKey)
 	randoKeyEncoded, err := asserts.EncodePublicKey(randoKey.PublicKey())
 	c.Assert(err, IsNil)
 	acctKey, err := randomSigning.Sign(asserts.AccountKeyType, map[string]interface{}{
-		"authority-id":        "canonical",
-		"account-id":          "canonical",
+		"authority-id":        constants.AccountId,
+		"account-id":          constants.AccountId,
 		"public-key-sha3-384": randoKey.PublicKey().ID(),
 		"name":                "repairs",
 		"since":               time.Now().UTC().Format(time.RFC3339),
@@ -1290,7 +1291,7 @@ func (s *runnerSuite) TestNextVerifySelfSigned(c *C) {
 	c.Assert(err, IsNil)
 
 	rpr, err := randomSigning.Sign(asserts.RepairType, map[string]interface{}{
-		"brand-id":  "canonical",
+		"brand-id":  constants.AccountId,
 		"repair-id": "1",
 		"summary":   "repair one",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -1310,10 +1311,10 @@ func (s *runnerSuite) TestNextVerifySelfSigned(c *C) {
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	_, err = runner.Next("canonical")
-	c.Check(err, ErrorMatches, `cannot verify repair canonical-1: circular assertions`)
+	_, err = runner.Next(constants.AccountId)
+	c.Check(err, ErrorMatches, `cannot verify repair `+constants.AccountId+`-1: circular assertions`)
 
-	c.Check(runner.Sequence("canonical"), HasLen, 0)
+	c.Check(runner.Sequence(constants.AccountId), HasLen, 0)
 }
 
 func (s *runnerSuite) TestNextVerifyAllKeysOK(c *C) {
@@ -1343,15 +1344,15 @@ func (s *runnerSuite) TestNextVerifyAllKeysOK(c *C) {
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	rpr, err := runner.Next("canonical")
+	rpr, err := runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 	c.Check(rpr.RepairID(), Equals, 1)
 }
 
 func (s *runnerSuite) TestRepairSetStatus(c *C) {
 	seqRepairs := []string{`type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 1
 summary: repair one
 timestamp: 2017-07-02T12:00:00Z
@@ -1377,7 +1378,7 @@ AXNpZw==`}
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	rpr, err := runner.Next("canonical")
+	rpr, err := runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 
 	rpr.SetStatus(repair.DoneStatus)
@@ -1385,16 +1386,16 @@ AXNpZw==`}
 	expectedSeq := []*repair.RepairState{
 		{Sequence: 1, Status: repair.DoneStatus},
 	}
-	c.Check(runner.Sequence("canonical"), DeepEquals, expectedSeq)
+	c.Check(runner.Sequence(constants.AccountId), DeepEquals, expectedSeq)
 	// on disk
 	seqs := s.loadSequences(c)
-	c.Check(seqs["canonical"], DeepEquals, expectedSeq)
+	c.Check(seqs[constants.AccountId], DeepEquals, expectedSeq)
 }
 
 func (s *runnerSuite) TestRepairBasicRun(c *C) {
 	seqRepairs := []string{`type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 1
 summary: repair one
 series:
@@ -1423,18 +1424,18 @@ AXNpZw==`}
 	runner.BaseURL = mustParseURL(mockServer.URL)
 	runner.LoadState()
 
-	rpr, err := runner.Next("canonical")
+	rpr, err := runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 
 	err = rpr.Run()
 	c.Assert(err, IsNil)
-	c.Check(filepath.Join(dirs.SnapRepairRunDir, "canonical", "1", "r0.script"), testutil.FileEquals, "#!/bin/sh\nexit 0\n")
+	c.Check(filepath.Join(dirs.SnapRepairRunDir, constants.AccountId, "1", "r0.script"), testutil.FileEquals, "#!/bin/sh\nexit 0\n")
 }
 
 func (s *runnerSuite) TestRepairBasicRun20RecoverEnv(c *C) {
 	seqRepairs := []string{`type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 1
 summary: repair one
 series:
@@ -1472,24 +1473,24 @@ AXNpZw==`}
 		runner.BaseURL = mustParseURL(mockServer.URL)
 		runner.LoadState()
 
-		rpr, err := runner.Next("canonical")
+		rpr, err := runner.Next(constants.AccountId)
 		c.Assert(err, IsNil)
 
 		err = rpr.Run()
 		c.Assert(err, IsNil)
-		c.Check(filepath.Join(dirs.SnapRepairRunDir, "canonical", "1", "r0.script"), testutil.FileEquals, `#!/bin/sh
+		c.Check(filepath.Join(dirs.SnapRepairRunDir, constants.AccountId, "1", "r0.script"), testutil.FileEquals, `#!/bin/sh
 env | grep SNAP_SYSTEM_MODE
 echo "done" >&$SNAP_REPAIR_STATUS_FD
 exit 0`)
 
-		c.Check(filepath.Join(dirs.SnapRepairRunDir, "canonical", "1", "r0.done"), testutil.FileEquals, fmt.Sprintf(`repair: canonical-1
+		c.Check(filepath.Join(dirs.SnapRepairRunDir, constants.AccountId, "1", "r0.done"), testutil.FileEquals, fmt.Sprintf(`repair: %s-1
 revision: 0
 summary: repair one
 output:
 SNAP_SYSTEM_MODE=%s
-`, mode))
+`, constants.AccountId, mode))
 		// ensure correct permissions
-		fi, err := os.Stat(filepath.Join(dirs.SnapRepairRunDir, "canonical", "1", "r0.done"))
+		fi, err := os.Stat(filepath.Join(dirs.SnapRepairRunDir, constants.AccountId, "1", "r0.done"))
 		c.Assert(err, IsNil)
 		c.Check(fi.Mode(), Equals, os.FileMode(0600))
 	}
@@ -1497,8 +1498,8 @@ SNAP_SYSTEM_MODE=%s
 
 func (s *runnerSuite) TestRepairModesAndBases(c *C) {
 	repairTempl := `type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: ` + constants.AccountId + `
+brand-id: ` + constants.AccountId + `
 repair-id: 1
 summary: uc20 recovery repair 
 timestamp: 2017-07-03T12:00:00Z
@@ -1813,9 +1814,9 @@ AXNpZw==
 		runner.BaseURL = mustParseURL(mockServer.URL)
 		runner.LoadState()
 
-		script := filepath.Join(dirs.SnapRepairRunDir, "canonical", "1", "r0.script")
+		script := filepath.Join(dirs.SnapRepairRunDir, constants.AccountId, "1", "r0.script")
 
-		rpr, err := runner.Next("canonical")
+		rpr, err := runner.Next(constants.AccountId)
 		if t.shouldRun {
 			c.Assert(err, IsNil, comment)
 
@@ -1839,8 +1840,8 @@ AXNpZw==
 
 func makeMockRepair(script string) string {
 	return fmt.Sprintf(`type: repair
-authority-id: canonical
-brand-id: canonical
+authority-id: `+constants.AccountId+`
+brand-id: `+constants.AccountId+`
 repair-id: 1
 summary: repair one
 series:
@@ -1855,7 +1856,7 @@ AXNpZw==`, len(script), script)
 }
 
 func verifyRepairStatus(c *C, status repair.RepairStatus) {
-	c.Check(dirs.SnapRepairStateFile, testutil.FileContains, fmt.Sprintf(`{"device":{"brand":"","model":"","base":"","mode":""},"sequences":{"canonical":[{"sequence":1,"revision":0,"status":%d}`, status))
+	c.Check(dirs.SnapRepairStateFile, testutil.FileContains, fmt.Sprintf(`{"device":{"brand":"","model":"","base":"","mode":""},"sequences":{"%s":[{"sequence":1,"revision":0,"status":%d}`, constants.AccountId, status))
 }
 
 // tests related to correct execution of script
@@ -1874,7 +1875,7 @@ var _ = Suite(&runScriptSuite{})
 
 func (s *runScriptSuite) SetUpTest(c *C) {
 	s.baseRunnerSuite.SetUpTest(c)
-	s.runDir = filepath.Join(dirs.SnapRepairRunDir, "canonical", "1")
+	s.runDir = filepath.Join(dirs.SnapRepairRunDir, constants.AccountId, "1")
 
 	s.AddCleanup(snapdenv.SetUserAgentFromVersion("1", nil, "snap-repair"))
 }
@@ -1899,7 +1900,7 @@ func (s *runScriptSuite) testScriptRun(c *C, mockScript string) *repair.Repair {
 
 	s.seqRepairs = s.signSeqRepairs(c, s.seqRepairs)
 
-	rpr, err := s.runner.Next("canonical")
+	rpr, err := s.runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 
 	err = rpr.Run()
@@ -1942,7 +1943,7 @@ exit 0
 		`^r0.script$`,
 		`^work$`,
 	})
-	s.verifyOutput(c, "r0.done", `repair: canonical-1
+	s.verifyOutput(c, "r0.done", `repair: `+constants.AccountId+`-1
 revision: 0
 summary: repair one
 output:
@@ -1965,13 +1966,13 @@ exit 1
 		`^r0.script$`,
 		`^work$`,
 	})
-	s.verifyOutput(c, "r0.retry", `repair: canonical-1
+	s.verifyOutput(c, "r0.retry", `repair: `+constants.AccountId+`-1
 revision: 0
 summary: repair one
 output:
 unhappy output
 
-repair canonical-1 revision 0 failed: exit status 1`)
+repair `+constants.AccountId+`-1 revision 0 failed: exit status 1`)
 	verifyRepairStatus(c, repair.RetryStatus)
 }
 
@@ -1990,7 +1991,7 @@ exit 0
 		`^r0.skip$`,
 		`^work$`,
 	})
-	s.verifyOutput(c, "r0.skip", `repair: canonical-1
+	s.verifyOutput(c, "r0.skip", `repair: `+constants.AccountId+`-1
 revision: 0
 summary: repair one
 output:
@@ -2018,13 +2019,13 @@ exit 1
 		`^r0.script$`,
 		`^work$`,
 	})
-	s.verifyOutput(c, "r0.retry", `repair: canonical-1
+	s.verifyOutput(c, "r0.retry", `repair: `+constants.AccountId+`-1
 revision: 0
 summary: repair one
 output:
 unhappy output
 
-repair canonical-1 revision 0 failed: exit status 1`)
+repair `+constants.AccountId+`-1 revision 0 failed: exit status 1`)
 	verifyRepairStatus(c, repair.RetryStatus)
 
 	// run again, it will be happy this time
@@ -2037,7 +2038,7 @@ repair canonical-1 revision 0 failed: exit status 1`)
 		`^r0.script$`,
 		`^work$`,
 	})
-	s.verifyOutput(c, "r0.done", `repair: canonical-1
+	s.verifyOutput(c, "r0.done", `repair: `+constants.AccountId+`-1
 revision: 0
 summary: repair one
 output:
@@ -2063,7 +2064,7 @@ sleep 100
 	s.seqRepairs = []string{makeMockRepair(script)}
 	s.seqRepairs = s.signSeqRepairs(c, s.seqRepairs)
 
-	rpr, err := s.runner.Next("canonical")
+	rpr, err := s.runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 
 	err = rpr.Run()
@@ -2074,13 +2075,13 @@ sleep 100
 		`^r0.script$`,
 		`^work$`,
 	})
-	s.verifyOutput(c, "r0.retry", `repair: canonical-1
+	s.verifyOutput(c, "r0.retry", `repair: `+constants.AccountId+`-1
 revision: 0
 summary: repair one
 output:
 output before timeout
 
-repair canonical-1 revision 0 failed: repair did not finish within 100ms`)
+repair `+constants.AccountId+`-1 revision 0 failed: repair did not finish within 100ms`)
 	verifyRepairStatus(c, repair.RetryStatus)
 }
 
@@ -2098,7 +2099,7 @@ ls -l ${PATH##*:}/repair
 	s.seqRepairs = []string{makeMockRepair(script)}
 	s.seqRepairs = s.signSeqRepairs(c, s.seqRepairs)
 
-	rpr, err := s.runner.Next("canonical")
+	rpr, err := s.runner.Next(constants.AccountId)
 	c.Assert(err, IsNil)
 
 	err = rpr.Run()

@@ -21,6 +21,7 @@ package asserts_test
 
 import (
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"strings"
 	"time"
 
@@ -44,7 +45,7 @@ func (s *accountSuite) SetUpSuite(c *C) {
 }
 
 const accountExample = "type: account\n" +
-	"authority-id: canonical\n" +
+	"authority-id: " + constants.AccountId + "\n" +
 	"account-id: abc-123\n" +
 	"display-name: Nice User\n" +
 	"username: nice\n" +
@@ -55,13 +56,25 @@ const accountExample = "type: account\n" +
 	"\n\n" +
 	"AXNpZw=="
 
+//const accountExample = "type: account\n" +
+//	"authority-id: canonical\n" +
+//	"account-id: abc-123\n" +
+//	"display-name: Nice User\n" +
+//	"username: nice\n" +
+//	"validation: verified\n" +
+//	"TSLINE" +
+//	"body-length: 0\n" +
+//	"sign-key-sha3-384: Jv8_JiHiIzJVcO9M55pPdqSDWUvuhfDIBJUS-3VW7F_idjix7Ffn5qMxB21ZQuij" +
+//	"\n\n" +
+//	"AXNpZw=="
+
 func (s *accountSuite) TestDecodeOK(c *C) {
 	encoded := strings.Replace(accountExample, "TSLINE", s.tsLine, 1)
 	a, err := asserts.Decode([]byte(encoded))
 	c.Assert(err, IsNil)
 	c.Check(a.Type(), Equals, asserts.AccountType)
 	account := a.(*asserts.Account)
-	c.Check(account.AuthorityID(), Equals, "canonical")
+	c.Check(account.AuthorityID(), Equals, constants.AccountId)
 	c.Check(account.Timestamp(), Equals, s.ts)
 	c.Check(account.AccountID(), Equals, "abc-123")
 	c.Check(account.DisplayName(), Equals, "Nice User")
