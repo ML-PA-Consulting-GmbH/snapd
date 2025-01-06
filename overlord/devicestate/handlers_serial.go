@@ -21,6 +21,7 @@ package devicestate
 import (
 	"bytes"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -394,6 +395,12 @@ func prepareSerialRequest(t *state.Task, regCtx registrationContext, privKey ass
 	if err != nil {
 		return "", fmt.Errorf("internal error: cannot encode device public key: %v", err)
 
+	}
+
+	if deterministicSerial, err := getDeviceSerial(); err != nil {
+		return "", fmt.Errorf("failed generating device serial: %v", err)
+	} else {
+		cfg.proposedSerial = deterministicSerial
 	}
 
 	headers := map[string]interface{}{
