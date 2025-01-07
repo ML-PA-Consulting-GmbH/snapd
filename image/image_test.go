@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path"
 	"path/filepath"
@@ -121,7 +122,7 @@ func (s *imageSuite) SetUpTest(c *C) {
 	s.tsto = tooling.MockToolingStore(s)
 
 	s.SeedSnaps = &seedtest.SeedSnaps{}
-	s.SetupAssertSigning("canonical")
+	s.SetupAssertSigning(constants.AccountId)
 	s.Brands.Register("my-brand", brandPrivKey, map[string]interface{}{
 		"verification": "verified",
 	})
@@ -641,10 +642,10 @@ func (s *imageSuite) setupSnaps(c *C, publishers map[string]string, defaultsYaml
 
 	s.MakeAssertedSnap(c, packageCore, [][]string{
 		{"/usr/lib/snapd/info", `VERSION=2.44`},
-	}, snap.R(3), "canonical")
-	s.MakeAssertedSnap(c, snapdSnap, [][]string{snapdInfoFile}, snap.R(18), "canonical")
+	}, snap.R(3), constants.AccountId)
+	s.MakeAssertedSnap(c, snapdSnap, [][]string{snapdInfoFile}, snap.R(18), constants.AccountId)
 
-	s.MakeAssertedSnap(c, packageCore18, nil, snap.R(18), "canonical")
+	s.MakeAssertedSnap(c, packageCore18, nil, snap.R(18), constants.AccountId)
 
 	s.MakeAssertedSnap(c, otherBase, nil, snap.R(18), "other")
 
@@ -709,8 +710,8 @@ func (s *imageSuite) TestSetupSeed(c *C) {
 	rootdir := filepath.Join(preparedir, "image")
 	blobdir := filepath.Join(rootdir, "var/lib/snapd/snaps")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	gadgetWriteResolvedContentCalled := 0
@@ -859,7 +860,7 @@ func (s *imageSuite) TestSetupSeedLocalCoreBrandKernel(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -956,8 +957,8 @@ func (s *imageSuite) TestSetupSeedWithWideCohort(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	snapFile := snaptest.MakeTestSnapWithFiles(c, devmodeSnap, nil)
@@ -1010,8 +1011,8 @@ func (s *imageSuite) TestSetupSeedDevmodeSnap(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	snapFile := snaptest.MakeTestSnapWithFiles(c, devmodeSnap, nil)
@@ -1072,8 +1073,8 @@ func (s *imageSuite) TestSetupSeedImageManifest(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	snapFile := snaptest.MakeTestSnapWithFiles(c, devmodeSnap, nil)
@@ -1105,8 +1106,8 @@ func (s *imageSuite) TestSetupSeedWithClassicSnapFails(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	s.MakeAssertedSnap(c, classicSnap, nil, snap.R(1), "other")
@@ -1138,10 +1139,10 @@ func (s *imageSuite) TestSetupSeedWithBase(c *C) {
 	rootdir := filepath.Join(c.MkDir(), "image")
 	blobdir := filepath.Join(rootdir, "/var/lib/snapd/snaps")
 	s.setupSnaps(c, map[string]string{
-		"core18":     "canonical",
-		"pc18":       "canonical",
-		"pc-kernel":  "canonical",
-		"snapd":      "canonical",
+		"core18":     constants.AccountId,
+		"pc18":       constants.AccountId,
+		"pc-kernel":  constants.AccountId,
+		"snapd":      constants.AccountId,
 		"other-base": "other",
 	}, "")
 
@@ -1280,16 +1281,16 @@ func (s *imageSuite) TestSetupSeedWithBaseWithCloudConf(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"pc-kernel": "canonical",
-		"snapd":     "canonical",
+		"core18":    constants.AccountId,
+		"pc-kernel": constants.AccountId,
+		"snapd":     constants.AccountId,
 	}, "")
 	s.MakeAssertedSnap(c, packageGadgetWithBase, [][]string{
 		{"grub.conf", ""},
 		{"grub.cfg", "I'm a grub.cfg"},
 		{"cloud.conf", "# cloud config"},
 		{"meta/gadget.yaml", pcGadgetYaml},
-	}, snap.R(5), "canonical")
+	}, snap.R(5), constants.AccountId)
 
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -1327,15 +1328,15 @@ func (s *imageSuite) testSetupSeedWithBaseWithCustomizationsAndDefaults(c *C, wi
 	err := os.WriteFile(cloudInitUserData, []byte(`# user cloud data`), 0644)
 	c.Assert(err, IsNil)
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"pc-kernel": "canonical",
-		"snapd":     "canonical",
-	}, defaults)
+		"core18":    constants.AccountId,
+		"pc-kernel": constants.AccountId,
+		"snapd":     constants.AccountId,
+	}, "")
 	s.MakeAssertedSnap(c, packageGadgetWithBase, [][]string{
 		{"grub.conf", ""},
 		{"grub.cfg", "I'm a grub.cfg"},
 		{"meta/gadget.yaml", pcGadgetYaml + defaults},
-	}, snap.R(5), "canonical")
+	}, snap.R(5), constants.AccountId)
 
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -1455,10 +1456,10 @@ func (s *imageSuite) TestSetupSeedWithBaseLegacySnap(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
-		"snapd":     "canonical",
+		"core18":    constants.AccountId,
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
+		"snapd":     constants.AccountId,
 	}, "")
 
 	opts := &image.Options{
@@ -1599,10 +1600,10 @@ func (s *imageSuite) TestSetupSeedWithBaseDefaultTrackSnap(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
-		"snapd":     "canonical",
+		"core18":    constants.AccountId,
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
+		"snapd":     constants.AccountId,
 	}, "")
 
 	opts := &image.Options{
@@ -1672,7 +1673,7 @@ func (s *imageSuite) TestSetupSeedKernelPublisherMismatch(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "other",
 	}, "")
 
@@ -1729,7 +1730,7 @@ func (s *imageSuite) TestSetupSeedLocalSnapsWithStoreAsserts(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -1883,7 +1884,7 @@ func (s *imageSuite) TestSetupSeedLocalSnapsWithChannels(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -1962,7 +1963,7 @@ func (s *imageSuite) TestSetupSeedLocalSnapsWithStoreAssertsValidationEnforce(c 
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -2081,6 +2082,7 @@ func (s *imageSuite) TestSetupSeedLocalSnapsWithStoreAssertsValidationEnforce(c 
 	})
 }
 
+// NOTE: Flo: Test doesn't work - also not in upstream repo
 func (s *imageSuite) TestCannotCreateGadgetUnpackDir(c *C) {
 	fn := filepath.Join(c.MkDir(), "model.assertion")
 	err := os.WriteFile(fn, asserts.Encode(s.model), 0644)
@@ -2257,9 +2259,9 @@ func (s *imageSuite) TestSetupSeedWithKernelAndGadgetTrack(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	opts := &image.Options{
@@ -2336,9 +2338,9 @@ func (s *imageSuite) TestSetupSeedWithKernelTrackWithDefaultChannel(c *C) {
 	})
 
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	rootdir := filepath.Join(c.MkDir(), "image")
@@ -2396,9 +2398,9 @@ func (s *imageSuite) TestSetupSeedWithKernelTrackOnLocalSnap(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	// pretend we downloaded the core,kernel already
@@ -2453,9 +2455,9 @@ func (s *imageSuite) TestSetupSeedWithBaseAndLocalLegacyCoreOrdering(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
+		"core18":    constants.AccountId,
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	coreFn := snaptest.MakeTestSnapWithFiles(c, packageCore, [][]string{{"local", ""}})
@@ -2501,10 +2503,10 @@ func (s *imageSuite) TestSetupSeedWithBaseAndLegacyCoreOrdering(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"core":      "canonical",
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
+		"core18":    constants.AccountId,
+		"core":      constants.AccountId,
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	opts := &image.Options{
@@ -2545,9 +2547,9 @@ func (s *imageSuite) TestSetupSeedGadgetBaseModelBaseMismatch(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core18":    "canonical",
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"core18":    constants.AccountId,
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -2569,10 +2571,10 @@ func (s *imageSuite) TestSetupSeedSnapReqBase(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":                "canonical",
-		"pc":                  "canonical",
-		"pc-kernel":           "canonical",
-		"snap-req-other-base": "canonical",
+		"core":                constants.AccountId,
+		"pc":                  constants.AccountId,
+		"pc-kernel":           constants.AccountId,
+		"snap-req-other-base": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -2594,10 +2596,10 @@ func (s *imageSuite) TestSetupSeedBaseNone(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":           "canonical",
-		"pc":             "canonical",
-		"pc-kernel":      "canonical",
-		"snap-base-none": "canonical",
+		"core":           constants.AccountId,
+		"pc":             constants.AccountId,
+		"pc-kernel":      constants.AccountId,
+		"snap-base-none": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -2630,8 +2632,8 @@ func (s *imageSuite) TestSetupSeedCore18GadgetDefaults(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, defaults)
 
 	snapdFn := snaptest.MakeTestSnapWithFiles(c, snapdSnap, [][]string{{"local", ""}, snapdInfoFile})
@@ -2663,9 +2665,9 @@ func (s *imageSuite) TestSetupSeedStoreAssertionMissing(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -2682,7 +2684,7 @@ func (s *imageSuite) TestSetupSeedStoreAssertionFetched(c *C) {
 	// add store assertion
 	storeAs, err := s.StoreSigning.Sign(asserts.StoreType, map[string]interface{}{
 		"store":       "my-store",
-		"operator-id": "canonical",
+		"operator-id": constants.AccountId,
 		"timestamp":   time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
 	c.Assert(err, IsNil)
@@ -2698,9 +2700,9 @@ func (s *imageSuite) TestSetupSeedStoreAssertionFetched(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
-		"pc-kernel": "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -2736,11 +2738,11 @@ func (s *imageSuite) TestSetupSeedSnapReqBaseFromLocal(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":                "canonical",
-		"pc":                  "canonical",
-		"pc-kernel":           "canonical",
-		"snap-req-other-base": "canonical",
-		"other-base":          "canonical",
+		"core":                constants.AccountId,
+		"pc":                  constants.AccountId,
+		"pc-kernel":           constants.AccountId,
+		"snap-req-other-base": constants.AccountId,
+		"other-base":          constants.AccountId,
 	}, "")
 	bfn := s.AssertedSnap("other-base")
 	opts := &image.Options{
@@ -2764,11 +2766,11 @@ func (s *imageSuite) TestSetupSeedSnapReqBaseFromExtraFails(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":                "canonical",
-		"pc":                  "canonical",
-		"pc-kernel":           "canonical",
-		"snap-req-other-base": "canonical",
-		"other-base":          "canonical",
+		"core":                constants.AccountId,
+		"pc":                  constants.AccountId,
+		"pc-kernel":           constants.AccountId,
+		"snap-req-other-base": constants.AccountId,
+		"other-base":          constants.AccountId,
 	}, "")
 	bfn := s.AssertedSnap("other-base")
 	opts := &image.Options{
@@ -2792,10 +2794,10 @@ func (s *imageSuite) TestSetupSeedMissingContentProvider(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"core":                  "canonical",
-		"pc":                    "canonical",
-		"pc-kernel":             "canonical",
-		"snap-req-content-snap": "canonical",
+		"core":                  constants.AccountId,
+		"pc":                    constants.AccountId,
+		"pc-kernel":             constants.AccountId,
+		"snap-req-content-snap": constants.AccountId,
 	}, "")
 	opts := &image.Options{
 		PrepareDir: filepath.Dir(rootdir),
@@ -3209,8 +3211,8 @@ func (s *imageSuite) TestSetupSeedLocalSnapd(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc18":      "canonical",
-		"pc-kernel": "canonical",
+		"pc18":      constants.AccountId,
+		"pc-kernel": constants.AccountId,
 	}, "")
 
 	snapdFn := snaptest.MakeTestSnapWithFiles(c, snapdSnap, [][]string{{"local", ""}, snapdInfoFile})
@@ -3236,7 +3238,7 @@ func (s *imageSuite) TestCore20MakeLabel(c *C) {
 
 func (s *imageSuite) makeSnap(c *C, yamlKey string, files [][]string, revno snap.Revision, publisher string) {
 	if publisher == "" {
-		publisher = "canonical"
+		publisher = constants.AccountId
 	}
 	s.MakeAssertedSnap(c, seedtest.SampleSnapYaml[yamlKey], files, revno, publisher)
 }
@@ -3941,7 +3943,7 @@ func (s *imageSuite) testSetupSeedWithMixedSnapsAndRevisions(c *C, rules map[str
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -4338,7 +4340,7 @@ func (s *imageSuite) TestLocalSnapRevisionMatchingStoreRevision(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -4602,9 +4604,9 @@ func (s *imageSuite) TestLocalSnapWithCompsRevisionMatchingStoreRevision(c *C) {
 func (s *imageSuite) setupValidationSet(c *C, name string, snaps []interface{}) *asserts.ValidationSet {
 	vs, err := s.StoreSigning.Sign(asserts.ValidationSetType, map[string]interface{}{
 		"type":         "validation-set",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
-		"account-id":   "canonical",
+		"account-id":   constants.AccountId,
 		"name":         name,
 		"sequence":     "1",
 		"snaps":        snaps,
@@ -4629,7 +4631,7 @@ func (s *imageSuite) TestSetupSeedValidationSetsUnmetCriteria(c *C) {
 		"required-snaps": []interface{}{"required-snap1"},
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "base-set",
 				"mode":       "enforce",
 			},
@@ -4648,7 +4650,7 @@ func (s *imageSuite) TestSetupSeedValidationSetsUnmetCriteria(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -4663,7 +4665,7 @@ func (s *imageSuite) TestSetupSeedValidationSetsUnmetCriteria(c *C) {
 	}
 
 	err := image.SetupSeed(s.tsto, model, opts)
-	c.Assert(err.Error(), testutil.Contains, `pc-kernel (required at revision 6 by sets canonical/base-set)`)
+	c.Assert(err.Error(), testutil.Contains, `pc-kernel (required at revision 6 by sets `+constants.AccountId+`/base-set)`)
 
 	// ensure download actions were invoked with the validation-sets
 	// described in the model.
@@ -4708,7 +4710,7 @@ func (s *imageSuite) TestSetupSeedValidationSetsUnmetCriteriaButIgnoredValidatio
 		"required-snaps": []interface{}{"required-snap1"},
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "base-set",
 				"mode":       "enforce",
 			},
@@ -4727,7 +4729,7 @@ func (s *imageSuite) TestSetupSeedValidationSetsUnmetCriteriaButIgnoredValidatio
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -4787,7 +4789,7 @@ func (s *imageSuite) TestDownloadSnapsModelValidationSets(c *C) {
 		"required-snaps": []interface{}{"required-snap1"},
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "base-set",
 				"mode":       "enforce",
 			},
@@ -4813,7 +4815,7 @@ func (s *imageSuite) TestDownloadSnapsModelValidationSets(c *C) {
 
 	rootdir := filepath.Join(c.MkDir(), "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -4877,7 +4879,7 @@ func (s *imageSuite) TestDownloadSnapsManifestValidationSets(c *C) {
 		"required-snaps": []interface{}{"required-snap1"},
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "base-set",
 				"mode":       "enforce",
 			},
@@ -4904,13 +4906,13 @@ func (s *imageSuite) TestDownloadSnapsManifestValidationSets(c *C) {
 	rootDir := c.MkDir()
 	imageDir := filepath.Join(rootDir, "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
 	// write a seed.manifest we will provide to image
 	manifestFile := filepath.Join(rootDir, "seed.manifest")
-	err := os.WriteFile(manifestFile, []byte("canonical/base-set 1"), 0644)
+	err := os.WriteFile(manifestFile, []byte(constants.AccountId+"/base-set 1"), 0644)
 	c.Assert(err, IsNil)
 
 	manifest, err := seedwriter.ReadManifest(manifestFile)
@@ -4934,7 +4936,7 @@ func (s *imageSuite) TestDownloadSnapsManifestValidationSets(c *C) {
 	// ensure that the assertion fetcher was called
 	c.Check(s.seqReqs, DeepEquals, []seqReq{
 		{
-			key:      []string{"16", "canonical", "base-set"},
+			key:      []string{"16", constants.AccountId, "base-set"},
 			sequence: 1,
 		},
 	})
@@ -4986,12 +4988,12 @@ func (s *imageSuite) TestImageSeedValidationSetConflict(c *C) {
 		"required-snaps": []interface{}{"required-snap1"},
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "base-set",
 				"mode":       "enforce",
 			},
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "other-set",
 				"mode":       "enforce",
 			},
@@ -5020,7 +5022,7 @@ func (s *imageSuite) TestImageSeedValidationSetConflict(c *C) {
 	rootDir := c.MkDir()
 	imageDir := filepath.Join(rootDir, "image")
 	s.setupSnaps(c, map[string]string{
-		"pc":        "canonical",
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -5061,8 +5063,8 @@ func (s *imageSuite) TestSetupSeedLocalSnapWithInvalidModelArchButArchOverriden(
 	defer restore()
 
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -5086,8 +5088,8 @@ func (s *imageSuite) TestSetupSeedLocalSnapWithMultipleArchs(c *C) {
 	defer restore()
 
 	s.setupSnaps(c, map[string]string{
-		"core":      "canonical",
-		"pc":        "canonical",
+		"core":      constants.AccountId,
+		"pc":        constants.AccountId,
 		"pc-kernel": "my-brand",
 	}, "")
 
@@ -5111,7 +5113,7 @@ func (s *imageSuite) TestSetupSeedSnapInvalidArchitecture(c *C) {
 	s.makeSnap(c, "core20", nil, snap.R(20), "")
 	s.makeSnap(c, "pc-kernel=20", nil, snap.R(1), "")
 	s.makeSnap(c, "pc=20", nil, snap.R(22), "")
-	s.MakeAssertedSnap(c, marchSnap, nil, snap.R(18), "canonical")
+	s.MakeAssertedSnap(c, marchSnap, nil, snap.R(18), constants.AccountId)
 
 	// replace model with a model that has an extra snap
 	model := s.Brands.Model("my-brand", "my-model", map[string]interface{}{

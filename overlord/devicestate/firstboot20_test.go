@@ -22,6 +22,7 @@ package devicestate_test
 import (
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -143,7 +144,7 @@ volumes:
 			// XXX make SnapManager.ensureVulnerableSnapConfineVersionsRemovedOnClassic happy
 			files = append(files, []string{"/usr/lib/snapd/info", "VERSION=2.55"})
 		}
-		s.MakeAssertedSnap(c, s.snapYaml(yamlKey), files, snap.R(1), "canonical", s.StoreSigning.Database)
+		s.MakeAssertedSnap(c, s.snapYaml(yamlKey), files, snap.R(1), constants.AccountId, s.StoreSigning.Database)
 	}
 
 	makeSnap("snapd")

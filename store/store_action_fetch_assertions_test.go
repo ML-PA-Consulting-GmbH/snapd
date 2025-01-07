@@ -22,6 +22,7 @@ package store_test
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -223,7 +224,7 @@ func (s *storeActionFetchAssertionsSuite) TestUpdateIfNewerThan(c *C) {
 					"type": "snap-declaration",
 					"primary-key": []interface{}{
 						"16",
-						"CSO04Jhav2yK0uz97cr0ipQRyqg0qQL6",
+						constants.ProdIdCore18,
 					},
 					"if-newer-than": float64(1),
 				},
@@ -280,7 +281,7 @@ func (s *storeActionFetchAssertionsSuite) TestUpdateIfNewerThan(c *C) {
 					Type: asserts.SnapDeclarationType,
 					PrimaryKey: []string{
 						"16",
-						"CSO04Jhav2yK0uz97cr0ipQRyqg0qQL6",
+						constants.ProdIdCore18,
 					},
 				},
 				Revision: 1,
@@ -788,7 +789,7 @@ func (s *storeActionFetchAssertionsSuite) TestUpdateSequenceFormingCommonGroupin
 					"type": "snap-declaration",
 					"primary-key": []interface{}{
 						"16",
-						"CSO04Jhav2yK0uz97cr0ipQRyqg0qQL6",
+						constants.ProdIdCore18,
 					},
 					"if-newer-than": float64(1),
 				},
@@ -845,7 +846,7 @@ func (s *storeActionFetchAssertionsSuite) TestUpdateSequenceFormingCommonGroupin
 					Type: asserts.SnapDeclarationType,
 					PrimaryKey: []string{
 						"16",
-						"CSO04Jhav2yK0uz97cr0ipQRyqg0qQL6",
+						constants.ProdIdCore18,
 					},
 				},
 				Revision: 1,

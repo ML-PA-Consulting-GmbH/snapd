@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -75,7 +76,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUnhappyNotSeeded(c *C) {
 	defer s.state.Unlock()
 	s.state.Set("seeded", false)
 
-	newModel := s.brands.Model("canonical", "pc", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -90,12 +91,12 @@ func (s *deviceMgrRemodelSuite) TestRemodelSnapdBasedToCoreBased(c *C) {
 	defer st.Unlock()
 	s.state.Set("seeded", true)
 
-	model := s.brands.Model("canonical", "my-model", modelDefaults, map[string]interface{}{
+	model := s.brands.Model(constants.AccountId, "my-model", modelDefaults, map[string]interface{}{
 		"base": "core18",
 	})
 
 	devicestatetest.SetDevice(st, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "my-model",
 		Serial: "serialserialserial",
 	})
@@ -103,10 +104,10 @@ func (s *deviceMgrRemodelSuite) TestRemodelSnapdBasedToCoreBased(c *C) {
 	err := assertstate.Add(st, model)
 	c.Assert(err, IsNil)
 
-	s.makeSerialAssertionInState(c, "canonical", "my-model", "serialserialserial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "my-model", "serialserialserial")
 
 	// create a new model
-	newModel := s.brands.Model("canonical", "my-model", modelDefaults, map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "my-model", modelDefaults, map[string]interface{}{
 		"revision": "1",
 	})
 
@@ -116,7 +117,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelSnapdBasedToCoreBased(c *C) {
 }
 
 var mockCore20ModelHeaders = map[string]interface{}{
-	"brand":        "canonical",
+	"brand":        constants.AccountId,
 	"model":        "pc-model-20",
 	"architecture": "amd64",
 	"grade":        "dangerous",
@@ -160,7 +161,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUnhappy(c *C) {
 
 	// set a model assertion
 	cur := map[string]interface{}{
-		"brand":        "canonical",
+		"brand":        constants.AccountId,
 		"model":        "pc-model",
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
@@ -204,7 +205,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelFromClassicUnhappy(c *C) {
 
 	// set a model assertion
 	cur := map[string]interface{}{
-		"brand":        "canonical",
+		"brand":        constants.AccountId,
 		"model":        "pc-model",
 		"architecture": "amd64",
 		"classic":      "true",
@@ -279,13 +280,13 @@ func (s *deviceMgrRemodelSuite) TestRemodelCannotUseOldModel(c *C) {
 
 	// set a model assertion
 	cur := map[string]interface{}{
-		"brand":        "canonical",
+		"brand":        constants.AccountId,
 		"model":        "pc-model",
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	}
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -293,7 +294,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelCannotUseOldModel(c *C) {
 	})
 	// no serial assertion, no serial in state
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 
@@ -301,10 +302,10 @@ func (s *deviceMgrRemodelSuite) TestRemodelCannotUseOldModel(c *C) {
 		"revision": "1",
 	}
 	mergeMockModelHeaders(cur, newModelHdrs)
-	new := s.brands.Model("canonical", "pc-model", newModelHdrs)
+	new := s.brands.Model(constants.AccountId, "pc-model", newModelHdrs)
 	chg, err := devicestate.Remodel(s.state, new, nil, nil, devicestate.RemodelOptions{})
 	c.Check(chg, IsNil)
-	c.Check(err, ErrorMatches, "cannot remodel to older revision 1 of model canonical/pc-model than last revision 2 known to the device")
+	c.Check(err, ErrorMatches, "cannot remodel to older revision 1 of model "+constants.AccountId+"/pc-model than last revision 2 known to the device")
 }
 
 func (s *deviceMgrRemodelSuite) TestRemodelRequiresSerial(c *C) {
@@ -314,20 +315,20 @@ func (s *deviceMgrRemodelSuite) TestRemodelRequiresSerial(c *C) {
 
 	// set a model assertion
 	cur := map[string]interface{}{
-		"brand":        "canonical",
+		"brand":        constants.AccountId,
 		"model":        "pc-model",
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	}
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 	})
 	// no serial assertion, no serial in state
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 
@@ -335,7 +336,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelRequiresSerial(c *C) {
 		"revision": "2",
 	}
 	mergeMockModelHeaders(cur, newModelHdrs)
-	new := s.brands.Model("canonical", "pc-model", newModelHdrs)
+	new := s.brands.Model(constants.AccountId, "pc-model", newModelHdrs)
 	chg, err := devicestate.Remodel(s.state, new, nil, nil, devicestate.RemodelOptions{})
 	c.Check(chg, IsNil)
 	c.Check(err, ErrorMatches, "cannot remodel without a serial")
@@ -409,7 +410,7 @@ func (s *deviceMgrRemodelSuite) testRemodelTasksSwitchTrack(c *C, whatRefreshes 
 	defer restore()
 
 	// set a model assertion
-	current := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	current := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -418,7 +419,7 @@ func (s *deviceMgrRemodelSuite) testRemodelTasksSwitchTrack(c *C, whatRefreshes 
 	err := assertstate.Add(s.state, current)
 	c.Assert(err, IsNil)
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 
@@ -433,7 +434,7 @@ func (s *deviceMgrRemodelSuite) testRemodelTasksSwitchTrack(c *C, whatRefreshes 
 	for k, v := range newModelOverrides {
 		headers[k] = v
 	}
-	new := s.brands.Model("canonical", "pc-model", headers)
+	new := s.brands.Model(constants.AccountId, "pc-model", headers)
 
 	testDeviceCtx = &snapstatetest.TrivialDeviceContext{Remodeling: true, DeviceModel: new, OldDeviceModel: current}
 
@@ -600,7 +601,7 @@ func (s *deviceMgrRemodelSuite) testRemodelSwitchTasks(c *C, whatNewTrack map[st
 	defer restore()
 
 	// set a model assertion
-	current := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	current := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -611,7 +612,7 @@ func (s *deviceMgrRemodelSuite) testRemodelSwitchTasks(c *C, whatNewTrack map[st
 	err := assertstate.Add(s.state, current)
 	c.Assert(err, IsNil)
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 
@@ -625,7 +626,7 @@ func (s *deviceMgrRemodelSuite) testRemodelSwitchTasks(c *C, whatNewTrack map[st
 	for k, v := range newModelOverrides {
 		headers[k] = v
 	}
-	new := s.brands.Model("canonical", "pc-model", headers)
+	new := s.brands.Model(constants.AccountId, "pc-model", headers)
 	new.KernelSnap().SnapID = "pckernelidididididididididididid"
 	new.GadgetSnap().SnapID = "pcididididididididididididididid"
 
@@ -677,20 +678,20 @@ func (s *deviceMgrRemodelSuite) TestRemodelRequiredSnaps(c *C) {
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "1234")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "1234")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "1234",
 	})
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -813,20 +814,20 @@ func (s *deviceMgrRemodelSuite) TestRemodelSwitchKernelTrack(c *C) {
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "1234")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "1234")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "1234",
 	})
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel=18",
 		"gadget":         "pc",
@@ -893,21 +894,21 @@ func (s *deviceMgrRemodelSuite) TestRemodelLessRequiredSnaps(c *C) {
 	snapstatetest.InstallEssentialSnaps(c, s.state, "core18", nil, nil)
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
 		"base":           "core18",
 		"required-snaps": []interface{}{"some-required-snap"},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "1234")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "1234")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "1234",
 	})
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -970,20 +971,20 @@ func (s *deviceMgrRemodelSuite) TestRemodelStoreSwitch(c *C) {
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "1234")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "1234")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "1234",
 	})
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -1033,21 +1034,21 @@ func (s *deviceMgrRemodelSuite) TestRemodelRereg(c *C) {
 	s.state.Set("seeded", true)
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "orig-serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "orig-serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:           "canonical",
+		Brand:           constants.AccountId,
 		Model:           "pc-model",
 		Serial:          "orig-serial",
 		SessionMacaroon: "old-session",
 	})
 
-	new := s.brands.Model("canonical", "rereg-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "rereg-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -1067,7 +1068,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelRereg(c *C) {
 	chg, err := devicestate.Remodel(s.state, new, nil, nil, devicestate.RemodelOptions{})
 	c.Assert(err, IsNil)
 
-	c.Assert(chg.Summary(), Equals, "Remodel device to canonical/rereg-model (0)")
+	c.Assert(chg.Summary(), Equals, "Remodel device to "+constants.AccountId+"/rereg-model (0)")
 
 	tl := chg.Tasks()
 	c.Assert(tl, HasLen, 2)
@@ -1092,21 +1093,21 @@ func (s *deviceMgrRemodelSuite) TestRemodelReregLocalFails(c *C) {
 	s.state.Set("seeded", true)
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "orig-serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "orig-serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:           "canonical",
+		Brand:           constants.AccountId,
 		Model:           "pc-model",
 		Serial:          "orig-serial",
 		SessionMacaroon: "old-session",
 	})
 
-	new := s.brands.Model("canonical", "rereg-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "rereg-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -1144,7 +1145,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelClash(c *C) {
 		// simulate things changing under our feet
 		assertstatetest.AddMany(st, clashing)
 		devicestatetest.SetDevice(s.state, &auth.DeviceState{
-			Brand: "canonical",
+			Brand: constants.AccountId,
 			Model: clashing.Model(),
 		})
 
@@ -1165,22 +1166,22 @@ func (s *deviceMgrRemodelSuite) TestRemodelClash(c *C) {
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "1234")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "1234")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "1234",
 	})
 
 	snapstatetest.InstallEssentialSnaps(c, s.state, "core18", nil, nil)
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -1188,7 +1189,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelClash(c *C) {
 		"required-snaps": []interface{}{"new-required-snap-1", "new-required-snap-2"},
 		"revision":       "1",
 	})
-	other := s.brands.Model("canonical", "pc-model-other", map[string]interface{}{
+	other := s.brands.Model(constants.AccountId, "pc-model-other", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -1199,19 +1200,19 @@ func (s *deviceMgrRemodelSuite) TestRemodelClash(c *C) {
 	clashing = other
 	_, err := devicestate.Remodel(s.state, new, nil, nil, devicestate.RemodelOptions{})
 	c.Check(err, DeepEquals, &snapstate.ChangeConflictError{
-		Message: "cannot start remodel, clashing with concurrent remodel to canonical/pc-model-other (0)",
+		Message: "cannot start remodel, clashing with concurrent remodel to " + constants.AccountId + "/pc-model-other (0)",
 	})
 
 	// reset
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "1234",
 	})
 	clashing = new
 	_, err = devicestate.Remodel(s.state, new, nil, nil, devicestate.RemodelOptions{})
 	c.Check(err, DeepEquals, &snapstate.ChangeConflictError{
-		Message: "cannot start remodel, clashing with concurrent remodel to canonical/pc-model (1)",
+		Message: "cannot start remodel, clashing with concurrent remodel to " + constants.AccountId + "/pc-model (1)",
 	})
 }
 
@@ -1243,22 +1244,22 @@ func (s *deviceMgrRemodelSuite) TestRemodelClashInProgress(c *C) {
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "1234")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "1234")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "1234",
 	})
 
 	snapstatetest.InstallEssentialSnaps(c, s.state, "core18", nil, nil)
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -1304,22 +1305,22 @@ func (s *deviceMgrRemodelSuite) TestRemodelClashWithRecoverySystem(c *C) {
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "1234")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "1234")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "1234",
 	})
 
 	snapstatetest.InstallEssentialSnaps(c, s.state, "core18", nil, nil)
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -1342,21 +1343,21 @@ func (s *deviceMgrRemodelSuite) TestReregRemodelClashAnyChange(c *C) {
 	s.state.Set("seeded", true)
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "orig-serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "orig-serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:           "canonical",
+		Brand:           constants.AccountId,
 		Model:           "pc-model",
 		Serial:          "orig-serial",
 		SessionMacaroon: "old-session",
 	})
 
-	new := s.brands.Model("canonical", "pc-model-2", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model-2", map[string]interface{}{
 		"architecture":   "amd64",
 		"kernel":         "pc-kernel",
 		"gadget":         "pc",
@@ -1412,20 +1413,20 @@ func (s *deviceMgrRemodelSuite) TestDeviceCtxNoTask(c *C) {
 	c.Check(err, testutil.ErrorIs, state.ErrNoState)
 
 	// have a model assertion
-	model := s.brands.Model("canonical", "pc", map[string]interface{}{
+	model := s.brands.Model(constants.AccountId, "pc", map[string]interface{}{
 		"gadget":       "pc",
 		"kernel":       "kernel",
 		"architecture": "amd64",
 	})
 	assertstatetest.AddMany(s.state, model)
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc",
 	})
 
 	deviceCtx, err := devicestate.DeviceCtx(s.state, nil, nil)
 	c.Assert(err, IsNil)
-	c.Assert(deviceCtx.Model().BrandID(), Equals, "canonical")
+	c.Assert(deviceCtx.Model().BrandID(), Equals, constants.AccountId)
 
 	c.Check(deviceCtx.Classic(), Equals, false)
 	c.Check(deviceCtx.Kernel(), Equals, "kernel")
@@ -1440,20 +1441,20 @@ func (s *deviceMgrRemodelSuite) TestDeviceCtxGroundContext(c *C) {
 	defer s.state.Unlock()
 
 	// have a model assertion
-	model := s.brands.Model("canonical", "pc", map[string]interface{}{
+	model := s.brands.Model(constants.AccountId, "pc", map[string]interface{}{
 		"gadget":       "pc",
 		"kernel":       "kernel",
 		"architecture": "amd64",
 	})
 	assertstatetest.AddMany(s.state, model)
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc",
 	})
 
 	deviceCtx, err := devicestate.DeviceCtx(s.state, nil, nil)
 	c.Assert(err, IsNil)
-	c.Assert(deviceCtx.Model().BrandID(), Equals, "canonical")
+	c.Assert(deviceCtx.Model().BrandID(), Equals, constants.AccountId)
 	groundCtx := deviceCtx.GroundContext()
 	c.Check(groundCtx.ForRemodeling(), Equals, false)
 	c.Check(groundCtx.Model().Model(), Equals, "pc")
@@ -1466,9 +1467,9 @@ func (s *deviceMgrRemodelSuite) TestDeviceCtxProvided(c *C) {
 
 	model := assertstest.FakeAssertion(map[string]interface{}{
 		"type":         "model",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
-		"brand-id":     "canonical",
+		"brand-id":     constants.AccountId,
 		"model":        "pc",
 		"gadget":       "pc",
 		"kernel":       "kernel",
@@ -1579,10 +1580,10 @@ volumes:
 
 	// mock data to obtain current gadget info
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "gadget",
 	})
-	s.makeModelAssertionInState(c, "canonical", "gadget", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "gadget", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "kernel",
 		"gadget":       "gadget",
@@ -1745,15 +1746,15 @@ volumes:
 	s.mockTasksNopHandler("fake-download", "validate-snap", "set-model")
 
 	// set a model assertion we remodel from
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -1773,7 +1774,7 @@ volumes:
 	devicestate.SetBootRevisionsUpdated(s.mgr, true)
 
 	// the target model
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"base":         "core18",
@@ -1940,15 +1941,15 @@ func (s *deviceMgrRemodelSuite) TestRemodelGadgetAssetsParanoidCheck(c *C) {
 	s.mockTasksNopHandler("fake-download", "validate-snap", "set-model")
 
 	// set a model assertion we remodel from
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
 		"base":         "core18",
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -1968,7 +1969,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelGadgetAssetsParanoidCheck(c *C) {
 	devicestate.SetBootRevisionsUpdated(s.mgr, true)
 
 	// the target model
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"base":         "core18",
@@ -2058,7 +2059,7 @@ func (s *deviceMgrSuite) TestRemodelSwitchBaseIncompatibleGadget(c *C) {
 	defer restore()
 
 	// set a model assertion
-	current := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	current := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -2067,11 +2068,11 @@ func (s *deviceMgrSuite) TestRemodelSwitchBaseIncompatibleGadget(c *C) {
 	err := assertstate.Add(s.state, current)
 	c.Assert(err, IsNil)
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -2116,7 +2117,7 @@ func (s *deviceMgrSuite) TestRemodelSwitchBase(c *C) {
 	defer restore()
 
 	// set a model assertion
-	current := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	current := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc",
@@ -2125,11 +2126,11 @@ func (s *deviceMgrSuite) TestRemodelSwitchBase(c *C) {
 	err := assertstate.Add(s.state, current)
 	c.Assert(err, IsNil)
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"kernel":       "pc-kernel",
 		"gadget":       "pc-20",
@@ -2200,7 +2201,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20RequiredSnapsAndRecoverySystem(c 
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -2225,9 +2226,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20RequiredSnapsAndRecoverySystem(c 
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -2285,7 +2286,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20RequiredSnapsAndRecoverySystem(c 
 	})
 
 	// New model, that changes snapd tracking channel and with 2 new required snaps
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -2538,7 +2539,7 @@ func (s *deviceMgrRemodelSuite) testRemodelUC20SwitchKernelGadgetBaseSnaps(c *C,
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -2557,9 +2558,9 @@ func (s *deviceMgrRemodelSuite) testRemodelUC20SwitchKernelGadgetBaseSnaps(c *C,
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -2608,7 +2609,7 @@ func (s *deviceMgrRemodelSuite) testRemodelUC20SwitchKernelGadgetBaseSnaps(c *C,
 		newGadget = "pc-new"
 	}
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -2794,7 +2795,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelOfflineUseInstalledSnaps(c *C) {
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core24",
 		"grade":        "dangerous",
@@ -2813,9 +2814,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelOfflineUseInstalledSnaps(c *C) {
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -2854,7 +2855,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelOfflineUseInstalledSnaps(c *C) {
 	}
 	appSnapPath, _ := snaptest.MakeTestSnapInfoWithFiles(c, "name: app-snap\nversion: 1\ntype: app\n", nil, appSnap)
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		// switch to a new base which is already installed
 		"base":     "core24-new",
@@ -3051,7 +3052,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelOfflineUseInstalledSnapsChannelSwitch
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core24",
 		"grade":        "dangerous",
@@ -3070,9 +3071,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelOfflineUseInstalledSnapsChannelSwitch
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -3111,7 +3112,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelOfflineUseInstalledSnapsChannelSwitch
 	}
 	appSnapPath, _ := snaptest.MakeTestSnapInfoWithFiles(c, "name: app-snap\nversion: 1\ntype: app\n", nil, appSnap)
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		// switch to a new base which is already installed
 		"base":     "core24-new",
@@ -3309,7 +3310,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20SwitchKernelBaseGadgetSnapsInstal
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core24",
 		"grade":        "dangerous",
@@ -3328,9 +3329,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20SwitchKernelBaseGadgetSnapsInstal
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -3387,7 +3388,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20SwitchKernelBaseGadgetSnapsInstal
 		})
 	}
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		// switch to a new base which is already installed
 		"base":     "core24-new",
@@ -3636,7 +3637,7 @@ func (s *deviceMgrRemodelSuite) testRemodelUC20SwitchKernelBaseGadgetSnapsInstal
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core24",
 		"grade":        "dangerous",
@@ -3655,9 +3656,9 @@ func (s *deviceMgrRemodelSuite) testRemodelUC20SwitchKernelBaseGadgetSnapsInstal
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -3712,7 +3713,7 @@ func (s *deviceMgrRemodelSuite) testRemodelUC20SwitchKernelBaseGadgetSnapsInstal
 		})
 	}
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		// switch to a new base which is already installed
 		"base":     "core24-new",
@@ -3911,7 +3912,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20SwitchKernelBaseSnapsInstalledSna
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -3930,9 +3931,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20SwitchKernelBaseSnapsInstalledSna
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -3987,7 +3988,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20SwitchKernelBaseSnapsInstalledSna
 	}
 
 	// new kernel and base are already installed, but using a different channel
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		// switch to a new base which is already installed
 		"base":     "core20-new",
@@ -4137,7 +4138,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20EssentialSnapsTrackingDifferentCh
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -4156,9 +4157,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20EssentialSnapsTrackingDifferentCh
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -4207,7 +4208,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20EssentialSnapsTrackingDifferentCh
 	})
 
 	// new kernel and base are already installed, but using a different channel
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -4314,7 +4315,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelFailWhenUsingUnassertedSnapForSpecifi
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -4333,9 +4334,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelFailWhenUsingUnassertedSnapForSpecifi
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -4380,11 +4381,11 @@ func (s *deviceMgrRemodelSuite) TestRemodelFailWhenUsingUnassertedSnapForSpecifi
 		TrackingChannel: "",
 	})
 
-	vset, err := s.brands.Signing("canonical").Sign(asserts.ValidationSetType, map[string]interface{}{
+	vset, err := s.brands.Signing(constants.AccountId).Sign(asserts.ValidationSetType, map[string]interface{}{
 		"type":         "validation-set",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
-		"account-id":   "canonical",
+		"account-id":   constants.AccountId,
 		"name":         "vset-1",
 		"sequence":     "1",
 		"snaps": []interface{}{
@@ -4404,14 +4405,14 @@ func (s *deviceMgrRemodelSuite) TestRemodelFailWhenUsingUnassertedSnapForSpecifi
 
 	// new kernel and base are already installed, but kernel needs a new
 	// revision and base is a new channel
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
 		"revision":     "1",
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "vset-1",
 				"mode":       "enforce",
 			},
@@ -4476,7 +4477,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20BaseNoDownloadSimpleChannelSwitch
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -4495,9 +4496,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20BaseNoDownloadSimpleChannelSwitch
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -4544,7 +4545,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20BaseNoDownloadSimpleChannelSwitch
 	})
 
 	// base uses a new default channel
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -4660,7 +4661,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20EssentialNoDownloadSimpleChannelS
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -4691,9 +4692,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelUC20EssentialNoDownloadSimpleChannelS
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -4775,7 +4776,7 @@ base: snap-1-base
 	})
 
 	// snap-1 uses a new default channel
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -4866,7 +4867,7 @@ func (s *deviceMgrRemodelSuite) testRemodelUC20LabelConflicts(c *C, tc remodelUC
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -4885,9 +4886,9 @@ func (s *deviceMgrRemodelSuite) testRemodelUC20LabelConflicts(c *C, tc remodelUC
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -4931,7 +4932,7 @@ func (s *deviceMgrRemodelSuite) testRemodelUC20LabelConflicts(c *C, tc remodelUC
 		TrackingChannel: "latest/stable",
 	})
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -5043,7 +5044,7 @@ func (s *deviceMgrRemodelSuite) testUC20RemodelSetModel(c *C, tc uc20RemodelSetM
 		"create-recovery-system", "finalize-recovery-system")
 
 	// set a model assertion we remodel from
-	model := s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	model := s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -5062,9 +5063,9 @@ func (s *deviceMgrRemodelSuite) testUC20RemodelSetModel(c *C, tc uc20RemodelSetM
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -5129,7 +5130,7 @@ func (s *deviceMgrRemodelSuite) testUC20RemodelSetModel(c *C, tc uc20RemodelSetM
 	})
 
 	// the target model
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -5380,15 +5381,15 @@ func (s *deviceMgrRemodelSuite) testUC20RemodelLocalNonEssential(c *C, tc *uc20R
 			"default-channel": "latest",
 		})
 	}
-	model := s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	model := s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
 		"snaps":        snaps,
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	deviceState := auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	}
@@ -5471,7 +5472,7 @@ func (s *deviceMgrRemodelSuite) testUC20RemodelLocalNonEssential(c *C, tc *uc20R
 		"default-channel": "new-channel",
 	})
 
-	new := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -5662,7 +5663,7 @@ func (s *deviceMgrRemodelSuite) TestUC20RemodelSetModelWithReboot(c *C) {
 		"create-recovery-system", "finalize-recovery-system")
 
 	// set a model assertion we remodel from
-	model := s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	model := s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -5695,9 +5696,9 @@ func (s *deviceMgrRemodelSuite) TestUC20RemodelSetModelWithReboot(c *C) {
 		Current:  info.Revision,
 	})
 
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -5753,7 +5754,7 @@ func (s *deviceMgrRemodelSuite) TestUC20RemodelSetModelWithReboot(c *C) {
 
 	// the target model, since it's a new model altogether a reregistration
 	// will be triggered
-	new := s.brands.Model("canonical", "pc-new-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-new-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -6006,7 +6007,7 @@ func (s *deviceMgrRemodelSuite) testRemodelTasksSelfContainedModelMissingDep(c *
 	var testDeviceCtx snapstate.DeviceContext
 
 	// set a model assertion we remodel from
-	current := s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	current := s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -6140,7 +6141,7 @@ plugs:
 	})
 	defer restore()
 
-	new := s.brands.Model("canonical", "pc-new-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-new-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -6270,7 +6271,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelTasksSelfContainedModelMissingDepsOfM
 	var testDeviceCtx snapstate.DeviceContext
 
 	// set a model assertion we remodel from
-	current := s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	current := s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -6386,7 +6387,7 @@ plugs:
 	})
 	defer restore()
 
-	new := s.brands.Model("canonical", "pc-new-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-new-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -6543,7 +6544,7 @@ func (s *deviceMgrSuite) testRemodelUpdateFromValidationSet(c *C, sequence strin
 	})
 	defer restore()
 
-	currentModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	currentModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"snaps": []interface{}{
@@ -6571,7 +6572,7 @@ func (s *deviceMgrSuite) testRemodelUpdateFromValidationSet(c *C, sequence strin
 	c.Assert(err, IsNil)
 
 	err = devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 	c.Assert(err, IsNil)
@@ -6625,7 +6626,7 @@ func (s *deviceMgrSuite) testRemodelUpdateFromValidationSet(c *C, sequence strin
 	})
 
 	validationSetInModel := map[string]interface{}{
-		"account-id": "canonical",
+		"account-id": constants.AccountId,
 		"name":       "vset-1",
 		"mode":       "enforce",
 	}
@@ -6634,7 +6635,7 @@ func (s *deviceMgrSuite) testRemodelUpdateFromValidationSet(c *C, sequence strin
 		validationSetInModel["sequence"] = sequence
 	}
 
-	newModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture":    "amd64",
 		"base":            "core20",
 		"revision":        "1",
@@ -6661,11 +6662,11 @@ func (s *deviceMgrSuite) testRemodelUpdateFromValidationSet(c *C, sequence strin
 		},
 	})
 
-	vset, err := s.brands.Signing("canonical").Sign(asserts.ValidationSetType, map[string]interface{}{
+	vset, err := s.brands.Signing(constants.AccountId).Sign(asserts.ValidationSetType, map[string]interface{}{
 		"type":         "validation-set",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
-		"account-id":   "canonical",
+		"account-id":   constants.AccountId,
 		"name":         "vset-1",
 		"sequence":     "1",
 		"snaps": []interface{}{
@@ -6693,7 +6694,7 @@ func (s *deviceMgrSuite) testRemodelUpdateFromValidationSet(c *C, sequence strin
 		CtxStore: &fakeSequenceStore{
 			fn: func(aType *asserts.AssertionType, key []string, seq int, _ *auth.UserState) (asserts.Assertion, error) {
 				c.Check(aType, Equals, asserts.ValidationSetType)
-				c.Check(key, DeepEquals, []string{"16", "canonical", "vset-1"})
+				c.Check(key, DeepEquals, []string{"16", constants.AccountId, "vset-1"})
 
 				if sequence == "" {
 					c.Check(seq, Equals, 0)
@@ -6731,7 +6732,7 @@ func (s *deviceMgrSuite) testRemodelInvalidFromValidationSet(c *C, invalidSnap s
 
 	var testDeviceCtx snapstate.DeviceContext
 
-	currentModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	currentModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"snaps": []interface{}{
@@ -6753,18 +6754,18 @@ func (s *deviceMgrSuite) testRemodelInvalidFromValidationSet(c *C, invalidSnap s
 	c.Assert(err, IsNil)
 
 	err = devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 	c.Assert(err, IsNil)
 
-	newModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"revision":     "1",
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "vset-1",
 				"mode":       "enforce",
 			},
@@ -6791,11 +6792,11 @@ func (s *deviceMgrSuite) testRemodelInvalidFromValidationSet(c *C, invalidSnap s
 		},
 	})
 
-	vset, err := s.brands.Signing("canonical").Sign(asserts.ValidationSetType, map[string]interface{}{
+	vset, err := s.brands.Signing(constants.AccountId).Sign(asserts.ValidationSetType, map[string]interface{}{
 		"type":         "validation-set",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
-		"account-id":   "canonical",
+		"account-id":   constants.AccountId,
 		"name":         "vset-1",
 		"sequence":     "1",
 		"snaps": []interface{}{
@@ -6816,7 +6817,7 @@ func (s *deviceMgrSuite) testRemodelInvalidFromValidationSet(c *C, invalidSnap s
 		CtxStore: &fakeSequenceStore{
 			fn: func(aType *asserts.AssertionType, key []string, sequence int, _ *auth.UserState) (asserts.Assertion, error) {
 				c.Check(aType, Equals, asserts.ValidationSetType)
-				c.Check(key, DeepEquals, []string{"16", "canonical", "vset-1"})
+				c.Check(key, DeepEquals, []string{"16", constants.AccountId, "vset-1"})
 				c.Check(sequence, Equals, 0)
 				return vset, nil
 			},
@@ -6845,7 +6846,7 @@ func (s *deviceMgrSuite) testOfflineRemodelValidationSet(c *C, withValSet bool) 
 
 	var testDeviceCtx snapstate.DeviceContext
 
-	currentModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	currentModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"snaps": []interface{}{
@@ -6867,18 +6868,18 @@ func (s *deviceMgrSuite) testOfflineRemodelValidationSet(c *C, withValSet bool) 
 	c.Assert(err, IsNil)
 
 	err = devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 	c.Assert(err, IsNil)
 
-	newModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"revision":     "1",
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "vset-1",
 				"mode":       "enforce",
 			},
@@ -6906,11 +6907,11 @@ func (s *deviceMgrSuite) testOfflineRemodelValidationSet(c *C, withValSet bool) 
 	})
 
 	if withValSet {
-		vset, err := s.brands.Signing("canonical").Sign(asserts.ValidationSetType, map[string]interface{}{
+		vset, err := s.brands.Signing(constants.AccountId).Sign(asserts.ValidationSetType, map[string]interface{}{
 			"type":         "validation-set",
-			"authority-id": "canonical",
+			"authority-id": constants.AccountId,
 			"series":       "16",
-			"account-id":   "canonical",
+			"account-id":   constants.AccountId,
 			"name":         "vset-1",
 			"sequence":     "1",
 			"snaps": []interface{}{
@@ -6964,7 +6965,7 @@ func (s *deviceMgrSuite) TestOfflineRemodelMissingSnap(c *C) {
 
 	var testDeviceCtx snapstate.DeviceContext
 
-	currentModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	currentModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"snaps": []interface{}{
@@ -6986,12 +6987,12 @@ func (s *deviceMgrSuite) TestOfflineRemodelMissingSnap(c *C) {
 	c.Assert(err, IsNil)
 
 	err = devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 	c.Assert(err, IsNil)
 
-	newModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"revision":     "1",
@@ -7027,7 +7028,7 @@ func (s *deviceMgrSuite) TestOfflineRemodelPreinstalledIncorrectRevision(c *C) {
 
 	var testDeviceCtx snapstate.DeviceContext
 
-	currentModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	currentModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"snaps": []interface{}{
@@ -7049,18 +7050,18 @@ func (s *deviceMgrSuite) TestOfflineRemodelPreinstalledIncorrectRevision(c *C) {
 	c.Assert(err, IsNil)
 
 	err = devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 	c.Assert(err, IsNil)
 
-	newModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"revision":     "1",
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "vset-1",
 				"mode":       "enforce",
 			},
@@ -7081,11 +7082,11 @@ func (s *deviceMgrSuite) TestOfflineRemodelPreinstalledIncorrectRevision(c *C) {
 		},
 	})
 
-	vset, err := s.brands.Signing("canonical").Sign(asserts.ValidationSetType, map[string]interface{}{
+	vset, err := s.brands.Signing(constants.AccountId).Sign(asserts.ValidationSetType, map[string]interface{}{
 		"type":         "validation-set",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
-		"account-id":   "canonical",
+		"account-id":   constants.AccountId,
 		"name":         "vset-1",
 		"sequence":     "1",
 		"snaps": []interface{}{
@@ -7187,7 +7188,7 @@ func (s *deviceMgrSuite) TestOfflineRemodelPreinstalledUseOldRevision(c *C) {
 	})
 	defer restore()
 
-	currentModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	currentModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core22",
 		"snaps": []interface{}{
@@ -7209,18 +7210,18 @@ func (s *deviceMgrSuite) TestOfflineRemodelPreinstalledUseOldRevision(c *C) {
 	c.Assert(err, IsNil)
 
 	err = devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 	c.Assert(err, IsNil)
 
-	newModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core22",
 		"revision":     "1",
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "vset-1",
 				"mode":       "enforce",
 			},
@@ -7241,11 +7242,11 @@ func (s *deviceMgrSuite) TestOfflineRemodelPreinstalledUseOldRevision(c *C) {
 		},
 	})
 
-	vset, err := s.brands.Signing("canonical").Sign(asserts.ValidationSetType, map[string]interface{}{
+	vset, err := s.brands.Signing(constants.AccountId).Sign(asserts.ValidationSetType, map[string]interface{}{
 		"type":         "validation-set",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
-		"account-id":   "canonical",
+		"account-id":   constants.AccountId,
 		"name":         "vset-1",
 		"sequence":     "1",
 		"snaps": []interface{}{
@@ -7298,7 +7299,7 @@ func (s *deviceMgrSuite) TestRemodelRequiredSnapMissingFromModel(c *C) {
 
 	var testDeviceCtx snapstate.DeviceContext
 
-	currentModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	currentModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"snaps": []interface{}{
@@ -7320,18 +7321,18 @@ func (s *deviceMgrSuite) TestRemodelRequiredSnapMissingFromModel(c *C) {
 	c.Assert(err, IsNil)
 
 	err = devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand: "canonical",
+		Brand: constants.AccountId,
 		Model: "pc-model",
 	})
 	c.Assert(err, IsNil)
 
-	newModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"revision":     "1",
 		"validation-sets": []interface{}{
 			map[string]interface{}{
-				"account-id": "canonical",
+				"account-id": constants.AccountId,
 				"name":       "vset-1",
 				"mode":       "enforce",
 			},
@@ -7352,11 +7353,11 @@ func (s *deviceMgrSuite) TestRemodelRequiredSnapMissingFromModel(c *C) {
 		},
 	})
 
-	vset, err := s.brands.Signing("canonical").Sign(asserts.ValidationSetType, map[string]interface{}{
+	vset, err := s.brands.Signing(constants.AccountId).Sign(asserts.ValidationSetType, map[string]interface{}{
 		"type":         "validation-set",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       "16",
-		"account-id":   "canonical",
+		"account-id":   constants.AccountId,
 		"name":         "vset-1",
 		"sequence":     "1",
 		"snaps": []interface{}{
@@ -7377,7 +7378,7 @@ func (s *deviceMgrSuite) TestRemodelRequiredSnapMissingFromModel(c *C) {
 		CtxStore: &fakeSequenceStore{
 			fn: func(aType *asserts.AssertionType, key []string, sequence int, _ *auth.UserState) (asserts.Assertion, error) {
 				c.Check(aType, Equals, asserts.ValidationSetType)
-				c.Check(key, DeepEquals, []string{"16", "canonical", "vset-1"})
+				c.Check(key, DeepEquals, []string{"16", constants.AccountId, "vset-1"})
 				c.Check(sequence, Equals, 0)
 				return vset, nil
 			},
@@ -7397,7 +7398,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelVerifyOrderOfTasks(c *C) {
 	var testDeviceCtx snapstate.DeviceContext
 
 	// set a model assertion we remodel from
-	current := s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	current := s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -7498,7 +7499,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelVerifyOrderOfTasks(c *C) {
 	})
 	defer restore()
 
-	new := s.brands.Model("canonical", "pc-new-model", map[string]interface{}{
+	new := s.brands.Model(constants.AccountId, "pc-new-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -7639,7 +7640,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelHybridSystemSkipSeed(c *C) {
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -7660,9 +7661,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelHybridSystemSkipSeed(c *C) {
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -7692,7 +7693,7 @@ volumes:
 
 	snapstatetest.InstallEssentialSnaps(c, s.state, "core20", gadgetFiles, nil)
 
-	newModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -7770,7 +7771,7 @@ func (s *deviceMgrRemodelSuite) TestRemodelHybridSystem(c *C) {
 	defer restore()
 
 	// set a model assertion
-	s.makeModelAssertionInState(c, "canonical", "pc-model", map[string]interface{}{
+	s.makeModelAssertionInState(c, constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
@@ -7791,9 +7792,9 @@ func (s *deviceMgrRemodelSuite) TestRemodelHybridSystem(c *C) {
 			},
 		},
 	})
-	s.makeSerialAssertionInState(c, "canonical", "pc-model", "serial")
+	s.makeSerialAssertionInState(c, constants.AccountId, "pc-model", "serial")
 	devicestatetest.SetDevice(s.state, &auth.DeviceState{
-		Brand:  "canonical",
+		Brand:  constants.AccountId,
 		Model:  "pc-model",
 		Serial: "serial",
 	})
@@ -7819,7 +7820,7 @@ volumes:
 
 	snapstatetest.InstallEssentialSnaps(c, s.state, "core20", gadgetFiles, nil)
 
-	newModel := s.brands.Model("canonical", "pc-model", map[string]interface{}{
+	newModel := s.brands.Model(constants.AccountId, "pc-model", map[string]interface{}{
 		"architecture": "amd64",
 		"base":         "core20",
 		"grade":        "dangerous",
