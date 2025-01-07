@@ -92,6 +92,15 @@ func encodeKey(key keyEncoder, kind string) ([]byte, error) {
 	return encodeV1(buf.Bytes()), nil
 }
 
+func encodeKeyBase64(key keyEncoder) (string, error) {
+	buf := new(bytes.Buffer)
+	err := key.keyEncode(buf)
+	if err != nil {
+		return "", fmt.Errorf("cannot encode key: %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
+}
+
 type openpgpSigner interface {
 	sign(content []byte) (*packet.Signature, error)
 }
