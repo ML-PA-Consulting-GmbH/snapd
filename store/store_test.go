@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -80,7 +81,7 @@ var (
 func (suite *configTestSuite) TestSetBaseURL(c *C) {
 	// Validity check to prove at least one URI changes.
 	cfg := store.DefaultConfig()
-	c.Assert(cfg.StoreBaseURL.String(), Equals, "https://api.snapcraft.io/")
+	c.Assert(cfg.StoreBaseURL.String(), Equals, constants.BaseUrlSnapcraftApi)
 
 	u, err := url.Parse("http://example.com/path/prefix/")
 	c.Assert(err, IsNil)
@@ -3533,7 +3534,7 @@ func (s *storeTestSuite) TestStoreDeveloperURLDependsOnEnviron(c *C) {
 }
 
 func (s *storeTestSuite) TestStoreDefaultConfig(c *C) {
-	c.Check(store.DefaultConfig().StoreBaseURL.String(), Equals, "https://api.snapcraft.io/")
+	c.Check(store.DefaultConfig().StoreBaseURL.String(), Equals, constants.BaseUrlSnapcraftApi)
 	c.Check(store.DefaultConfig().AssertionsBaseURL, IsNil)
 }
 

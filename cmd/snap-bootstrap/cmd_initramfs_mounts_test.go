@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -228,7 +229,11 @@ func notFoundPart() secboot.UnlockResult {
 	return secboot.UnlockResult{}
 }
 
-// other helpers that are common between modes
+	// add a bunch of snaps
+	seed20.MakeAssertedSnap(c, "name: snapd\nversion: 1\ntype: snapd", nil, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: pc\nversion: 1\ntype: gadget\nbase: core20", gadgetSnapFiles, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: pc-kernel\nversion: 1\ntype: kernel", nil, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
+	seed20.MakeAssertedSnap(c, "name: core20\nversion: 1\ntype: base", nil, snap.R(1), constants.AccountId, seed20.StoreSigning.Database)
 
 func writeGadget(c *C, espName, espRole, espLabel string) {
 	gadgetYaml := `

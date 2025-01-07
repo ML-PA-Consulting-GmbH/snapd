@@ -22,6 +22,7 @@ package snap_test
 import (
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1927,7 +1928,7 @@ name: snapd
 type: app
 version: 1
 `
-	snapInfo := snaptest.MockSnap(c, snapdYaml, &snap.SideInfo{Revision: snap.R(1), SnapID: "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4"})
+	snapInfo := snaptest.MockSnap(c, snapdYaml, &snap.SideInfo{Revision: snap.R(1), SnapID: constants.ProdIdSnapd})
 	c.Check(snapInfo.Type(), Equals, snap.TypeSnapd)
 }
 

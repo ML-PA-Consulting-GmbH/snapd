@@ -22,6 +22,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -51,9 +52,9 @@ var baseURL *url.URL
 func init() {
 	var baseurl string
 	if snapdenv.UseStagingStore() {
-		baseurl = "https://api.staging.snapcraft.io/v2/"
+		baseurl = constants.BaseUrlSnapcraftStagingApiV2
 	} else {
-		baseurl = "https://api.snapcraft.io/v2/"
+		baseurl = constants.BaseUrlSnapcraftApiV2
 	}
 
 	// allow redirecting assertion requests under a different base url
@@ -68,7 +69,7 @@ func init() {
 	}
 }
 
-var rootBrandIDs = []string{"canonical"}
+var rootBrandIDs = []string{constants.AccountId}
 
 func (c *cmdRun) Execute(args []string) error {
 	if err := os.MkdirAll(dirs.SnapRunRepairDir, 0755); err != nil {

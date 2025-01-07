@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"github.com/snapcore/snapd/constants"
 	"time"
 
 	// expected for digests
@@ -1072,7 +1073,7 @@ var (
 	builtinBaseDeclarationCheckOrder      = []string{"type", "authority-id", "series"}
 	builtinBaseDeclarationExpectedHeaders = map[string]interface{}{
 		"type":         "base-declaration",
-		"authority-id": "canonical",
+		"authority-id": constants.AccountId,
 		"series":       release.Series,
 	}
 )

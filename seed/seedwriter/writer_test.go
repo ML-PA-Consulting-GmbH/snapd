@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path"
 	"path/filepath"
@@ -121,7 +122,7 @@ func (s *writerSuite) SetUpTest(c *C) {
 	}
 
 	s.SeedSnaps = &seedtest.SeedSnaps{}
-	s.SetupAssertSigning("canonical")
+	s.SetupAssertSigning(constants.AccountId)
 	s.Brands.Register("my-brand", brandPrivKey, map[string]interface{}{
 		"verification": "verified",
 	})
@@ -199,7 +200,7 @@ var snapFiles = map[string][][]string{
 
 func (s *writerSuite) makeSnap(c *C, yamlKey, publisher string) {
 	if publisher == "" {
-		publisher = "canonical"
+		publisher = constants.AccountId
 	}
 	s.MakeAssertedSnap(c, snapYaml[yamlKey], snapFiles[yamlKey], snap.R(1), publisher, s.StoreSigning.Database)
 }
@@ -1141,7 +1142,7 @@ func (s *writerSuite) TestSeedSnapsWriteMetaCore18StoreAssertion(c *C) {
 	// add store assertion
 	storeAs, err := s.StoreSigning.Sign(asserts.StoreType, map[string]interface{}{
 		"store":       "my-store",
-		"operator-id": "canonical",
+		"operator-id": constants.AccountId,
 		"timestamp":   time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
 	c.Assert(err, IsNil)
@@ -2295,7 +2296,7 @@ func (s *writerSuite) TestSeedSnapsWriteMetaCore20(c *C) {
 	// add store assertion
 	storeAs, err := s.StoreSigning.Sign(asserts.StoreType, map[string]interface{}{
 		"store":       "my-store",
-		"operator-id": "canonical",
+		"operator-id": constants.AccountId,
 		"timestamp":   time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
 	c.Assert(err, IsNil)
@@ -2849,7 +2850,7 @@ func (s *writerSuite) TestDownloadedCore20AlternativeProviderModes(c *C) {
 
 func (s *writerSuite) TestCore20NonDangerousDisallowedDevmodeSnaps(c *C) {
 
-	s.makeSnap(c, "my-devmode", "canonical")
+	s.makeSnap(c, "my-devmode", constants.AccountId)
 
 	model := s.Brands.Model("my-brand", "my-model", map[string]interface{}{
 		"display-name": "my model",
@@ -3031,7 +3032,7 @@ func (s *writerSuite) testSeedSnapsWriteMetaCore20LocalSnaps(c *C, withComps boo
 	// add store assertion
 	storeAs, err := s.StoreSigning.Sign(asserts.StoreType, map[string]interface{}{
 		"store":       "my-store",
-		"operator-id": "canonical",
+		"operator-id": constants.AccountId,
 		"timestamp":   time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
 	c.Assert(err, IsNil)
@@ -3303,7 +3304,7 @@ func (s *writerSuite) TestSeedSnapsWriteMetaCore20ChannelOverrides(c *C) {
 	// add store assertion
 	storeAs, err := s.StoreSigning.Sign(asserts.StoreType, map[string]interface{}{
 		"store":       "my-store",
-		"operator-id": "canonical",
+		"operator-id": constants.AccountId,
 		"timestamp":   time.Now().UTC().Format(time.RFC3339),
 	}, nil, "")
 	c.Assert(err, IsNil)

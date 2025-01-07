@@ -21,6 +21,7 @@ package main_test
 
 import (
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"net/http"
 
 	"gopkg.in/check.v1"
@@ -88,12 +89,12 @@ snaps:
       - run
   -
     default-channel: latest/stable
-    id: DLqre5XGLbDqg9jPtiAhRRjDuPVa5X1q
+    id: ` + constants.ProdIdCore20 + `
     name: core20
     type: base
   -
     default-channel: latest/stable
-    id: PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4
+    id: ` + constants.ProdIdSnapd + `
     name: snapd
     type: snapd
 timestamp: 2018-09-11T22:00:00+00:00
@@ -448,8 +449,8 @@ func (s *SnapSuite) TestModelVerboseUC20(c *check.C) {
 	rest, err := snap.Parser(snap.Client()).ParseArgs([]string{"model", "--verbose", "--abs-time"})
 	c.Assert(err, check.IsNil)
 	c.Assert(rest, check.DeepEquals, []string{})
-	c.Check(s.Stdout(), check.Equals, `
-brand-id:        testrootorg
+	c.Check(s.Stdout(), check.Equals,
+		`brand-id:        testrootorg
 model:           test-snapd-core-20-amd64
 grade:           dangerous
 storage-safety:  prefer-encrypted
@@ -471,11 +472,11 @@ snaps:
     presence:         optional
     modes:            [recover, run]
   - name:             core20
-    id:               DLqre5XGLbDqg9jPtiAhRRjDuPVa5X1q
+    id:               `+constants.ProdIdCore20+`
     type:             base
     default-channel:  latest/stable
   - name:             snapd
-    id:               PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4
+    id:               `+constants.ProdIdSnapd+` 
     type:             snapd
     default-channel:  latest/stable
 `[1:])

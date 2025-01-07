@@ -21,6 +21,7 @@ package policy_test
 
 import (
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"strings"
 
 	. "gopkg.in/check.v1"
@@ -459,7 +460,7 @@ plugs:
 }
 
 func (s *baseDeclSuite) TestAutoConnectionSharedMemoryPrivate(c *C) {
-	slotDecl := s.mockSnapDecl(c, "snapd", "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4", "canonical", "")
+	slotDecl := s.mockSnapDecl(c, "snapd", constants.ProdIdSnapd, "canonical", "")
 	appSlotDecl := s.mockSnapDecl(c, "slot-snap", "slot-snap-id", "pub1", "")
 	plugDecl := s.mockSnapDecl(c, "plug-snap", "plug-snap-id", "pub1", "")
 
@@ -980,7 +981,7 @@ type: os
 slots:
   shared-memory:
 `)
-	ic.SnapDeclaration = s.mockSnapDecl(c, "core", "99T7MUlRhtI3U0QFgl5mXXESAiSwt776", "canonical", "")
+	ic.SnapDeclaration = s.mockSnapDecl(c, "core", constants.ProdIdCore, "canonical", "")
 	c.Assert(ic.Check(), IsNil)
 
 	ic = s.installSlotCand(c, "shared-memory", snap.TypeSnapd, `name: snapd
@@ -989,7 +990,7 @@ type: snapd
 slots:
   shared-memory:
 `)
-	ic.SnapDeclaration = s.mockSnapDecl(c, "snapd", "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4", "canonical", "")
+	ic.SnapDeclaration = s.mockSnapDecl(c, "snapd", constants.ProdIdSnapd, "canonical", "")
 	c.Assert(ic.Check(), IsNil)
 
 	ic = s.installSlotCand(c, "udisks2", snap.TypeApp, `name: udisks2
@@ -1581,7 +1582,7 @@ plugs:
 }
 
 func (s *baseDeclSuite) TestConnectionSharedMemoryPrivate(c *C) {
-	slotDecl := s.mockSnapDecl(c, "snapd", "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4", "canonical", "")
+	slotDecl := s.mockSnapDecl(c, "snapd", constants.ProdIdSnapd, "canonical", "")
 	appSlotDecl := s.mockSnapDecl(c, "slot-snap", "slot-snap-id", "pub1", "")
 	plugDecl := s.mockSnapDecl(c, "plug-snap", "plug-snap-id", "pub1", "")
 
@@ -1644,12 +1645,12 @@ plugs:
 func (s *baseDeclSuite) TestComposeBaseDeclaration(c *C) {
 	decl, err := policy.ComposeBaseDeclaration(nil)
 	c.Assert(err, IsNil)
-	c.Assert(string(decl), testutil.Contains, `
+	c.Assert(string(decl), testutil.Contains, fmt.Sprintf(`
 type: base-declaration
-authority-id: canonical
+authority-id: %s
 series: 16
 revision: 0
-`)
+`, constants.AccountId))
 }
 
 func (s *baseDeclSuite) TestDoesNotPanic(c *C) {

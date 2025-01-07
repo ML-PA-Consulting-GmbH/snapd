@@ -22,6 +22,7 @@ package daemon_test
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -188,7 +189,10 @@ func (s *assertsSuite) TestAssertsFindManyAll(c *check.C) {
 
 	ids := []string{a1.(*asserts.Account).AccountID(), a2.(*asserts.Account).AccountID(), a3.(*asserts.Account).AccountID(), a4.(*asserts.Account).AccountID()}
 	sort.Strings(ids)
-	c.Check(ids, check.DeepEquals, []string{"can0nical", "canonical", "developer1-id", "generic"})
+
+	idsCheck := []string{"can0nical", constants.AccountId, "developer1-id", "generic"}
+	sort.Strings(idsCheck)
+	c.Check(ids, check.DeepEquals, idsCheck)
 }
 
 func (s *assertsSuite) TestAssertsFindManyFilter(c *check.C) {
@@ -330,7 +334,9 @@ func (s *assertsSuite) TestAssertsFindManyJSONWithBody(c *check.C) {
 		c.Check(a.(map[string]interface{})["body"], check.HasLen, l)
 	}
 	sort.Strings(got)
-	c.Check(got, check.DeepEquals, []string{"can0nical/root", "can0nical/store", "canonical/root", "generic/models"})
+	gotCheck := []string{"can0nical/root", "can0nical/store", constants.AccountId + "/root", "generic/models"}
+	sort.Strings(gotCheck)
+	c.Check(got, check.DeepEquals, gotCheck)
 }
 
 func (s *assertsSuite) TestAssertsFindManyJSONHeadersOnly(c *check.C) {
