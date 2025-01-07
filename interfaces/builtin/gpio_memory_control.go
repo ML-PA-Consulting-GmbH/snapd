@@ -38,7 +38,7 @@ const gpioMemoryControlConnectedPlugAppArmor = `
 /dev/gpiomem rw,
 `
 
-var gpioMemoryControlConnectedPlugUDev = []string{`KERNEL=="gpiomem"`}
+var gpioMemoryControlConnectedPlugUDev = []string{`KERNEL=="gpiomem", KERNEL=="gpiochip[0-9]*"`}
 
 func init() {
 	registerIface(&commonInterface{
