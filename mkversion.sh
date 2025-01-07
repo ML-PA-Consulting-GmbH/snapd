@@ -137,8 +137,11 @@ if [ "$GO111MODULE" = "off" ] ; then
 elif [ ! -d "$GO_GENERATE_BUILDDIR/vendor/github.com"  ] ; then
     MOD=--
 fi
-fmts=$(cd "$GO_GENERATE_BUILDDIR" ; go run $MOD ./asserts/info)
-
+if [ ! -f ./data/asserts.info ]; then
+    fmts=$(cd "$GO_GENERATE_BUILDDIR" ; go run $MOD ./asserts/info)
+else
+    fmts=$(cat ./data/asserts.info)
+fi
 cat <<EOF > "$PKG_BUILDDIR/data/info"
 VERSION=$v
 SNAPD_APPARMOR_REEXEC=1
