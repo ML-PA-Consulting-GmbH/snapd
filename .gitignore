@@ -92,3 +92,12 @@ cmd/test-driver
 
 # Image files
 *.img
+
+# ML!PA added ignores
+/bin/
+/_build/
+/data/
+/packaging/ubuntu-16.04/.debhelper/bucket/
+/packaging/ubuntu-16.04/
+*.snap
+/constants/constants.go
