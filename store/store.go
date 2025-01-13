@@ -23,6 +23,7 @@ package store
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,6 +37,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/constants"
 
 	"gopkg.in/retry.v1"
@@ -821,16 +824,31 @@ func (s *Store) buildLocationString() (string, error) {
 
 // build a new http.Request with headers for the store
 func (s *Store) newRequest(ctx context.Context, reqOptions *requestOptions, user *auth.UserState) (*http.Request, error) {
-	var body io.Reader
-	if reqOptions.Data != nil {
-		body = bytes.NewBuffer(reqOptions.Data)
-	}
 
-	req, err := http.NewRequest(reqOptions.Method, reqOptions.URL.String(), body)
+	req, err := http.NewRequest(reqOptions.Method, reqOptions.URL.String(), bytes.NewBuffer(reqOptions.Data))
 	if err != nil {
 		return nil, err
 	}
+	if !asserts.HasTpm() {
+		logger.Noticef("TPM: no tpm chip -> not signing request")
+	} else {
+		if reqOptions.Data != nil && len(reqOptions.Data) > 0 {
+			// mlpa patch: always sign payload
+			bodyBytes := reqOptions.Data
+			logger.Noticef("TPM: trying to sign %d bytes of request body", len(bodyBytes))
+			logger.Noticef(base64.StdEncoding.EncodeToString(bodyBytes))
 
+			if bodySignature, err := asserts.TpmSignBytes(bodyBytes); err == nil {
+				bodySignatureBase64 := base64.StdEncoding.EncodeToString(bodySignature)
+				logger.Noticef("TPM: Add header X-Tpm-Body-Signature: %v", bodySignatureBase64)
+				req.Header.Set("X-Tpm-Body-Signature", bodySignatureBase64)
+			} else {
+				logger.Noticef("TPM: cannot sign request body: %s\nanalyzing problem..", err)
+			}
+		} else {
+			logger.Noticef("TPM: %s signature not added due to empty request body", req.URL)
+		}
+	}
 	customStore := s.setStoreID(req, reqOptions.APILevel)
 	authOpts := AuthorizeOptions{apiLevel: reqOptions.APILevel}
 	authOpts.deviceAuth = customStore || reqOptions.DeviceAuthNeed != deviceAuthCustomStoreOnly
@@ -911,6 +929,7 @@ func (s *Store) extractSuggestedCurrency(resp *http.Response) {
 //	    }
 //	  ]
 //	}
+
 type ordersResult struct {
 	Orders []*order `json:"orders"`
 }
