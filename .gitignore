@@ -107,3 +107,4 @@ cmd/test-driver
 /packaging/ubuntu-16.04/
 *.snap
 /constants/constants.go
+/build-debug
