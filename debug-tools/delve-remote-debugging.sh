@@ -18,7 +18,12 @@ NC='\033[0m' # No Color
 
 start_delve() {
     echo "Starting Delve..."
-    $DELVE_PATH --headless=true --listen=:"$PORT" --api-version=2 exec "$RUNNING_BINARY_PATH" &
+    PARAMS_FILE="${BINARY_NAME}_params"
+    PARAMS=""
+    if [ -f "$PARAMS_FILE" ]; then
+        PARAMS=$(cat "$PARAMS_FILE")
+    fi
+    $DELVE_PATH --headless=true --listen=:"$PORT" --api-version=2 exec "$RUNNING_BINARY_PATH" "$PARAMS" &
     DELVE_PID=$!
     echo "Delve started with PID $DELVE_PID"
 }

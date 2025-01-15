@@ -1,10 +1,10 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Copy+Debug snapd on arm64 target" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" host="10.0.1.137">
+  <configuration default="false" name="Copy+Debug snapd on arm64 target" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" host="192.168.178.0">
     <option name="disconnectOption" value="STOP" />
     <disconnect value="STOP" />
     <method v="2">
-      <option name="RunConfigurationTask" enabled="true" run_configuration_name="snapd-arm64" run_configuration_type="GoApplicationRunConfiguration" />
       <option name="RunConfigurationTask" enabled="true" run_configuration_name="Copy arm64 snapd to target" run_configuration_type="ShConfigurationType" />
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="snapd-arm64" run_configuration_type="GoApplicationRunConfiguration" />
     </method>
   </configuration>
 </component>
