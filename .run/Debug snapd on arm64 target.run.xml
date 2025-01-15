@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Debug snapd on arm64 target" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" host="10.0.1.137">
+  <configuration default="false" name="Debug snapd on arm64 target" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" host="192.168.178.0">
     <option name="disconnectOption" value="STOP" />
     <disconnect value="STOP" />
     <method v="2">
