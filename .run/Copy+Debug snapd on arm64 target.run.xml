@@ -3,6 +3,7 @@
     <option name="disconnectOption" value="STOP" />
     <disconnect value="STOP" />
     <method v="2">
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="snapd-arm64" run_configuration_type="GoApplicationRunConfiguration" />
       <option name="RunConfigurationTask" enabled="true" run_configuration_name="Copy arm64 snapd to target" run_configuration_type="ShConfigurationType" />
       <option name="RunConfigurationTask" enabled="true" run_configuration_name="snapd-arm64" run_configuration_type="GoApplicationRunConfiguration" />
     </method>
