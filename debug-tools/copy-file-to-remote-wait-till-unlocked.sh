@@ -13,7 +13,6 @@ TARGET="$3"
 BINARY_NAME=$(basename "$BINARY_PATH")
 LOCK_FILE="$BINARY_NAME.lock"
 
-# First we check, if a lock file is present, we delete if first
 ssh "$IP" "rm -f $LOCK_FILE"
 ssh "$IP" "touch $LOCK_FILE"
 
