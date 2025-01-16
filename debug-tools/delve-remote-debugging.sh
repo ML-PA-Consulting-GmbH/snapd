@@ -19,11 +19,15 @@ NC='\033[0m' # No Color
 start_delve() {
     echo "Starting Delve..."
     PARAMS_FILE="${BINARY_NAME}_params"
-    PARAMS=""
+    PARAMS=()
     if [ -f "$PARAMS_FILE" ]; then
-        PARAMS=$(cat "$PARAMS_FILE")
+        while IFS= read -r line || [ -n "$line" ]; do
+            PARAMS+=("$line")
+        done < "$PARAMS_FILE"
     fi
-    $DELVE_PATH --headless=true --listen=:"$PORT" --api-version=2 exec "$RUNNING_BINARY_PATH" "$PARAMS" &
+    set -x
+    $DELVE_PATH --headless=true --listen=:"$PORT" --api-version=2 exec "$RUNNING_BINARY_PATH" "${PARAMS[@]}" &
+    set +x
     DELVE_PID=$!
     echo "Delve started with PID $DELVE_PID"
 }
@@ -55,9 +59,15 @@ kill_delve_instances() {
     done
 }
 
+if [ ! -f "$BINARY_PATH" ] && [ ! -f "$RUNNING_BINARY_PATH" ]; then
+    echo -e "${RED}Error: Binary ${BINARY_NAME} is missing. Please copy the binary over first before you run the script${NC}"
+    exit 1
+fi
+
+trap 'exit 0' SIGTERM
+trap kill_delve_instances EXIT
 kill_delve_instances
 start_delve
-trap kill_delve_instances EXIT
 
 # Monitor if new binary appears or Delve terminated
 while true; do
