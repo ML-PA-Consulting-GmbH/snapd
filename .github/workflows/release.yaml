@@ -9,13 +9,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+    - name: Check out code
+      uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.22.5'
+        go-version: '^1.22'
 
     - name: Extract tag name
       id: extract_tag
@@ -23,19 +23,20 @@ jobs:
 
     - name: Pull dependencies
       run: |
+        ./mkversion.sh
         go mod tidy
         go mod vendor
-        ./mkversion.sh
 
-    - name: Create tarballs
+    - name: Create ta rballs
       run: |
-          rm -rf .git
+          mv .git /tmp
           rm -rf .github
+          echo "${{ env.TAG_NAME}}" > release_version
           tar cfah /tmp/snapd_${{ env.TAG_NAME }}.tar.xz .
           cd .. 
           cp -r snapd snapd-${{ env.TAG_NAME }}
           tar cfah /tmp/snapd_${{ env.TAG_NAME }}.vendor.tar.xz snapd-${{ env.TAG_NAME }}
-
+          mv /tmp/.git .
 
     - name: Get release ID
       id: get_release
@@ -46,22 +47,12 @@ jobs:
           | jq -r .id)
         echo "RELEASE_ID=${RELEASE_ID}" >> $GITHUB_ENV
 
-    - name: Upload release asset
-      uses: actions/upload-release-asset@v1
+    - name: Create Release
+      id: create_release
+      run: gh release create ${{ env.TAG_NAME }}
+        --title "Release ${{ env.TAG_NAME }}"
+        ${{ env.RELEASE_TYPE }} --generate-notes
+        /tmp/snapd_${{ env.TAG_NAME }}.tar.xz
+        /tmp/snapd_${{ env.TAG_NAME }}.vendor.tar.xz
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets?name=snapd_${{ env.TAG_NAME }}.tar.xz"
-        asset_path: /tmp/snapd_${{ env.TAG_NAME }}.tar.xz
-        asset_name: snapd_${{ env.TAG_NAME }}.tar.xz
-        asset_content_type: application/x-tar
-
-    - name: Upload release asset yocto version
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets?name=snapd_${{ env.TAG_NAME }}.vendor.tar.xz"
-        asset_path: /tmp/snapd_${{ env.TAG_NAME }}.vendor.tar.xz
-        asset_name: snapd_${{ env.TAG_NAME }}.vendor.tar.xz
-        asset_content_type: application/x-tar
