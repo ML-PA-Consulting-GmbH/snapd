@@ -20,6 +20,7 @@
 package naming_test
 
 import (
+	"github.com/snapcore/snapd/constants"
 	. "gopkg.in/check.v1"
 
 	"github.com/snapcore/snapd/snap/naming"
@@ -32,11 +33,11 @@ var _ = Suite(&wellKnownSuite{})
 func (s wellKnownSuite) TestWellKnownSnapID(c *C) {
 	c.Check(naming.WellKnownSnapID("foo"), Equals, "")
 
-	c.Check(naming.WellKnownSnapID("snapd"), Equals, "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4")
+	c.Check(naming.WellKnownSnapID("snapd"), Equals, constants.ProdIdSnapd)
 
-	c.Check(naming.WellKnownSnapID("core"), Equals, "99T7MUlRhtI3U0QFgl5mXXESAiSwt776")
-	c.Check(naming.WellKnownSnapID("core18"), Equals, "CSO04Jhav2yK0uz97cr0ipQRyqg0qQL6")
-	c.Check(naming.WellKnownSnapID("core20"), Equals, "DLqre5XGLbDqg9jPtiAhRRjDuPVa5X1q")
+	c.Check(naming.WellKnownSnapID("core"), Equals, constants.ProdIdCore)
+	c.Check(naming.WellKnownSnapID("core18"), Equals, constants.ProdIdCore18)
+	c.Check(naming.WellKnownSnapID("core20"), Equals, constants.ProdIdCore20)
 }
 
 func (s wellKnownSuite) TestWellKnownSnapIDStaging(c *C) {
@@ -44,10 +45,10 @@ func (s wellKnownSuite) TestWellKnownSnapIDStaging(c *C) {
 
 	c.Check(naming.WellKnownSnapID("baz"), Equals, "")
 
-	c.Check(naming.WellKnownSnapID("snapd"), Equals, "Z44rtQD1v4r1LXGPCDZAJO3AOw1EDGqy")
+	c.Check(naming.WellKnownSnapID("snapd"), Equals, constants.StagingIdSnapd)
 
-	c.Check(naming.WellKnownSnapID("core"), Equals, "xMNMpEm0COPZy7jq9YRwWVLCD9q5peow")
-	c.Check(naming.WellKnownSnapID("core18"), Equals, "NhSvwckvNdvgdiVGlsO1vYmi3FPdTZ9U")
+	c.Check(naming.WellKnownSnapID("core"), Equals, constants.StagingIdCore)
+	c.Check(naming.WellKnownSnapID("core18"), Equals, constants.StagingIdCore18)
 	// XXX no core20 uploaded to staging yet
 	c.Check(naming.WellKnownSnapID("core20"), Equals, "")
 }

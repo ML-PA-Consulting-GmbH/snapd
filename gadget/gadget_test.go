@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -164,7 +165,7 @@ defaults:
 
 var mockClassicGadgetCoreDefaultsYaml = []byte(`
 defaults:
-  99T7MUlRhtI3U0QFgl5mXXESAiSwt776:
+  ` + constants.ProdIdCore + `:
     ssh:
       disable: true
 `)

@@ -21,6 +21,7 @@ package patch_test
 
 import (
 	"bytes"
+	"github.com/snapcore/snapd/constants"
 
 	. "gopkg.in/check.v1"
 
@@ -48,7 +49,7 @@ var statePatch6_2JSON = []byte(`
 			"sequence": [
 			  {
 				"name": "snapd",
-				"snap-id": "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
+				"snap-id": "` + constants.ProdIdSnapd + `",
 				"revision": "2"
 			  }
 			],
@@ -131,7 +132,7 @@ var statePatch6_2JSON = []byte(`
 				},
 				"side-info": {
 				  "name": "snapd",
-				  "snap-id": "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
+				  "snap-id": "` + constants.ProdIdSnapd + `",
 				  "revision": "1",
 				  "channel": "stable",
 				  "title": "snapd"
@@ -174,7 +175,7 @@ var statePatch6_2JSON = []byte(`
 				"snap-path": "/path",
 				"side-info": {
 				  "name": "snapd",
-				  "snap-id": "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
+				  "snap-id": "` + constants.ProdIdSnapd + `",
 				  "revision": "1",
 				  "channel": "stable",
 				  "title": "snapd"
@@ -195,7 +196,7 @@ var statePatch6_2JSON = []byte(`
 				"snap-path": "/path",
 				"side-info": {
 				  "name": "snapd",
-				  "snap-id": "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
+				  "snap-id": "` + constants.ProdIdSnapd + `",
 				  "revision": "1",
 				  "channel": "stable",
 				  "title": "snapd"
@@ -210,7 +211,7 @@ var statePatch6_2JSON = []byte(`
 }`)
 
 // State with 'snapd' snap with proper snap type, and an extra 'other'
-// snap with snapd snap-id (PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4) but
+// snap with snapd snap-id (constants.ProdIdSnapd) but
 // improper 'app' type.
 var statePatch6_2JSONWithSnapd = []byte(`
 {
@@ -222,7 +223,7 @@ var statePatch6_2JSONWithSnapd = []byte(`
 			"sequence": [
 			  {
 				"name": "snapd",
-				"snap-id": "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
+				"snap-id": "` + constants.ProdIdSnapd + `",
 				"revision": "2"
 			  }
 			],
@@ -235,7 +236,7 @@ var statePatch6_2JSONWithSnapd = []byte(`
 			"sequence": [
 			  {
 				"name": "other",
-				"snap-id": "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
+				"snap-id": "` + constants.ProdIdSnapd + `",
 				"revision": "1"
 			  }
 			],
@@ -252,7 +253,7 @@ var statePatch6_2JSONWithSnapd = []byte(`
 }`)
 
 // State with two snaps with snapd snap-id
-// (PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4) and improper snap types
+// (constants.ProdIdSnapd) and improper snap types
 var statePatch6_2JSONWithSnapd2 = []byte(`
 {
 	"data": {
@@ -263,7 +264,7 @@ var statePatch6_2JSONWithSnapd2 = []byte(`
 			"sequence": [
 			  {
 				"name": "snapd",
-				"snap-id": "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
+				"snap-id": "` + constants.ProdIdSnapd + `",
 				"revision": "2"
 			  }
 			],
@@ -276,7 +277,7 @@ var statePatch6_2JSONWithSnapd2 = []byte(`
 			"sequence": [
 			  {
 				"name": "other",
-				"snap-id": "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
+				"snap-id": "` + constants.ProdIdSnapd + `",
 				"revision": "1"
 			  }
 			],
