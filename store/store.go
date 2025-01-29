@@ -297,7 +297,7 @@ func authURL() string {
 	if u := os.Getenv("SNAPPY_FORCE_SSO_URL"); u != "" {
 		return u
 	}
-	return "https://" + authLocation() + "/api/v2"
+	return constants.BaseUrlSnapcraftApiV2
 }
 
 var defaultStoreDeveloperURL = constants.BaseUrlSnapcraftDashboard
