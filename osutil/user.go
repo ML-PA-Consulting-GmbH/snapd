@@ -35,7 +35,7 @@ import (
 )
 
 var (
-	userLookup  = user.Lookup
+	userLookup  = LookupUserReplacement
 	userCurrent = user.Current
 	sudoersDotD = "/etc/sudoers.d"
 )
@@ -74,6 +74,44 @@ var IsValidUsername = regexp.MustCompile(`^[a-z0-9][-a-z0-9._]*$`).MatchString
 // Unlike a normal username a system usernames can be encloused in "_"
 // (e.g. _username_ is valid)
 var IsValidSnapSystemUsername = regexp.MustCompile(`^([_][-a-z0-9._]+[_]|[a-z0-9][-a-z0-9._]*)$`).MatchString
+
+// LookupUserReplacement is a replacement for user.Lookup, because the original doesn't work in snapd context
+func LookupUserReplacement(username string) (*user.User, error) {
+	cmdUID := exec.Command("id", "-u", username)
+	uidOutput, err := cmdUID.Output()
+	if err != nil {
+		// Check if the error is because the user doesn't exist
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			ws := exitErr.Sys().(syscall.WaitStatus)
+			if ws.ExitStatus() == 1 { // User does not exist
+				return nil, fmt.Errorf("user %s does not exist", username)
+			}
+		}
+		return nil, fmt.Errorf("error lookup up user: %s", err)
+	}
+
+	// Get the group ID using the "id -g" command
+	cmdGID := exec.Command("id", "-g", username)
+	gidOutput, err := cmdGID.Output()
+	if err != nil {
+		return nil, fmt.Errorf("error looking up user group: %s", err)
+	}
+
+	// Convert UID and GID from output
+	uid := strings.TrimSpace(string(uidOutput))
+	gid := strings.TrimSpace(string(gidOutput))
+
+	// Construct the user.User struct
+	usr := &user.User{
+		Uid:      uid,
+		Gid:      gid,
+		Username: username,
+		Name:     username, // Use username as the display name
+		HomeDir:  fmt.Sprintf("/home/%s", username),
+	}
+
+	return usr, nil
+}
 
 // EnsureSnapUserGroup uses the standard shadow utilities' 'useradd'
 // and 'groupadd' commands for creating non-login system users and
