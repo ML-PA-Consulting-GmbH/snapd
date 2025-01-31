@@ -28,7 +28,6 @@ import (
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/osutil"
-	"github.com/snapcore/snapd/osutil/user"
 	"github.com/snapcore/snapd/overlord/assertstate"
 	"github.com/snapcore/snapd/overlord/auth"
 	"github.com/snapcore/snapd/overlord/snapstate"
@@ -40,7 +39,7 @@ import (
 var (
 	osutilAddUser = osutil.AddUser
 	osutilDelUser = osutil.DelUser
-	userLookup    = user.Lookup
+	userLookup    = osutil.LookupUserReplacement
 )
 
 // UserError is returned when invalid or insufficient data is supplied,
