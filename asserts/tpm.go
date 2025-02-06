@@ -253,7 +253,7 @@ func getDriveSerial(drive string) (serial string, err error) {
 	}
 
 	// this is a list of known devices that can be used for TPM ... more can be added as needed
-	if model != "Q2J55L" && model != "DG4008" && model != "JB1Q5" {
+	if model != "Q2J55L" && model != "DG4008" && model != "JB1Q5" && model != "DA6032" {
 		return "", fmt.Errorf("tpm:getDriveSerial() ID_NAME -> unknown block device model '%s'", model)
 	}
 
