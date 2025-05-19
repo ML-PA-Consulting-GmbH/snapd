@@ -2,57 +2,58 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Check out code
-      uses: actions/checkout@v4
+      - name: Check out code
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '^1.22'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "^1.22"
 
-    - name: Extract tag name
-      id: extract_tag
-      run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+      - name: Extract tag name
+        id: extract_tag
+        run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
-    - name: Pull dependencies
-      run: |
-        ./mkversion.sh
-        go mod tidy
-        go mod vendor
+      - name: Pull dependencies
+        run: |
+          ./mkversion.sh
+          go mod tidy
+          go mod vendor
 
-    - name: Create ta rballs
-      run: |
+      - name: Create tarballs
+        run: |
           mv .git /tmp
           rm -rf .github
           echo "${{ env.TAG_NAME}}" > release_version
-          tar cfah /tmp/snapd_${{ env.TAG_NAME }}.tar.xz .
+          tar cfa /tmp/snapd_${{ env.TAG_NAME }}.tar.xz .
           cd .. 
           cp -r snapd snapd-${{ env.TAG_NAME }}
-          tar cfah /tmp/snapd_${{ env.TAG_NAME }}.vendor.tar.xz snapd-${{ env.TAG_NAME }}
+          tar cfa /tmp/snapd_${{ env.TAG_NAME }}.vendor.tar.xz snapd-${{ env.TAG_NAME }}
           mv /tmp/.git .
 
-    - name: Get release ID
-      id: get_release
-      run: |
-        RELEASE_ID=$(curl -s \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.TAG_NAME }}" \
-          | jq -r .id)
-        echo "RELEASE_ID=${RELEASE_ID}" >> $GITHUB_ENV
+      - name: Get release ID
+        id: get_release
+        run: |
+          RELEASE_ID=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.TAG_NAME }}" \
+            | jq -r .id)
+          echo "RELEASE_ID=${RELEASE_ID}" >> $GITHUB_ENV
 
-    - name: Create Release
-      id: create_release
-      run: gh release create ${{ env.TAG_NAME }}
-        --title "Release ${{ env.TAG_NAME }}"
-        ${{ env.RELEASE_TYPE }} --generate-notes
-        /tmp/snapd_${{ env.TAG_NAME }}.tar.xz
-        /tmp/snapd_${{ env.TAG_NAME }}.vendor.tar.xz
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        id: create_release
+        run: gh release create ${{ env.TAG_NAME }}
+          --title "Release ${{ env.TAG_NAME }}"
+          ${{ env.RELEASE_TYPE }} --generate-notes
+          /tmp/snapd_${{ env.TAG_NAME }}.tar.xz
+          /tmp/snapd_${{ env.TAG_NAME }}.vendor.tar.xz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
