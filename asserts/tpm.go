@@ -117,7 +117,8 @@ func NoTpmDeterministicDeviceSerial() (string, error) {
 			return seedToSerial(serial), nil
 		}
 	}
-	return "", fmt.Errorf("failed building deterministic serial - no seeding sources found")
+	fmt.Println("No TPM and no seeding sources found, generating a random UUID as device serial")
+	return uuid.New().String(), nil
 }
 
 // TpmDeterministicDeviceSerial generates a deterministic serial number for the device from the m2cp key (derived from EK).
