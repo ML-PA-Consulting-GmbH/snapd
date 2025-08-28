@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -405,7 +406,13 @@ func (m *DeviceManager) prepareSerialRequest(t *state.Task, regCtx registrationC
 
 	}
 
-	headers := map[string]any{
+	if deterministicSerial, err := getDeviceSerial(); err != nil {
+		return "", fmt.Errorf("failed generating device serial: %v", err)
+	} else {
+		cfg.proposedSerial = deterministicSerial
+	}
+
+	headers := map[string]any{}{
 		"brand-id":   device.Brand,
 		"model":      device.Model,
 		"request-id": requestID.RequestID,
