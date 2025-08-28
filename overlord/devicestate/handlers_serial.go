@@ -401,12 +401,13 @@ func prepareSerialRequest(t *state.Task, regCtx registrationContext, privKey ass
 		cfg.proposedSerial = deterministicSerial
 	}
 
-	headers := map[string]any{}{
+	headers := map[string]any{
 		"brand-id":   device.Brand,
 		"model":      device.Model,
 		"request-id": requestID.RequestID,
 		"device-key": string(encodedPubKey),
 	}
+
 	if cfg.proposedSerial != "" {
 		headers["serial"] = cfg.proposedSerial
 	}
