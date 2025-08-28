@@ -36,6 +36,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"github.com/snapcore/snapd/constants"
 
 	"gopkg.in/retry.v1"
 
@@ -230,9 +231,9 @@ func endpointURL(base *url.URL, path string, query url.Values) *url.URL {
 
 // apiURL returns the system default base API URL.
 func apiURL() *url.URL {
-	s := "https://api.snapcraft.io/"
+	s := constants.BaseUrlSnapcraftApi
 	if snapdenv.UseStagingStore() {
-		s = "https://api.staging.snapcraft.io/"
+		s = constants.BaseUrlSnapcraftStagingApi
 	}
 	u, _ := url.Parse(s)
 	return u
@@ -279,9 +280,9 @@ func assertsURL() (*url.URL, error) {
 
 func authLocation() string {
 	if snapdenv.UseStagingStore() {
-		return "login.staging.ubuntu.com"
+		return constants.AuthLocationStaging
 	}
-	return "login.ubuntu.com"
+	return constants.AuthLocation
 }
 
 func authURL() string {
@@ -291,11 +292,11 @@ func authURL() string {
 	return "https://" + authLocation() + "/api/v2"
 }
 
-var defaultStoreDeveloperURL = "https://dashboard.snapcraft.io/"
+var defaultStoreDeveloperURL = constants.BaseUrlSnapcraftDashboard
 
 func storeDeveloperURL() string {
 	if snapdenv.UseStagingStore() {
-		return "https://dashboard.staging.snapcraft.io/"
+		return constants.BaseUrlSnapcraftDashboardStaging
 	}
 	return defaultStoreDeveloperURL
 }
