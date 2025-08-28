@@ -21,6 +21,7 @@ package devicestate
 import (
 	"bytes"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -394,7 +395,13 @@ func prepareSerialRequest(t *state.Task, regCtx registrationContext, privKey ass
 
 	}
 
-	headers := map[string]any{
+	if deterministicSerial, err := getDeviceSerial(); err != nil {
+		return "", fmt.Errorf("failed generating device serial: %v", err)
+	} else {
+		cfg.proposedSerial = deterministicSerial
+	}
+
+	headers := map[string]any{}{
 		"brand-id":   device.Brand,
 		"model":      device.Model,
 		"request-id": requestID.RequestID,
