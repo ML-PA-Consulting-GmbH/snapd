@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"encoding/pem"
 	"fmt"
+	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/http/httptest"

@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"github.com/snapcore/snapd/constants"
 	"time"
 
 	// expected for digests
