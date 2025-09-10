@@ -31,7 +31,7 @@ var (
 		"core18": constants.ProdIdCore18,
 		"core20": constants.ProdIdCore20,
 		"core22": constants.ProdIdCore22,
-		"core24": "dwTAh7MZZ01zyriOZErqd1JynQLiOGvM",
+		"core24": constants.ProdIdCore24,
 	}
 
 	stagingWellKnownSnapIDs = map[string]string{
