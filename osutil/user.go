@@ -188,6 +188,27 @@ func EnsureSnapUserGroup(name string, id uint32, extraUsers bool) error {
 	return nil
 }
 
+// RefreshUser refreshes the SSH authorized_keys of an existing user. It will
+// ensure ~/.ssh exists with the right ownership and permissions, and will
+// overwrite ~/.ssh/authorized_keys with the provided keys (even if empty).
+func RefreshUser(u *user.User, sshKeys []string) error {
+	uid, gid, err := UidGid(u)
+	if err != nil {
+		return err
+	}
+
+	sshDir := filepath.Join(u.HomeDir, ".ssh")
+	if err := MkdirAllChown(sshDir, 0700, uid, gid); err != nil {
+		return fmt.Errorf("cannot create %s: %s", sshDir, err)
+	}
+	authKeys := filepath.Join(sshDir, "authorized_keys")
+	authKeysContent := strings.Join(sshKeys, "\n")
+	if err := AtomicWriteFileChown(authKeys, []byte(authKeysContent), 0600, 0, uid, gid); err != nil {
+		return fmt.Errorf("cannot write %s: %s", authKeys, err)
+	}
+	return nil
+}
+
 func sudoersFile(name string) string {
 	// Must escape "." as files containing it are ignored in sudoers.d.
 	return filepath.Join(sudoersDotD, "create-user-"+strings.Replace(name, ".", "%2E", -1))
@@ -211,6 +232,15 @@ func AddUser(name string, opts *AddUserOptions) error {
 
 	if !IsValidUsername(name) {
 		return fmt.Errorf("cannot add user %q: name contains invalid characters", name)
+	}
+
+	// First, check if the user already exists. If it does, perform a user
+	// refresh (authorized_keys update only) and return. If the error isn't an
+	// unknown-user style error, surface it.
+	if u, err := userLookup(name); err == nil {
+		return RefreshUser(u, opts.SSHKeys)
+	} else if !isUnknownUserOrEnoent(err) {
+		return fmt.Errorf("cannot determine user existence for %q: %v", name, err)
 	}
 
 	cmdStr := []string{
