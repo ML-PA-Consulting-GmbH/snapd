@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -152,14 +153,12 @@ func TpmTest() {
 }
 
 func HasTpm() bool {
-	/* TPM signing of all requests is disabled for now, as it causes a TPM lockout after a few requests
-		// We need a better way to handle this - either by solving the lockout problem or by doing less signing
-		// (e.g. only for authentication requests)
+	//  TPM signing of all requests is disabled for now, as it causes a TPM lockout after a few requests
+	//We need a better way to handle this - either by solving the lockout problem or by doing less signing
+	// (e.g. only for authentication requests)
 
-		_, err := os.Stat("/dev/tpmrm0")
+	_, err := os.Stat("/dev/tpmrm0")
 	return !os.IsNotExist(err)
-	*/
-	return false
 }
 
 func withTpm(f func(key *client.Key) error) error {
