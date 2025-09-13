@@ -20,8 +20,6 @@
 package main
 
 import (
-	"github.com/jessevdk/go-flags"
-
 	"github.com/snapcore/snapd/i18n"
 )
 
@@ -36,12 +34,12 @@ The logout command logs the current user out of snapd and the store.
 `)
 
 func init() {
-	addCommand("logout",
-		shortLogoutHelp,
-		longLogoutHelp,
-		func() flags.Commander {
-			return &cmdLogout{}
-		}, nil, nil)
+	//addCommand("logout",
+	//	shortLogoutHelp,
+	//	longLogoutHelp,
+	//	func() flags.Commander {
+	//		return &cmdLogout{}
+	//	}, nil, nil)
 }
 
 func (cmd *cmdLogout) Execute(args []string) error {
