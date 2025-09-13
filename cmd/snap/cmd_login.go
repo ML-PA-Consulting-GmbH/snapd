@@ -24,8 +24,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jessevdk/go-flags"
-
 	"github.com/snapcore/snapd/client"
 	"github.com/snapcore/snapd/i18n"
 )
@@ -52,17 +50,17 @@ An account can be set up at https://login.ubuntu.com
 `)
 
 func init() {
-	addCommand("login",
-		shortLoginHelp,
-		longLoginHelp,
-		func() flags.Commander {
-			return &cmdLogin{}
-		}, nil, []argDesc{{
-			// TRANSLATORS: This is a noun, and it needs to begin with < and end with >
-			name: i18n.G("<email>"),
-			// TRANSLATORS: This should not start with a lowercase letter (unless it's "login.ubuntu.com")
-			desc: i18n.G("The login.ubuntu.com email to login as"),
-		}})
+	//addCommand("login",
+	//	shortLoginHelp,
+	//	longLoginHelp,
+	//	func() flags.Commander {
+	//		return &cmdLogin{}
+	//	}, nil, []argDesc{{
+	//		// TRANSLATORS: This is a noun, and it needs to begin with < and end with >
+	//		name: i18n.G("<email>"),
+	//		// TRANSLATORS: This should not start with a lowercase letter (unless it's "login.ubuntu.com")
+	//		desc: i18n.G("The login.ubuntu.com email to login as"),
+	//	}})
 }
 
 func requestLoginWith2faRetry(cli *client.Client, email, password string) error {
