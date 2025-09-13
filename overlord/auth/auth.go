@@ -273,6 +273,11 @@ func UserByUsername(st *state.State, username string) (*UserState, error) {
 	return findUser(st, func(u *UserState) bool { return u.Username == username })
 }
 
+// UserByEmail returns a user from the state given its email.
+func UserByEmail(st *state.State, email string) (*UserState, error) {
+	return findUser(st, func(u *UserState) bool { return u.Email == email })
+}
+
 // findUser finds the first user matching given predicate.
 func findUser(st *state.State, p func(*UserState) bool) (*UserState, error) {
 	var authStateData AuthState
