@@ -1,17 +1,22 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="snapd-arm64" type="GoApplicationRunConfiguration" factoryName="Go Application">
-    <module name="snapd-mlpa" />
+    <module name="snapd" />
     <target name="@@@LOCAL@@@" />
     <working_directory value="$PROJECT_DIR$" />
     <envs>
+      <env name="CC" value="aarch64-linux-gnu-gcc" />
+      <env name="CGO_ENABLED" value="0" />
+      <env name="CXX" value="aarch64-linux-gnu-g++" />
       <env name="GOARCH" value="arm64" />
       <env name="GOOS" value="linux" />
+      <env name="GOFLAGS" value="-tags=snapdusergo" />
     </envs>
     <kind value="PACKAGE" />
     <package value="github.com/snapcore/snapd/cmd/snapd" />
     <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$/cmd/snapd/main.go" />
     <output_directory value="$PROJECT_DIR$/build-debug" />
+    <option name="build_on_remote_target" value="true" />
     <option name="run" value="false" />
     <method v="2" />
   </configuration>
