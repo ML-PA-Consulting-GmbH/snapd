@@ -22,8 +22,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/jessevdk/go-flags"
-
 	"github.com/snapcore/snapd/i18n"
 )
 
@@ -37,7 +35,7 @@ type cmdWhoAmI struct {
 }
 
 func init() {
-	addCommand("whoami", shortWhoAmIHelp, longWhoAmIHelp, func() flags.Commander { return &cmdWhoAmI{} }, nil, nil)
+	//addCommand("whoami", shortWhoAmIHelp, longWhoAmIHelp, func() flags.Commander { return &cmdWhoAmI{} }, nil, nil)
 }
 
 func (cmd cmdWhoAmI) Execute(args []string) error {
