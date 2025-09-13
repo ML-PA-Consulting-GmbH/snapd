@@ -21,6 +21,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"regexp"
 	"time"
@@ -224,17 +225,27 @@ func postUsers(c *Command, r *http.Request, user *auth.UserState) Response {
 	case "create":
 		return createUser(c, postData.postUserCreateData)
 	case "remove":
-		return removeUser(c, postData.Username, postData.postUserDeleteData)
+		return removeUser(c, postData.Email, postData.Username, postData.postUserDeleteData)
 	case "":
 		return BadRequest("missing user action")
 	}
 	return BadRequest("unsupported user action %q", postData.Action)
 }
 
-func removeUser(c *Command, username string, opts postUserDeleteData) Response {
+func removeUser(c *Command, email string, username string, opts postUserDeleteData) Response {
 	st := c.d.overlord.State()
 	st.Lock()
 	defer st.Unlock()
+
+	if email != "" {
+		u, err := auth.UserByEmail(c.d.overlord.State(), email)
+		if err != nil {
+			if errors.Is(err, auth.ErrInvalidUser) {
+				return BadRequest("user with email %q is not known", email)
+			}
+		}
+		username = u.Username
+	}
 
 	u, err := deviceStateRemoveUser(st, username, &devicestate.RemoveUserOptions{})
 	if err != nil {
