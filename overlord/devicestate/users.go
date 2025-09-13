@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/snapcore/snapd/asserts"
@@ -126,7 +127,20 @@ func RemoveUser(st *state.State, username string, opts *RemoveUserOptions) (*aut
 		return nil, &UserError{Err: fmt.Errorf("need a username to remove")}
 	}
 
-	// check the user is known to snapd
+	// The identifier may be a username or an email. If it looks like an email,
+	// resolve it to a username via snapd state.
+	if strings.Contains(username, "@") {
+		u, err := auth.UserByEmail(st, username)
+		if err != nil {
+			if errors.Is(err, auth.ErrInvalidUser) {
+				return nil, &UserError{Err: fmt.Errorf("user with email %q is not known", username)}
+			}
+			return nil, err
+		}
+		username = u.Username
+	}
+
+	// check the (resolved) user is known to snapd
 	_, err := auth.UserByUsername(st, username)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidUser) {
