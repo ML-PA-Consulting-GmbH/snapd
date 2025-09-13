@@ -21,6 +21,7 @@ package store
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,6 +29,7 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/httputil"
 	"github.com/snapcore/snapd/overlord/auth"
 	"github.com/snapcore/snapd/snapdenv"
@@ -262,6 +264,16 @@ func requestDeviceSession(httpClient *http.Client, deviceSessionEndpoint string,
 	}
 	if previousSession != "" {
 		headers["X-Device-Authorization"] = fmt.Sprintf(`Macaroon root="%s"`, previousSession)
+	}
+
+	if asserts.HasTpm() {
+		if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
+			headers["X-Tpm-Ek"] = ekPubBase64
+			headers["X-Use-Proposed"] = "yes"
+		}
+		if bodySig, err := asserts.TpmSignBytes(deviceJSONData); err == nil {
+			headers["X-Tpm-Body-Signature"] = base64.StdEncoding.EncodeToString(bodySig)
+		}
 	}
 
 	_, err = retryPostRequest(httpClient, deviceSessionEndpoint, headers, deviceJSONData, func(resp *http.Response) error {
