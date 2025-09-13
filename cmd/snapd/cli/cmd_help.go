@@ -230,10 +230,10 @@ var helpCategories = []helpCategory{
 		Description: i18n.G("manage aliases"),
 		Commands:    []string{"alias", "aliases", "unalias", "prefer"},
 	}, {
-		Label:       i18n.G("Account"),
-		Description: i18n.G("authentication to snapd and the snap store"),
-		Commands:    []string{"login", "logout", "whoami"},
-	}, {
+		//	Label:       i18n.G("Account"),
+		//	Description: i18n.G("authentication to snapd and the snap store"),
+		//	Commands:    []string{"login", "logout", "whoami"},
+		//}, {
 		Label:           i18n.G("Snapshots"),
 		Description:     i18n.G("archives of snap data"),
 		Commands:        []string{"saved", "save", "check-snapshot", "restore", "forget"},
