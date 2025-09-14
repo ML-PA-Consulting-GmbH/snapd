@@ -20,9 +20,11 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/jessevdk/go-flags"
 
@@ -39,6 +41,61 @@ type svcStatus struct {
 	} `positional-args:"yes"`
 	Global bool `long:"global" short:"g"`
 	User   bool `long:"user" short:"u"`
+}
+
+// appJSONLog represents a structured log payload that some snaps emit.
+// If the message field of a client.Log contains a JSON object with these
+// fields, we can reformat the line to surface level/module nicely.
+type appJSONLog struct {
+	Level   string `json:"level"`
+	Module  string `json:"module"`
+	Time    string `json:"time"`
+	Caller  string `json:"caller"`
+	Message string `json:"message"`
+}
+
+// formatLogEntry returns a string for a log line. If the message contains a
+// JSON object matching appJSONLog, it will include module/level, otherwise it
+// falls back to the default formatting. The timestamp is controlled by abs:
+// if true, UTC; otherwise local time, matching existing behavior.
+func formatLogEntry(l client.Log, abs bool) string {
+	// Try to parse the message as JSON with known fields. We purposefully
+	// ignore errors and fall back to the default formatter.
+	var jl appJSONLog
+	if err := json.Unmarshal([]byte(l.Message), &jl); err == nil && (jl.Level != "" || jl.Module != "" || jl.Message != "" || jl.Time != "") {
+		// Build timestamp consistent with existing behavior
+		ts := l.Timestamp.In(time.Local).Format(time.RFC3339)
+		if abs {
+			ts = l.Timestamp.In(time.UTC).Format(time.RFC3339)
+		}
+
+		// Compose base prefix like the default formatter: ts SID[PID]:
+		prefix := fmt.Sprintf("%s %s[%s]: ", ts, l.SID, l.PID)
+
+		// Include module if provided
+		msgPrefix := ""
+		if jl.Module != "" {
+			msgPrefix = fmt.Sprintf("(%s) ", jl.Module)
+		}
+
+		// Prefer the structured message, fall back to the raw message
+		msg := jl.Message
+		if msg == "" {
+			msg = l.Message
+		}
+
+		// Append level if provided
+		if jl.Level != "" {
+			return fmt.Sprintf("%s%s%s [%s]", prefix, msgPrefix, msg, jl.Level)
+		}
+		return fmt.Sprintf("%s%s%s", prefix, msgPrefix, msg)
+	}
+
+	// Fallback: original formatting
+	if abs {
+		return l.StringInUTC()
+	}
+	return l.String()
 }
 
 type svcLogs struct {
@@ -208,11 +265,7 @@ func (s *svcLogs) Execute(args []string) error {
 	}
 
 	for log := range logs {
-		if s.AbsTime {
-			fmt.Fprintln(Stdout, log.StringInUTC())
-		} else {
-			fmt.Fprintln(Stdout, log)
-		}
+		fmt.Fprintln(Stdout, formatLogEntry(log, s.AbsTime))
 	}
 
 	return nil
