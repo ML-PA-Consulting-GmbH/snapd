@@ -49,7 +49,7 @@ const (
 )
 
 var (
-	sbConnectToDefaultTPM                           = sb_tpm2.ConnectToDefaultTPM
+	sbConnectToDefaultTPM                           = func() (*sb_tpm2.Connection, error) { return nil, sb_tpm2.ErrNoTPM2Device }
 	sbMeasureSnapSystemEpochToTPM                   = sb_tpm2.MeasureSnapSystemEpochToTPM
 	sbMeasureSnapModelToTPM                         = sb_tpm2.MeasureSnapModelToTPM
 	sbBlockPCRProtectionPolicies                    = sb_tpm2.BlockPCRProtectionPolicies
@@ -65,7 +65,7 @@ var (
 
 	randutilRandomKernelUUID = randutil.RandomKernelUUID
 
-	isTPMEnabled                        = (*sb_tpm2.Connection).IsEnabled
+	isTPMEnabled                        = func(*sb_tpm2.Connection) bool { return false }
 	lockoutAuthSet                      = (*sb_tpm2.Connection).LockoutAuthSet
 	sbTPMEnsureProvisioned              = (*sb_tpm2.Connection).EnsureProvisioned
 	sbTPMEnsureProvisionedWithCustomSRK = (*sb_tpm2.Connection).EnsureProvisionedWithCustomSRK
