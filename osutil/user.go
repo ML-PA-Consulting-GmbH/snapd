@@ -47,6 +47,56 @@ var sudoersTemplate = `
 %[1]s ALL=(ALL) NOPASSWD:ALL
 `
 
+// cleanupExtraUsersLocks removes stale lock files used by shadow tools under
+// /var/lib/extrausers. A lock file is considered stale if it is empty, contains
+// a non-numeric PID, or references a PID that does not exist. Best-effort: all
+// errors are ignored.
+func cleanupExtraUsersLocks() {
+    const dir = "/var/lib/extrausers"
+    // Known lock files in extrausers. Some systems may not have all of them.
+    lockFiles := []string{
+        "group.lock",
+        "gshadow.lock",
+        "passwd.lock",
+        "shadow.lock",
+        "subuid.lock",
+        "subgid.lock",
+    }
+
+    for _, lf := range lockFiles {
+        p := filepath.Join(dir, lf)
+        fi, err := os.Stat(p)
+        if err != nil || !fi.Mode().IsRegular() {
+            continue
+        }
+
+        data, err := os.ReadFile(p)
+        if err != nil {
+            continue
+        }
+        s := strings.TrimSpace(string(data))
+        if s == "" {
+            // No PID recorded; treat as stale
+            _ = os.Remove(p)
+            continue
+        }
+        pid, err := strconv.Atoi(s)
+        if err != nil {
+            // Unparseable; treat as stale
+            _ = os.Remove(p)
+            continue
+        }
+        // Check if the process exists; signal 0 doesn't send a signal
+        if err := syscall.Kill(pid, 0); err != nil {
+            // ESRCH means no such process -> stale
+            if err == syscall.ESRCH {
+                _ = os.Remove(p)
+            }
+            // Any other error (e.g. EPERM) means process likely exists; keep
+        }
+    }
+}
+
 type AddUserOptions struct {
 	Sudoer     bool
 	ExtraUsers bool
@@ -128,6 +178,9 @@ func EnsureSnapUserGroup(name string, id uint32, extraUsers bool) error {
 	// First create the group. useradd --user-group will choose a gid from
 	// the range defined in login.defs, so first call groupadd and use
 	// --gid with useradd.
+	if extraUsers {
+		cleanupExtraUsersLocks()
+	}
 	groupCmdStr := []string{
 		"groupadd",
 		"--system",
@@ -151,6 +204,9 @@ func EnsureSnapUserGroup(name string, id uint32, extraUsers bool) error {
 	//   --no-create-home)
 	// - a non-functional shell (--shell .../nologin)
 	// - use the above group (--gid with --no-user-group)
+	if extraUsers {
+		cleanupExtraUsersLocks()
+	}
 	userCmdStr := []string{
 		"useradd",
 		"--system",
@@ -263,6 +319,7 @@ func AddUser(name string, opts *AddUserOptions) error {
 	}
 
 	if opts.ExtraUsers {
+		cleanupExtraUsersLocks()
 		cmdStr = append(cmdStr, "--extrausers")
 	}
 	cmdStr = append(cmdStr, name)
@@ -331,33 +388,33 @@ type DelUserOptions struct {
 	ExtraUsers bool
 	Force      bool
 }
-
 // DelUser removes a "regular login user" from the system, including their
 // home. Unlike AddUser, it does this by calling userdel(8) directly
 // (deluser doesn't support extrausers).
 // Additionally this will remove the user from sudoers if found.
 func DelUser(name string, opts *DelUserOptions) error {
-	if opts == nil {
-		opts = new(DelUserOptions)
-	}
-	cmdStr := []string{"--remove"}
-	if opts.ExtraUsers {
-		cmdStr = append(cmdStr, "--extrausers")
-	}
-	if opts.Force {
-		cmdStr = append(cmdStr, "--force")
-	}
-	cmdStr = append(cmdStr, name)
+    if opts == nil {
+        opts = new(DelUserOptions)
+    }
+    cmdStr := []string{"--remove"}
+    if opts.ExtraUsers {
+        cleanupExtraUsersLocks()
+        cmdStr = append(cmdStr, "--extrausers")
+    }
+    if opts.Force {
+        cmdStr = append(cmdStr, "--force")
+    }
+    cmdStr = append(cmdStr, name)
 
-	if output, err := exec.Command("userdel", cmdStr...).CombinedOutput(); err != nil {
-		return fmt.Errorf("cannot delete user %q: %v", name, OutputErr(output, err))
-	}
+    if output, err := exec.Command("userdel", cmdStr...).CombinedOutput(); err != nil {
+        return fmt.Errorf("cannot delete user %q: %v", name, OutputErr(output, err))
+    }
 
-	if err := os.Remove(sudoersFile(name)); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("cannot remove sudoers file for user %q: %v", name, err)
-	}
+    if err := os.Remove(sudoersFile(name)); err != nil && !os.IsNotExist(err) {
+        return fmt.Errorf("cannot remove sudoers file for user %q: %v", name, err)
+    }
 
-	return nil
+    return nil
 }
 
 // Note: this is best effort, comparing err here with UnknownUserError
