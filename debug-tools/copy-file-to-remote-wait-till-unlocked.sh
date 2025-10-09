@@ -13,6 +13,11 @@ TARGET="$3"
 BINARY_NAME=$(basename "$BINARY_PATH")
 LOCK_FILE="$BINARY_NAME.lock"
 
+# Default to root when no username is provided
+if [[ "$IP" != *@* ]]; then
+    IP="root@$IP"
+fi
+
 ssh "$IP" "rm -f $LOCK_FILE"
 ssh "$IP" "touch $LOCK_FILE"
 
