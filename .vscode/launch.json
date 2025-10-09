@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach: snapd arm64 (remote)",
+      "type": "go",
+      "request": "attach",
+      "mode": "remote",
+      "host": "${input:targetIP}",
+      "port": "${input:debugPort}",
+      "preLaunchTask": "Copy+Debug snapd on arm64 target",
+      "dlvLoadConfig": {
+        "followPointers": true,
+        "maxVariableRecurse": 3,
+        "maxStringLen": 1024,
+        "maxArrayValues": 128,
+        "maxStructFields": -1
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "targetIP",
+      "type": "promptString",
+      "description": "ARM64 target IP",
+      "default": "192.168.178.116"
+    },
+    {
+      "id": "debugPort",
+      "type": "promptString",
+      "description": "Delve port",
+      "default": "2345"
+    }
+  ]
+}

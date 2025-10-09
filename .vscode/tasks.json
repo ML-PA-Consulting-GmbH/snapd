@@ -1,0 +1,118 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build snapd (arm64)",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "GOOS": "linux",
+          "GOARCH": "arm64",
+          "CGO_ENABLED": "0",
+          "CC": "aarch64-linux-gnu-gcc",
+          "CXX": "aarch64-linux-gnu-g++"
+        }
+      },
+      "command": "bash",
+      "args": [
+        "-lc",
+        "mkdir -p build-debug && go build -tags=\"snapdusergo\" -o build-debug/snapd_arm64 ./cmd/snapd"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "copy snapd to target",
+      "type": "shell",
+      "options": { "cwd": "${workspaceFolder}" },
+      "command": "${workspaceFolder}/debug-tools/copy-file-to-remote-wait-till-unlocked.sh",
+      "args": [ "root@${input:targetIP}", "build-debug/snapd_arm64", "/root" ],
+      "problemMatcher": []
+    },
+    {
+      "label": "copy snapd to target (no wait)",
+      "type": "shell",
+      "options": { "cwd": "${workspaceFolder}" },
+      "command": "${workspaceFolder}/debug-tools/copy-file-to-remote.sh",
+      "args": [ "root@${input:targetIP}", "build-debug/snapd_arm64", "/root" ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Copy debug script to target",
+      "type": "shell",
+      "options": { "cwd": "${workspaceFolder}" },
+      "command": "${workspaceFolder}/debug-tools/copy-file-to-remote.sh",
+      "args": [ "root@${input:targetIP}", "debug-tools/delve-remote-debugging.sh", "/root" ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Copy arm64 delve to target",
+      "type": "shell",
+      "options": { "cwd": "${workspaceFolder}" },
+      "command": "${workspaceFolder}/debug-tools/copy-file-to-remote.sh",
+      "args": [ "root@${input:targetIP}", "debug-tools/delve-arm64", "/root" ],
+      "problemMatcher": []
+    },
+    {
+      "label": "prepare remote debug tools",
+      "type": "shell",
+      "options": { "cwd": "${workspaceFolder}" },
+      "command": "bash",
+      "args": [
+        "-lc",
+        "set -e; ${workspaceFolder}/debug-tools/copy-file-to-remote.sh root@${input:targetIP} debug-tools/delve-remote-debugging.sh /root; ${workspaceFolder}/debug-tools/copy-file-to-remote.sh root@${input:targetIP} debug-tools/delve-arm64 /root; ssh root@${input:targetIP} \"chmod +x /root/delve-remote-debugging.sh /root/delve-arm64\""
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "start remote delve (snapd)",
+      "type": "shell",
+      "options": { "cwd": "${workspaceFolder}" },
+      "command": "bash",
+      "args": [
+        "-lc",
+        "ssh root@${input:targetIP} \"nohup /bin/bash /root/delve-remote-debugging.sh /root/snapd_arm64 ${input:debugPort} >/root/delve.log 2>&1 </dev/null &\""
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Copy+Debug snapd on arm64 target",
+      "dependsOn": [
+        "build snapd (arm64)",
+        "copy snapd to target"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "First-time: prepare+build+copy+start (snapd)",
+      "dependsOn": [
+        "prepare remote debug tools",
+        "build snapd (arm64)",
+        "copy snapd to target (no wait)",
+        "start remote delve (snapd)"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "Prepare remote (once)",
+      "dependsOn": [
+        "prepare remote debug tools"
+      ],
+      "dependsOrder": "sequence"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "targetIP",
+      "type": "promptString",
+      "description": "ARM64 target IP",
+      "default": "192.168.178.116"
+    },
+    {
+      "id": "debugPort",
+      "type": "promptString",
+      "description": "Delve port",
+      "default": "2345"
+    }
+  ]
+}

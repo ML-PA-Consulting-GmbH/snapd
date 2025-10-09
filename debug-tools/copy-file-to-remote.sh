@@ -11,6 +11,11 @@ IP="$1"
 BINARY_PATH="$2"
 TARGET="$3"
 
+# Default to root when no username is provided
+if [[ "$IP" != *@* ]]; then
+    IP="root@$IP"
+fi
+
 echo "Copying $BINARY_PATH to $TARGET on $IP..."
 scp "$BINARY_PATH" "$IP:$TARGET"
 
