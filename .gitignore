@@ -6,7 +6,8 @@ cmd/version_generated.go
 cmd/VERSION
 *~
 *.swp
-.vscode/
+#.vscode/
+
 .idea/
 vendor/*/
 vendor/modules.txt
