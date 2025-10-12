@@ -26,7 +26,7 @@
       "type": "shell",
       "options": { "cwd": "${workspaceFolder}" },
       "command": "${workspaceFolder}/debug-tools/copy-file-to-remote-wait-till-unlocked.sh",
-      "args": [ "root@${input:targetIP}", "build-debug/snapd_arm64", "/root" ],
+      "args": [ "${input:targetIP}", "build-debug/snapd_arm64" ],
       "problemMatcher": []
     },
     {
@@ -34,7 +34,7 @@
       "type": "shell",
       "options": { "cwd": "${workspaceFolder}" },
       "command": "${workspaceFolder}/debug-tools/copy-file-to-remote.sh",
-      "args": [ "root@${input:targetIP}", "build-debug/snapd_arm64", "/root" ],
+      "args": [ "${input:targetIP}", "build-debug/snapd_arm64" ],
       "problemMatcher": []
     },
     {
@@ -42,7 +42,7 @@
       "type": "shell",
       "options": { "cwd": "${workspaceFolder}" },
       "command": "${workspaceFolder}/debug-tools/copy-file-to-remote.sh",
-      "args": [ "root@${input:targetIP}", "debug-tools/delve-remote-debugging.sh", "/root" ],
+      "args": [ "${input:targetIP}", "debug-tools/delve-remote-debugging.sh" ],
       "problemMatcher": []
     },
     {
@@ -50,7 +50,7 @@
       "type": "shell",
       "options": { "cwd": "${workspaceFolder}" },
       "command": "${workspaceFolder}/debug-tools/copy-file-to-remote.sh",
-      "args": [ "root@${input:targetIP}", "debug-tools/delve-arm64", "/root" ],
+      "args": [ "${input:targetIP}", "debug-tools/delve-arm64" ],
       "problemMatcher": []
     },
     {
@@ -60,7 +60,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "set -e; ${workspaceFolder}/debug-tools/copy-file-to-remote.sh root@${input:targetIP} debug-tools/delve-remote-debugging.sh /root; ${workspaceFolder}/debug-tools/copy-file-to-remote.sh root@${input:targetIP} debug-tools/delve-arm64 /root; ssh root@${input:targetIP} \"chmod +x /root/delve-remote-debugging.sh /root/delve-arm64\""
+        "set -e; ${workspaceFolder}/debug-tools/copy-file-to-remote.sh ${input:targetIP} debug-tools/delve-remote-debugging.sh; ${workspaceFolder}/debug-tools/copy-file-to-remote.sh ${input:targetIP} debug-tools/delve-arm64; ssh ${input:targetIP} \"chmod +x ~/delve-remote-debugging.sh ~/delve-arm64\""
       ],
       "problemMatcher": []
     },
@@ -71,9 +71,16 @@
       "command": "bash",
       "args": [
         "-lc",
-        "ssh root@${input:targetIP} \"nohup /bin/bash /root/delve-remote-debugging.sh /root/snapd_arm64 ${input:debugPort} >/root/delve.log 2>&1 </dev/null &\""
+        "ssh ${input:targetIP} \"/bin/bash ~/delve-remote-debugging.sh ~/snapd_arm64 ${input:debugPort}\""
       ],
-      "problemMatcher": []
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "group": "Snapd Output",
+        "clear": true
+      }
     },
     {
       "label": "Copy+Debug snapd on arm64 target",
@@ -99,14 +106,25 @@
         "prepare remote debug tools"
       ],
       "dependsOrder": "sequence"
+    },
+    {
+      "label": "clear copy cache",
+      "type": "shell",
+      "options": { "cwd": "${workspaceFolder}" },
+      "command": "bash",
+      "args": [
+        "-lc",
+        "rm -rf \"${XDG_CACHE_HOME:-$HOME/.cache}/copy-file-to-remote\" && echo Cleared: ${XDG_CACHE_HOME:-$HOME/.cache}/copy-file-to-remote"
+      ],
+      "problemMatcher": []
     }
   ],
   "inputs": [
     {
       "id": "targetIP",
       "type": "promptString",
-      "description": "ARM64 target IP",
-      "default": "192.168.178.116"
+      "description": "SSH target (user@host)",
+      "default": "root@192.168.178.116"
     },
     {
       "id": "debugPort",
