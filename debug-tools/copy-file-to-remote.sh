@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <IP> <BINARY_PATH> <TARGET>"
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <SSH_TARGET> <BINARY_PATH>"
     exit 1
 fi
 
@@ -9,15 +9,20 @@ eval "$(ssh-agent -s)" > /dev/null
 
 IP="$1"
 BINARY_PATH="$2"
-TARGET="$3"
 
-# Default to root when no username is provided
+# Require SSH target in the form user@host
 if [[ "$IP" != *@* ]]; then
-    IP="root@$IP"
+    echo "Error: please pass SSH target as user@host (e.g. root@192.168.1.10)"
+    exit 1
 fi
 
-echo "Copying $BINARY_PATH to $TARGET on $IP..."
-scp "$BINARY_PATH" "$IP:$TARGET"
+SSH_USER="${IP%%@*}"
+# Best-effort HOME_DIR for local env; not used for scp path
+HOME_DIR=$(ssh "$IP" 'eval echo ~')
+export HOME_DIR
+
+echo "Copying $BINARY_PATH to ~/ on $IP..."
+scp "$BINARY_PATH" "$IP:~/"
 
 if [ $? -eq 0 ]; then
     echo "File copied successfully."

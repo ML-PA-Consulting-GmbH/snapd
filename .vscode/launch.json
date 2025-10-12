@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach: snapd arm64 (remote)",
+      "name": "Attach: snapd (remote)",
       "type": "go",
       "request": "attach",
       "mode": "remote",
@@ -22,7 +22,7 @@
     {
       "id": "targetIP",
       "type": "promptString",
-      "description": "ARM64 target IP",
+      "description": "Delve host (IP or hostname)",
       "default": "192.168.178.116"
     },
     {
