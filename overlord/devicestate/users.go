@@ -124,7 +124,7 @@ func RemoveUser(st *state.State, username string, opts *RemoveUserOptions) (*aut
 	if username == "" {
 		return nil, &UserError{Err: fmt.Errorf("need a username to remove")}
 	}
-	
+
 	// check the (resolved) user is known to snapd
 	_, err := auth.UserByUsername(st, username)
 	if err != nil {
@@ -144,10 +144,27 @@ func RemoveUser(st *state.State, username string, opts *RemoveUserOptions) (*aut
 	}
 
 	// then the UserState
-	u, err := auth.RemoveUserByUsername(st, username)
-	// ErrInvalidUser means "not found" in this case
-	if err != nil && err != auth.ErrInvalidUser {
-		return nil, err
+	// We loop, because in rare cases it occurred that the same user existed multiple times
+	// in the UserState. The cause is not yet known.
+	var u *auth.UserState
+	for {
+		_, err = auth.UserByUsername(st, username)
+		if err != nil {
+			if errors.Is(err, auth.ErrInvalidUser) {
+				break
+			}
+			return nil, err
+		}
+
+		var removed *auth.UserState
+		removed, err = auth.RemoveUserByUsername(st, username)
+		// ErrInvalidUser means "not found" in this case
+		if err != nil && err != auth.ErrInvalidUser {
+			return nil, err
+		}
+		if removed != nil {
+			u = removed
+		}
 	}
 	return u, nil
 }
