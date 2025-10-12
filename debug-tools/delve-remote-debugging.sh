@@ -7,18 +7,31 @@ if [ -z "$1" ] || [ -z "$2" ]; then
     exit 1
 fi
 
-BINARY_PATH="$1"
 PORT="$2"
+HOME_DIR="${HOME}"
+if [ -z "$HOME_DIR" ]; then
+    if [ "$(id -u)" -eq 0 ]; then
+        HOME_DIR="/root"
+    else
+        HOME_DIR="/home/$(whoami)"
+    fi
+fi
+export HOME_DIR
+
+BINARY_PATH="$1"
+if [[ "$BINARY_PATH" != /* ]]; then
+    BINARY_PATH="$HOME_DIR/$BINARY_PATH"
+fi
 BINARY_NAME=$(basename "$BINARY_PATH")
 RUNNING_BINARY_PATH="${BINARY_PATH}_running"
 RUNNING_BINARY_NAME=$(basename "$RUNNING_BINARY_PATH")
-DELVE_PATH="/root/delve-arm64"
+DELVE_PATH="$HOME_DIR/delve-arm64"
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 start_delve() {
     echo "Starting Delve..."
-    PARAMS_FILE="${BINARY_NAME}_params"
+    PARAMS_FILE="$HOME_DIR/${BINARY_NAME}_params"
     PARAMS=()
     if [ -f "$PARAMS_FILE" ]; then
         while IFS= read -r line || [ -n "$line" ]; do
@@ -26,7 +39,7 @@ start_delve() {
         done < "$PARAMS_FILE"
     fi
     set -x
-    $DELVE_PATH --headless=true --listen=:"$PORT" --api-version=2 exec "$RUNNING_BINARY_PATH" "${PARAMS[@]}" &
+    sudo $DELVE_PATH --headless=true --listen=:"$PORT" --api-version=2 exec "$RUNNING_BINARY_PATH" "${PARAMS[@]}" &
     set +x
     DELVE_PID=$!
     echo "Delve started with PID $DELVE_PID"
@@ -42,14 +55,14 @@ wait_until_port_in_use() {
     done
 }
 
-if [ ! -f $DELVE_PATH ]; then
+if [ ! -f "$DELVE_PATH" ]; then
     echo "Delve not found at $DELVE_PATH. Please ensure it is present."
     exit 1
 fi
 
 kill_delve_instances() {
     echo "Killing all Delve instances..."
-    pkill -f "delve-arm64.*$RUNNING_BINARY_NAME"
+    sudo pkill -f "delve-arm64.*$RUNNING_BINARY_NAME"
     echo "Wait until port is not in use anymore..."
     while true; do
         if ! ss -tln | grep -q ":$PORT"; then
@@ -85,7 +98,7 @@ while true; do
             start_delve
             wait_until_port_in_use
             # Remove lock file, if present
-            rm -f "$BINARY_PATH.lock"
+            rm -f "$HOME_DIR/$BINARY_NAME.lock"
         fi
     fi
     if ! ps -p $DELVE_PID > /dev/null; then
