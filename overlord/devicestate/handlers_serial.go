@@ -26,13 +26,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/snapcore/snapd/constants"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/snapcore/snapd/constants"
 
 	"gopkg.in/tomb.v2"
 
@@ -472,6 +473,8 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 	req.Header.Set("User-Agent", snapdenv.UserAgent())
 	//superDetailedRequestLogs(req, "added User-Agent header")
 	req.Header.Set("Snap-Device-Capabilities", strings.Join(registrationCapabilities, " "))
+	req.Header.Set("X-Use-Proposed", "yes")
+
 	//superDetailedRequestLogs(req, "added Snap-Device-Capabilities header")
 	cfg.applyHeaders(req)
 	//superDetailedRequestLogs(req, "added headers from config object")
@@ -483,7 +486,6 @@ func submitSerialRequest(t *state.Task, serialRequest string, client *http.Clien
 		// mlpa patch: push ek to store
 		if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
 			req.Header.Set("X-Tpm-Ek", ekPubBase64)
-			req.Header.Set("X-Use-Proposed", "yes")
 			logger.Noticef("TPM: X-Tpm-Ek: %s", ekPubBase64)
 			//superDetailedRequestLogs(req, "added X-Tpm-Ek header")
 		}
