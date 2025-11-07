@@ -2,8 +2,10 @@ package asserts
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
+	"net"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTpmEncodePubKey(t *testing.T) {
@@ -54,4 +56,29 @@ func TestGetMacAddresses(t *testing.T) {
 	assert.NotEmpty(t, macs)
 	fmt.Println(macs)
 	fmt.Println(err)
+}
+
+func TestGetSeedByInterface(t *testing.T) {
+	originalInterfaceFunc := interfaceByNameFunc
+	originalInterfaceCandidates := interfaceSeedCandidates
+	defer func() {
+		interfaceByNameFunc = originalInterfaceFunc
+		interfaceSeedCandidates = originalInterfaceCandidates
+	}()
+
+	mac := net.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01}
+	interfaceSeedCandidates = []string{"eth0", "eth1"}
+	interfaceByNameFunc = func(name string) (*net.Interface, error) {
+		if name == "eth0" {
+			return &net.Interface{
+				Name:         name,
+				HardwareAddr: mac,
+			}, nil
+		}
+		return nil, fmt.Errorf("interface %s not found", name)
+	}
+
+	seed, err := getSeedByInterface()
+	assert.NoError(t, err)
+	assert.Equal(t, mac.String(), seed)
 }
