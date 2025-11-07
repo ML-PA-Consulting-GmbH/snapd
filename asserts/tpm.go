@@ -21,7 +21,10 @@ import (
 )
 
 var (
-	tpmLock sync.Mutex
+	tpmLock                 sync.Mutex
+	deviceSeedCandidates    = []string{"/dev/mmcblk0", "/dev/mmcblk1", "/dev/mmcblk2"}
+	interfaceSeedCandidates = []string{"eth0", "eth1", "enxf4a80de758b0"}
+	interfaceByNameFunc     = net.InterfaceByName
 )
 
 var tpmSigningKeyTemplate = tpm2.Public{
@@ -97,13 +100,37 @@ func DeterministicDeviceSerial() (string, error) {
 }
 
 func NoTpmDeterministicDeviceSerial() (string, error) {
-	for _, device := range []string{"/dev/mmcblk0", "/dev/mmcblk1", "/dev/mmcblk2"} {
-		if serial, err := getDriveSerial(device); err == nil {
-			return seedToSerial(serial), nil
-		}
+	if seed, err := getSeedByDevice(); err == nil {
+		return seedToSerial(seed), nil
+	}
+	if seed, err := getSeedByInterface(); err == nil {
+		return seedToSerial(seed), nil
 	}
 	fmt.Println("No TPM and no seeding sources found, generating a random UUID as device serial")
 	return uuid.New().String(), nil
+}
+
+func getSeedByDevice() (string, error) {
+	for _, device := range deviceSeedCandidates {
+		if serial, err := getDriveSerial(device); err == nil {
+			return serial, nil
+		}
+	}
+	return "", fmt.Errorf("no supported device serial found")
+}
+
+func getSeedByInterface() (string, error) {
+	for _, ifname := range interfaceSeedCandidates {
+		iface, err := interfaceByNameFunc(ifname)
+		if err != nil || iface == nil {
+			continue
+		}
+		if len(iface.HardwareAddr) == 0 {
+			continue
+		}
+		return iface.HardwareAddr.String(), nil
+	}
+	return "", fmt.Errorf("no matching network interface found")
 }
 
 // TpmDeterministicDeviceSerial generates a deterministic serial number for the device from the m2cp key (derived from EK).
