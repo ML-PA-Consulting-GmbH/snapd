@@ -140,7 +140,11 @@ func IsConfigLoaded() bool {
 }
 
 // SetConfigPaths allows overriding the default config search paths.
-// This is primarily useful for testing.
-func SetConfigPaths(paths []string) {
+// This is primarily useful for testing. Returns a restore function.
+func SetConfigPaths(paths []string) (restore func()) {
+	oldPaths := configPaths
 	configPaths = paths
+	return func() {
+		configPaths = oldPaths
+	}
 }
