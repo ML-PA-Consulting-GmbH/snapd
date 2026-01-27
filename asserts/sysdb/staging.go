@@ -22,6 +22,7 @@ package sysdb
 
 import (
 	"fmt"
+
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/constants"
 )
@@ -48,9 +49,12 @@ func init() {
 
 	genericStagingAssertions = []asserts.Assertion{genericAccount, genericModelsAccountKey}
 
-	a, err := asserts.Decode([]byte(constants.EncodedStagingGenericClassicModel))
-	if err != nil {
-		panic(fmt.Sprintf(`cannot decode "generic"'s "generic-classic" model: %v`, err))
+	// Only decode the fallback model if configured (non-empty)
+	if constants.FallbackStagingGenericClassicModel != "" {
+		a, err := asserts.Decode([]byte(constants.FallbackStagingGenericClassicModel))
+		if err != nil {
+			panic(fmt.Sprintf(`cannot decode staging fallback "generic-classic" model: %v`, err))
+		}
+		genericStagingClassicModel = a.(*asserts.Model)
 	}
-	genericStagingClassicModel = a.(*asserts.Model)
 }

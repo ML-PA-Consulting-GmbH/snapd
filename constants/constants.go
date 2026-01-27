@@ -33,19 +33,19 @@ package constants
 
 const (
 	BaseUrlSnapcraftDashboard        = "https://dashboard.snapcraft.io/"
-	BaseUrlSnapcraftDashboardStaging = "https://dashboard.staging.snapcraft.io/"
+	BaseUrlSnapcraftDashboardStaging = BaseUrlSnapcraftDashboard
 	BaseUrlSnapcraftApi              = "https://api.snapcraft.io/"
-	BaseUrlSnapcraftStagingApi       = "https://api.staging.snapcraft.io/"
+	BaseUrlSnapcraftStagingApi       = BaseUrlSnapcraftApi
 	BaseUrlSnapcraftApiV2            = "https://api.snapcraft.io/v2/"
-	BaseUrlSnapcraftStagingApiV2     = "https://api.staging.snapcraft.io/v2/"
+	BaseUrlSnapcraftStagingApiV2     = BaseUrlSnapcraftApiV2
 
 	AuthLocation        = "login.ubuntu.com"
-	AuthLocationStaging = "login.staging.ubuntu.com"
+	AuthLocationStaging = AuthLocation
 
-    AccountId = "canonical"
+	AccountId = "canonical"
 
-    EncodedRepairRootAccountKeyPublicKeySha3 = "nttW6NfBXI_E-00u38W-KH6eiksfQNXuI7IiumoV49_zkbhM0sYTzSnFlwZC-W4t"
-	EncodedRepairRootAccountKey = `type: account-key
+	EncodedRepairRootAccountKeyPublicKeySha3 = "nttW6NfBXI_E-00u38W-KH6eiksfQNXuI7IiumoV49_zkbhM0sYTzSnFlwZC-W4t"
+	EncodedRepairRootAccountKey              = `type: account-key
 authority-id: canonical
 public-key-sha3-384: nttW6NfBXI_E-00u38W-KH6eiksfQNXuI7IiumoV49_zkbhM0sYTzSnFlwZC-W4t
 account-id: canonical
@@ -95,46 +95,7 @@ l5IF9WMfl7YHpT0Ph7kBYwg9sKF/7oCVdbT5CoImxkE5DTkWB8xX6W/BhuMrp1rzTHFFGVd1ppb7
 EMUll4dd78OWonMlIgsMRuTSn93awb4X8xSJhRi9
 `
 
-	EncodedStagingRepairRootAccountKey = `type: account-key
-authority-id: canonical
-public-key-sha3-384: 0GgXgD-RtfU0HJFBmaaiUQaNUFATl1oOlzJ44Bi4MbQAwcu8ektQLGBkKQ4JuA_O
-account-id: canonical
-name: repair-root
-since: 2017-07-07T00:00:00.0Z
-body-length: 1406
-sign-key-sha3-384: e2r8on4LgdxQSaW5T8mBD5oC2fSTktTVxOYa5w3kIP4_nNF6L7mt6fOJShdOGkKu
-
-AcbDTQRWhcGAASAA0D+AqdqBtgiaABSZ++NdDKcvFtpmEphDfpEAAo4MAWucmE5yVN9mHFRXvwU0
-ZkLQwPuiF5Vp5EP/kHyKgmmF9nKUBXnuZXfuH4vzH9ZuEfdxGc0On+XK4KwyPUzOXj2n1Rsxj0P5
-06wJ6QFghi6nORx3Hz4pxZH7SRANgZudwWE53+whbkJyU/psv4RXfxPnu3YGo0qPk/wGCfV8kkkH
-UFmeqJJEk14EGI+Kv9WlIVAqctryqf9mSXkgnhp4lzdGpsRCmRcw7boVjdOieFCJv+gVs7i52Yxu
-YyiA09XF8j85DSMl4s/TyN4bm9649beBCpTJNyb3Ep6lydGiZck8ChJRLDXGP2XZtRKXsBMNIfwP
-5qnLtX1/Sm1znag0grGbd3AUqL6ySAr42x8QIxZfqzk5DvQbF3xOiu2xzxTt1eB3069MlnFw99ui
-fLwlec7imbCiX3bryutCRhKgkJz4MbNsyHiW51k1l1IDbABey+gfVHpeBq/2aHK5qSy98dRBSYSj
-Ki++j8zR1ODequWy+OrF4cu6IQ35eunHQ2mRsJIE0xFGAjG3vCPJwzVoNS5m5R0ffncIUYdKxt/R
-W2mLo43qX0fquW5LvHyI14d3B3LYfKz05FmASJaE4A+/GQhM7kMCnmykro0MM6MU0sd2OruOZVVo
-z6GQ37Hyo/TGToyCr7qD/+tSq3dKYGyezl/Y4I589eqnc1DaMHL2ssiXDsbpSRHpnNqMUq6UNg4M
-NsUiDLaGsNJj1ft6A7jz+yoqJ74m3hlaQK1Rot8FXBkuJGoRKBahHbh/bfkGWChDvzY9ZpoUExY2
-rp7tNYEP/LEAI/RQd03sBnqd3V8YhggT2n6QCC4ikLKvUTE3RY0qn5aAa7KC1wVi+7SfdeVl3RBF
-Jyb9GCYfRUv/bfFH/TCZ9WVN1v/GIMcjBFGJf7H3cz/deela53XSaecYHuvFRpVfzmx28UcR8UY4
-5WqHfxnVQlY6DPv+kjzMzIEJGwgSAFc0d4wlSwS/Y1T0ednFRUyjMAxEUvE8tOLibtXw4q/srIFt
-OIgpd/xErcyi5Ddgt7EQoYo+rtVZ8x5EwR0+i7VAV+a3bnGSJW2LFEjt2RZUiMjohVZ4oOVuoDd2
-VQzMFv41flbyqjgHhtJSCIOKDg9uI2FHbQ5vrX9qBooS68YkBALwCq+P7nSxDxFuS0CgrzSH35FX
-VneOl68U74pxRgdlPJ0HI92oilrbTH8Ft0m5SzNsy+9ZZZtIDFQW+lx/ApixyifARFnZ3C3Gdx59
-FlFNbE75+X28joGtul2mPjJ1eI1dCwiFCF3R/rwfRmw3Wpv76re+EzVR1MJVCcTgC1lUoCJpKl1J
-n3PQLcR8J0iqswARAQAB
-
-AcLBXAQAAQoABgUCWYM7bQAKCRAHKljtl9kuLtCFD/4miBm0HyLE8GdboeUtWw+oOlH0AgabRqYi
-a1TpEJeYQIjnwDuCCPYtJxL1Rc+5dSNnbY9L+34NuaSyYMJY/FMuSS5iaNomGnj7YiAOds1+1/6h
-Z1bTm3ttZnphg5DxckYZLaKoYgRaOzAbiRM8l+2bDbXlq3KRxZ7o7D1V/xpPis8SWK57gQ7VppHI
-fcw5jnzWokWSowaKShimjJNCXMaeGdGJBLU1wcJC/XRf3tXSZecwMfL9CN/G8b17HvIFN/Pe3oS9
-QxYMQ0p3J3PF3F19Iow0VHi78hPKtVmJb5igwzBlGYFW7zZ3R35nJ7Iv6VW58G2HDDGMdBfZp930
-FbLb3mj8Yw3S5fcMZ09vpT7PK0tjFoVJtDFBOkrjvxVMEPRa0IJNcfl/hgPdp1/IFXWpZhfvk8a8
-qgzffxN+Ro/J4Jt9QrHM4sNwiEOjVvHY4cQ9GOfns9UqocmxYPDxElBNraCFOCSudZgXiyF7zUYF
-OnYqTDR4ChiZtmUqIiZr6rXgZTm1raGlqR7nsbDlkJtru7tzkgMRw8xFRolaQIKiyAwTewF7vLho
-imwYTRuYRMzft1q5EeRWR4XwtlIuqsXg3FCGTNIG4HiAFKrrNV7AOvVjIUSgpOcWv2leSiRQjgpY
-I9oD82ii+5rKvebnGIa0o+sWhYNFoviP/49DnDNJWA==
-`
+	EncodedStagingRepairRootAccountKey = EncodedRepairRootAccountKey
 
 	EncodedCanonicalAccount = `type: account
 authority-id: canonical
@@ -166,7 +127,7 @@ LQAdm3xZ7t4WnxYC8YSCk9mXf3CZg59SpmnV5Q5Z6A5Pl7Nc3sj7hcsMBZEsOMPzNC9dPsBnZvjs
 WpPUffJzEdhHBFhvYMuD4Vqj6ejUv9l3oTrjQWVC
 `
 
-    EncodedCanonicalAccountSignKeySha3 = "-CvQKAwRQ5h3Ffn10FILJoEZUXOv6km9FwA80-Rcj-f-6jadQ89VRswHNiEB9Lxk"
+	EncodedCanonicalAccountSignKeySha3 = "-CvQKAwRQ5h3Ffn10FILJoEZUXOv6km9FwA80-Rcj-f-6jadQ89VRswHNiEB9Lxk"
 
 	EncodedCanonicalRootAccountKey = `type: account-key
 authority-id: canonical
@@ -292,7 +253,10 @@ R2PJK1VN6/ckJZAb3Rum5Ak5sbLTpRAVHIAVU1NAjHc5lYUHhxXJmJsbw6Jawb9Xb3T96s+WdD3Y
 
 	EncodedGenericModelsAccountKeyPublicKeySha3 = "d-JcZF9nD9eBw7bwMnH61x-bklnQOhQud1Is6o_cn2wTj8EYDi9musrIT9z2MdAa"
 
-	EncodedGenericClassicModel = `type: model
+	// FallbackGenericClassicModel is an optional fallback model assertion for classic systems
+	// without a model in their seed. Set to empty string to disable the fallback and require
+	// a model assertion to be provided via the seed.
+	FallbackGenericClassicModel = `type: model
 authority-id: generic
 series: 16
 brand-id: generic
@@ -313,130 +277,13 @@ ER4UvKnR7hcVI26e3NGNkXP5kp0SFCkV5NQs8rzXzokpB7p/V5Pnqp3Km6wu45cU6UiTZFhR2IMT
 l+6AMtrS4gDGHktOhwfmOMWqmhvR/INF+TjaWbsB6g==
 `
 
-	EncodedStagingTrustedAccount = `type: account
-authority-id: canonical
-account-id: canonical
-display-name: Canonical
-timestamp: 2016-04-01T00:00:00.0Z
-username: canonical
-validation: certified
-sign-key-sha3-384: e2r8on4LgdxQSaW5T8mBD5oC2fSTktTVxOYa5w3kIP4_nNF6L7mt6fOJShdOGkKu
+	EncodedStagingTrustedAccount          = EncodedCanonicalAccount
+	EncodedStagingRootAccountKey          = EncodedCanonicalRootAccountKey
+	EncodedStagingGenericAccount          = EncodedGenericAccount
+	EncodedStagingGenericModelsAccountKey = EncodedGenericModelsAccountKey
 
-AcLBXAQAAQoABgUCV640ggAKCRAHKljtl9kuLrQtEADBji8VwAuislurkFORTmcXV/DOkvyvAYEN
-mB/MLniK4MlLX+RDncDBmF38IK9SRkxbwwJuKgvsjwsYJ3w1P7SGvVfNyU2hLRFtdxDMVC7+A9g3
-N1VW9W+IOWmYeBgXiveqAlSJ9GUvLQiBgUWRBkbyAT6aLkSZrTSjxGRGW/uoNfjj+CbAR4HGbRnn
-IOxDuQyw6rOXQZKfZvkD1NiH+0QzXLv0RivE8+V5uVN+ooUFRoVQmqbj7orvPS9iTY5AMVjCgfo0
-UiWiN6NyCfDBDz0bZhIZlBU4JF5W0I/sEwsuYCxIhFi5uPNmQXqqb5d9Y3bsxIUdMR0+pai1A3eI
-HQmYX12wCnb276R5Adz4iol19oKAR2Qf3VJBvPccdIFU7Qu5FOOihQdMRxULBBXGn1HQF1uW+ue3
-ZQ3x6e8s3XjdDQE/kHCDUkmzhbk1SErgndg6Q1ipKJ+4G6dOc16s66bSFA4QzW53Y40NP0HRWxe2
-tK9VOJ+z9GvGYp5H1ZXbbs78t9bUwL7L6z/eXM6BRho6YY9X7nImpByIkdcV47dCyVFol6NrM5NS
-NSpdtRStGqo7tjPaBf86p2vLOAbwFUuaE3rwf5g/agz4S/v5G5E2tKmfQs6vGYrfVtlOzr8gEoXH
-+/hOEC3wYEJjpXmFRjUjJwr0Fbej2TpoITpfzbySpg==
-`
-	EncodedStagingRootAccountKey = `type: account-key
-authority-id: canonical
-revision: 3
-public-key-sha3-384: e2r8on4LgdxQSaW5T8mBD5oC2fSTktTVxOYa5w3kIP4_nNF6L7mt6fOJShdOGkKu
-account-id: canonical
-name: staging-root
-since: 2016-04-01T00:00:00.0Z
-body-length: 717
-sign-key-sha3-384: e2r8on4LgdxQSaW5T8mBD5oC2fSTktTVxOYa5w3kIP4_nNF6L7mt6fOJShdOGkKu
-
-AcbBTQRWhcGAARAA4wh+b9nyRdZj9gNKuHz8BTNZsLOVv2VJseHBoMNc4aA8EgmLwMF/aP+q1tAQ
-VOeynhfSecIK/2aWKKX+dmU/rfAbnbdHX1NT8OnG2z3qdYdqw1EreN8LcY4DBDfa1RNKcjFvBu+Q
-jxpU289m1yUjjc7yHie84BoYRgDl0icar8KF7vKx44wNhzbca+lw4xGSA5gpDZ1i1smdxdpOSsUY
-WT70ZcJBN1oyKiiiCJUNLwCPzaPsH1i3WwDSaGsbjl8gjf2+LFNFPwdsWRbn3RLlFcFbET2bFe5y
-v6UN+0cSh9qLJeLR2h0WDaVBp5Gx4PAYAfpIIF8EH3YbvI8uuTmBza8Ni0yozOZ2cXCSdezLGW2m
-b6itOq/taBhgl8gzhKqki9jAOWmDBeBIbe2rUuNJrfHVH8+lWTzuzJIcHSHeAjFG1xid+HOOsw0e
-Ag3JMjJaqCGCp0Oc9/WBtHV6jB30jLzht5QjJZ6izIKswRrvt0nCowp74FZ1l1ekXZPhhkA5MBMb
-AoTiz9UvRZAWBPa5gX4R7eaekGjCPWI8NpJ7pT3Xh3NIHIsjyf0JcysoH2V1+A9qT1LOCyczf1Uc
-9d8PXap1zhhQuczZcnw7vAwLEIwldfp08x6klsgiP6jqIB4XKJCjBDu/gn682ydWzfLT8echVHpg
-uI62X67Ns1ZbFWMAEQEAAQ==
-
-AcLBXAQAAQoABgUCV86jSgAKCRAHKljtl9kuLpV6EADO8Q1WKJwoTfeIpBpQfDhdhqJLmW86Qrjq
-P9ZsndN8eA4uSbo08yg9jxi6Q3J/A5QK6rhTz5Nu41frKVpgFr80BpIx8cHsY2dZNyKCm70Jjy4h
-cxteK7mwdAzdWG/Dg7Nr4fhOmpepsh1gIXvjWhTkT226DIO6l45o6N2hMKKkWmqJYqVD6i7UE4Ed
-xmC+IoluhnKGGwM6JpyOw0RViXbLjVDR58n4q1xmK7cFduMoLKszVY4/KGmKT8gA6D4pUOa62F84
-Ejh6akRum7uqygBibYT/DP+KA+MhHvpQ8XZem7IVIEnMJr7U2gde3brbVr0oiCl7FzfiBNy6qw92
-cTsE8o3JV0Lc106SWU28GuWPgyXjoH8imzSmWlpQtlPlKEDwMQt31XDKUKp0ZKiEax3cQ6VjMv1f
-PV3bHNjD+tBq5e1xm/UWyGu7J2N4VPLgUK7F4TPUJk5lwKjmII8KD3KA/IeHnZVN6vmC2nKfhGvw
-+rJllQQ0IWY9RfIdzFHpVvthe48g27ok5yEgovAc/s7xWZ6CBgyzYWLQMNFvENj04CzGvxirKwuJ
-Fy5UJIEKB0j0R2qnCz6HZkyQrUsz5HiIIlks18FfOZwuIc4GGPbwwQBoXW7a6KQg0aa62BPj5Iww
-3w60rtTSUsjINkZ/GXLodfzPglOl6VLF7bWx2hGesg==
-`
-	EncodedStagingGenericAccount = `type: account
-authority-id: canonical
-account-id: generic
-display-name: Generic
-timestamp: 2017-07-27T00:00:00.0Z
-username: generic
-validation: certified
-sign-key-sha3-384: e2r8on4LgdxQSaW5T8mBD5oC2fSTktTVxOYa5w3kIP4_nNF6L7mt6fOJShdOGkKu
-
-AcLBXAQAAQoABgUCWXmmFAAKCRAHKljtl9kuLkAWD/98LgECwAN8S09o4aEFpdGXgWpx8z58wl6T
-5mZVDyYpCV9ugC2DqBqGQxp4X1P7Wn9+weXw8nmL7IywVn/hCVHJOmBLJSr3wLjpVBY9RrIHYoXi
-k9W7IFo4ggw1j1FRLg2tKk81MnK0fK/Qws9OXzilDir5R2bQ/E0sodGW3NpbwtbpkY/BtP6YPoJ/
-1+205KG5m6oG8y6mf74bjMGfJ+iFFpIDayIpXl+YTkJ25BOVGcuC66cIrmdc63rBIHL2tU/3GUMB
-xZGiyG9Fuli1uV4ALhN9j43hxAtVwXOn/qgOiN8TGQz3OvlVUXTuFVmkdvCdfT2XHrJjFmEs9SlL
-u2EEmvaNFJ61lQG/VrN6O0BswenTlIO0tTFe126o/cTmKg8/ga4v2WjMlcOCzfu+cIZIzTTnn4Le
-iXdQ6+c3QN+Co4SI0UvgJ4nGWQ9W+4q4xVJTliKTzK2BZ40vHUi51rMC/puqsMpnAbHSn4iy8vpf
-CyJh7jyuITPEzfpurNMb+VD+1Brd2DJCVnlwQq+rzNerXd5xcHCdZsfX+ATukHgYTZWa467ZEFhI
-Bk1xUWAYs8r2JDFb5YPtZuW7Vt1UUpFdx6DroL6OODvZ6mDUtsOa8nm7G1l4uRJtqunplPyCDjnL
-aQhlAouLMltWeGITO+5jePHJKTnYQAFEvo0WIgEYpA==
-`
-	EncodedStagingGenericModelsAccountKey = `type: account-key
-authority-id: canonical
-public-key-sha3-384: 93jDrIGOXymDg9BPCLES5mAr6aGXU7e0wwXeJlIYIWbUzM_kB81CiqX7cTlB9Y1z
-account-id: generic
-name: models
-since: 2017-07-27T00:00:00.0Z
-body-length: 717
-sign-key-sha3-384: e2r8on4LgdxQSaW5T8mBD5oC2fSTktTVxOYa5w3kIP4_nNF6L7mt6fOJShdOGkKu
-
-AcbBTQRWhcGAARAAxcyFC13COEmIwWwLsjp4AAILhWSp8/dQ6cOzY3T7tqqoSn9iKyidpJTfrtml
-DKHZe0zC10fog2Mvp1AO7dNqK9kHUdCQE+YatHmkm1a3QoZqwJsj77w09Q+l1uvDjrfrF0S/KcYa
-0hfDZQ+51T1msbatWN2qU42dX280IMV+zo1GpKK8z6br4glY2tki4CJokVAAt+bl4bBqDZ4EoBYe
-9CsACmNhw2d/fOAlis2jwG3tWXMORX9FcGRx/COasvRb7rjA0DJfKxOnTw7uC0UjDUB6bU6O0smS
-Q5oK3V5fJIAcMBXNe5MkdTKGLY61hTFLiw4F6MkrM3O8dnXtexCojV+QtROTIM4R2dJTOv7r2s/9
-KT4wIQmOcjMEWxyq1H1rqjCHBjGnKa6GC1j/4NwqlxUEiqZMYs12px9ypeEqjL3tKURCanPOlwXO
-p2E1i+V53XznnS3RA7I6Aa37w/9clTJk5vzVT8G6+k6xsB9zwKYOsipG0zHjyuW9Qtkd15bA0Iv9
-MrZGE4U7RwEnt4jBa98rcLs1sCkJEau0hEU4MiPyqi8XL2b/TtPnCwN8rQRVQvakzGw83Ol/B8ZI
-2OGu0aB6HAWbdy81yXIUES9ZtH7nK5X7dSdJu92wXBMOyel9cryHzlYFjSlPKyqRx2lsYk4K6Hiq
-VRY3L12yjXkcHcsAEQEAAQ==
-
-AcLBXAQAAQoABgUCWXmevAAKCRAHKljtl9kuLltVEADAfpBlY4b4oImKPq8Pp6UKFjgcMVjJLcSI
-EOfAMygIaZwzNSuOh2wPRBAMMZlcFlBEFLfGbh7R2RG1/R7PSR4q+gMZZ3qJ5QUjUUuGnkSfCLhK
-jVtPlX8qdPWTdEgUeTEKNzHogP0MiIChHdeuv/iQ9fSgdw/lBZsblKAdrHv00ZQHup9XGWdZ4Fnb
-cSiK9tZ3/nZAG18PErEh7wJntwygqcjScS0jTSa5BecQoy8O6wxKafQgxuixdHw+dt6sa34qzwel
-ROb1VmNcmMGsv2YuPsRcqjgvL7drDzXRRcYhmiSCUFhGPx3RY0UWO9G9Pzok64l/1D7o6Xah3h4D
-oxkepM5JTAiy165kfQzEFGMtvlv0d3mOCLMWqJzjzhhn/bPcoh5MO/PhpSR1y71tjjWtKR4SD1K/
-feR+KE73gEgqmHLss3TF/O2RxvbV15W0paxmiffUyeE/uQ1p5ddmBwke/gM/OOgUA4G3g9vgTeaQ
-YVFCD0h75mX9GylVXUMmxlYSRVO59JsxCpWSqXWh4xkigbBZSAOPn6vkM/4nxZLf/ufVyNqnwo2r
-Si/lWgk/lJoHaTVsqm9n0DxiR8lH54eFghprkN+KgGFMKlY127n50CEwqG1j4gKfjxmRycgKbx5O
-a0IGmGjVnVmGOdX9wpg6fBHbhczXZtId02Q7yzF87A==
-`
-
-	EncodedStagingGenericClassicModel = `type: model
-authority-id: generic
-series: 16
-brand-id: generic
-model: generic-classic
-classic: true
-timestamp: 2017-07-27T00:00:00.0Z
-sign-key-sha3-384: 93jDrIGOXymDg9BPCLES5mAr6aGXU7e0wwXeJlIYIWbUzM_kB81CiqX7cTlB9Y1z
-
-AcLBXAQAAQoABgUCWXnYbAAKCRDqhmvwxUsbelvOD/4qxiDs4blJoRSXmzvsKTyM/Z2QuLw9bqUj
-QXKoCSB78ATFwr01kvqJMzwJ1eT4zKOajUERKPN9fN1af0w07DoYG5bt/Pb7s/UFDmwIQg244wLI
-lQ/NPCAm4SEvN1GEe0OxdCpMuPe+x++FvFtnF7CXJPmLdHln6A1eMhwyxGX+el1QxhiR+mWLCCNp
-B4ndjh154H5SXRw1lmUiYdE/kCsOqGeZ5ljTni+Rh8xDYxmVCthrLCUVtHhMVrKeylDwwS7Sf/HV
-GY9r/C9r07xRom06bBN/vQwdoLzGuU3SS7UsN0Ud95tJhAUtP5jW1dN8otviMcOAdtj7jTwSX4FY
-pdgmkldjaCRaHxBA923cjGgl98LCjbdG5KmmKoT6DTb3AyFOT2XwlRl/MaRJBK2Tp1nVNZDjLY4j
-VfRETt17ZCONt3yn/OhQk8bV6EsdJvT2/nMlNejXgnMtLfbH8v6xWLKrLOVOjILVF5zgK8+z4+d2
-ILIZupGooMouhddmcHem76lSnS+y75NMQXg5lBrUU2xAQRloWTw0oF+Hr5vcZkX5f4R/yH8Zz1Dt
-+zRs2zqOK5hjdejhU5x/N3KSBLy+TUMk7JsdVv0nhdpJUKrFyGWn+YzBNE2GgEfPfXnkaU91/AD2
-SWyt8kWVPmT3DCzs7u5IXYIVxcq4FjkmeU9sTrn88g==
-`
+	// FallbackStagingGenericClassicModel remapped to production fallback.
+	FallbackStagingGenericClassicModel = FallbackGenericClassicModel
 
 	ProdIdSnapd  = "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4"
 	ProdIdCore   = "99T7MUlRhtI3U0QFgl5mXXESAiSwt776"
@@ -445,11 +292,10 @@ SWyt8kWVPmT3DCzs7u5IXYIVxcq4FjkmeU9sTrn88g==
 	ProdIdCore22 = "amcUKQILKXHHTlmSa7NMdnXSx02dNeeT"
 	ProdIdCore24 = "dwTAh7MZZ01zyriOZErqd1JynQLiOGvM"
 
-	StagingIdCore   = "xMNMpEm0COPZy7jq9YRwWVLCD9q5peow"
-	StagingIdSnapd  = "Z44rtQD1v4r1LXGPCDZAJO3AOw1EDGqy"
-	StagingIdCore18 = "NhSvwckvNdvgdiVGlsO1vYmi3FPdTZ9U"
-	// TODO:UC20 no core20 uploaded to staging yet
-	StagingIdCore20 = ""
-	StagingIdCore22 = ""
-	StagingIdCore24 = ""
+	StagingIdCore   = ProdIdCore
+	StagingIdSnapd  = ProdIdSnapd
+	StagingIdCore18 = ProdIdCore18
+	StagingIdCore20 = ProdIdCore20
+	StagingIdCore22 = ProdIdCore22
+	StagingIdCore24 = ProdIdCore24
 )

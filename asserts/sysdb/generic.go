@@ -21,6 +21,7 @@ package sysdb
 
 import (
 	"fmt"
+
 	"github.com/snapcore/snapd/constants"
 
 	"github.com/snapcore/snapd/asserts"
@@ -49,12 +50,14 @@ func init() {
 
 	genericAssertions = []asserts.Assertion{genericAccount, genericModelsAccountKey}
 
-	fmt.Sprintf("Decode assert: %s", constants.EncodedGenericClassicModel)
-	a, err := asserts.Decode([]byte(constants.EncodedGenericClassicModel))
-	if err != nil {
-		panic(fmt.Sprintf(`cannot decode "generic"'s "generic-classic" model: %v`, err))
+	// Only decode the fallback model if configured (non-empty)
+	if constants.FallbackGenericClassicModel != "" {
+		a, err := asserts.Decode([]byte(constants.FallbackGenericClassicModel))
+		if err != nil {
+			panic(fmt.Sprintf(`cannot decode fallback "generic-classic" model: %v`, err))
+		}
+		genericClassicModel = a.(*asserts.Model)
 	}
-	genericClassicModel = a.(*asserts.Model)
 }
 
 // Generic returns a copy of the current set of predefined assertions for the 'generic' authority as used by Open.
