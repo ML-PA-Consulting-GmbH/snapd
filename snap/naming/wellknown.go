@@ -48,6 +48,7 @@ func InitWellKnownSnapIDs() {
 // WellKnownSnapID returns the snap-id of well-known snaps (snapd, core*)
 // given the snap name or the empty string otherwise.
 func WellKnownSnapID(snapName string) string {
+	InitWellKnownSnapIDs()
 	return wellKnownSnapIDs[snapName]
 }
 
