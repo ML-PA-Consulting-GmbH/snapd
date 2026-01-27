@@ -33,7 +33,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/snapcore/snapd/constants"
+	"github.com/snapcore/snapd/branding"
 
 	"gopkg.in/tomb.v2"
 
@@ -55,9 +55,9 @@ import (
 
 func baseURL() *url.URL {
 	if snapdenv.UseStagingStore() {
-		return mustParse(constants.BaseUrlSnapcraftStagingApi)
+		return mustParse(branding.BrandConfig.Store.APIURL)
 	}
-	return mustParse(constants.BaseUrlSnapcraftStagingApi)
+	return mustParse(branding.BrandConfig.Store.APIURL)
 }
 
 func mustParse(s string) *url.URL {

@@ -36,7 +36,8 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"github.com/snapcore/snapd/constants"
+
+	"github.com/snapcore/snapd/branding"
 
 	"gopkg.in/retry.v1"
 
@@ -231,9 +232,9 @@ func endpointURL(base *url.URL, path string, query url.Values) *url.URL {
 
 // apiURL returns the system default base API URL.
 func apiURL() *url.URL {
-	s := constants.BaseUrlSnapcraftApi
+	s := branding.BrandConfig.Store.APIURL
 	if snapdenv.UseStagingStore() {
-		s = constants.BaseUrlSnapcraftStagingApi
+		s = branding.BrandConfig.Store.APIURL
 	}
 	u, _ := url.Parse(s)
 	return u
@@ -280,25 +281,25 @@ func assertsURL() (*url.URL, error) {
 
 func authLocation() string {
 	if snapdenv.UseStagingStore() {
-		return constants.AuthLocationStaging
+		return branding.BrandConfig.Store.AuthLocation
 	}
-	return constants.AuthLocation
+	return branding.BrandConfig.Store.AuthLocation
 }
 
 func authURL() string {
 	if u := os.Getenv("SNAPPY_FORCE_SSO_URL"); u != "" {
 		return u
 	}
-	return constants.BaseUrlSnapcraftApiV2
+	return branding.BrandConfig.Store.APIV2URL
 }
 
-var defaultStoreDeveloperURL = constants.BaseUrlSnapcraftDashboard
+var defaultStoreDeveloperURL string
 
 func storeDeveloperURL() string {
 	if snapdenv.UseStagingStore() {
-		return constants.BaseUrlSnapcraftDashboardStaging
+		return branding.BrandConfig.Store.DashboardURL
 	}
-	return defaultStoreDeveloperURL
+	return branding.BrandConfig.Store.DashboardURL
 }
 
 var defaultConfig = Config{}

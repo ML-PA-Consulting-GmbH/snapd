@@ -23,12 +23,12 @@ package seedwriter
 import (
 	"errors"
 	"fmt"
-	"github.com/snapcore/snapd/constants"
 	"sort"
 	"strings"
 
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/asserts/snapasserts"
+	"github.com/snapcore/snapd/branding"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/snap/channel"
@@ -1500,7 +1500,7 @@ func (w *Writer) checkPublisher(sn *SeedSnap) error {
 		return err
 	}
 	publisher := snapDecl.PublisherID()
-	if publisher != w.model.BrandID() && publisher != constants.AccountId {
+	if publisher != w.model.BrandID() && publisher != branding.BrandConfig.Store.StoreOwnerAccountID {
 		return fmt.Errorf("cannot use %s %q published by %q for model by %q", kind, info.SnapName(), publisher, w.model.BrandID())
 	}
 	return nil

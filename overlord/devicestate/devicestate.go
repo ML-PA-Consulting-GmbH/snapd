@@ -25,13 +25,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/snapcore/snapd/constants"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/snapcore/snapd/branding"
 
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/asserts/snapasserts"
@@ -237,7 +238,7 @@ func checkGadgetOrKernel(st *state.State, snapInfo, curInfo *snap.Info, _ snap.C
 			return fmt.Errorf("internal error: cannot find snap declaration for %q: %v", snapInfo.InstanceName(), err)
 		}
 		publisher := snapDecl.PublisherID()
-		if publisher != constants.AccountId && publisher != model.BrandID() {
+		if publisher != branding.BrandConfig.Store.StoreOwnerAccountID && publisher != model.BrandID() {
 			return fmt.Errorf("cannot install %s %q published by %q for model by %q", kind, snapInfo.InstanceName(), publisher, model.BrandID())
 		}
 	} else {

@@ -26,12 +26,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"github.com/snapcore/snapd/constants"
 	"time"
 
 	// expected for digests
 	_ "golang.org/x/crypto/sha3"
 
+	"github.com/snapcore/snapd/branding"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/snap/naming"
@@ -1073,7 +1073,7 @@ var (
 	builtinBaseDeclarationCheckOrder      = []string{"type", "authority-id", "series"}
 	builtinBaseDeclarationExpectedHeaders = map[string]any{
 		"type":         "base-declaration",
-		"authority-id": constants.AccountId,
+		"authority-id": branding.BrandConfig.Store.StoreOwnerAccountID,
 		"series":       release.Series,
 	}
 )
