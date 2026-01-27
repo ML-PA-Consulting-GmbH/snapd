@@ -27,6 +27,7 @@ import (
 	// TODO: consider not using go-flags at all
 	"github.com/jessevdk/go-flags"
 
+	"github.com/snapcore/snapd/branding"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/snapdenv"
@@ -56,7 +57,12 @@ func init() {
 var errOnClassic = fmt.Errorf("cannot use snap-repair on a classic system")
 
 func main() {
-	// TODO setup FIPS if needed?
+	// Load brand configuration early, before any other initialization.
+	branding.LoadConfig()
+
+	// Initialize subsystems that depend on branding configuration.
+	InitCmdRun()
+	InitTrustedRepairKeys()
 
 	if err := run(); err != nil {
 		fmt.Fprintf(Stderr, "error: %v\n", err)

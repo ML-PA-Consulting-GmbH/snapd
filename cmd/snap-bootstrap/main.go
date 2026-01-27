@@ -25,8 +25,11 @@ import (
 
 	"github.com/jessevdk/go-flags"
 
+	"github.com/snapcore/snapd/asserts/sysdb"
+	"github.com/snapcore/snapd/branding"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/secboot"
+	"github.com/snapcore/snapd/snap/naming"
 )
 
 var (
@@ -41,6 +44,15 @@ such as initramfs.
 )
 
 func main() {
+	// Load brand configuration early, before any other initialization.
+	// For bootstrap, the config is expected in the initrd at /etc/snapd/snapd-config.yaml
+	branding.LoadConfig()
+
+	// Initialize subsystems that depend on branding configuration.
+	sysdb.InitTrusted()
+	sysdb.InitGeneric()
+	naming.InitWellKnownSnapIDs()
+
 	secboot.HijackAndRunArgon2OutOfProcessHandlerOnArg([]string{"argon2-proc"})
 
 	err := run(os.Args[1:])

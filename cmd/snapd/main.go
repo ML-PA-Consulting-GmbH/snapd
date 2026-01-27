@@ -28,11 +28,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/snapcore/snapd/asserts/sysdb"
+	"github.com/snapcore/snapd/branding"
 	"github.com/snapcore/snapd/daemon"
+	"github.com/snapcore/snapd/interfaces/policy"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/sandbox"
 	"github.com/snapcore/snapd/secboot"
+	"github.com/snapcore/snapd/snap/naming"
 	"github.com/snapcore/snapd/snapdenv"
 	"github.com/snapcore/snapd/snapdtool"
 	"github.com/snapcore/snapd/syscheck"
@@ -48,6 +52,17 @@ func init() {
 }
 
 func main() {
+	// Load brand configuration early, before any other initialization.
+	// This populates all constants from the config file embedded in the snap.
+	branding.LoadConfig()
+
+	// Initialize all subsystems that depend on branding configuration.
+	// These must be called after LoadConfig() since they use branding.BrandConfig.
+	policy.InitBaseDeclaration()
+	sysdb.InitTrusted()
+	sysdb.InitGeneric()
+	naming.InitWellKnownSnapIDs()
+
 	// When preseeding re-exec is not used
 	if snapdenv.Preseeding() {
 		logger.Noticef("running for preseeding")

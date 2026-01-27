@@ -22,9 +22,8 @@ package sysdb
 import (
 	"fmt"
 
-	"github.com/snapcore/snapd/constants"
-
 	"github.com/snapcore/snapd/asserts"
+	"github.com/snapcore/snapd/branding"
 	"github.com/snapcore/snapd/snapdenv"
 )
 
@@ -38,12 +37,19 @@ var (
 	genericClassicModelOverride *asserts.Model
 )
 
-func init() {
-	genericAccount, err := asserts.Decode([]byte(constants.EncodedGenericAccount))
+var genericInitialized bool
+
+// InitGeneric initializes the generic assertions from branding config.
+// Must be called after branding.LoadConfig().
+func InitGeneric() {
+	if genericInitialized {
+		return
+	}
+	genericAccount, err := asserts.Decode([]byte(branding.BrandConfig.Assertions.StoreOwnerAccount))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s account: %v`, err))
 	}
-	genericModelsAccountKey, err := asserts.Decode([]byte(constants.EncodedGenericModelsAccountKey))
+	genericModelsAccountKey, err := asserts.Decode([]byte(branding.BrandConfig.Assertions.ModelsAccountKey))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s "models" account-key: %v`, err))
 	}
@@ -51,13 +57,14 @@ func init() {
 	genericAssertions = []asserts.Assertion{genericAccount, genericModelsAccountKey}
 
 	// Only decode the fallback model if configured (non-empty)
-	if constants.FallbackGenericClassicModel != "" {
-		a, err := asserts.Decode([]byte(constants.FallbackGenericClassicModel))
+	if branding.BrandConfig.Models.GenericClassicModel != "" {
+		a, err := asserts.Decode([]byte(branding.BrandConfig.Models.GenericClassicModel))
 		if err != nil {
 			panic(fmt.Sprintf(`cannot decode fallback "generic-classic" model: %v`, err))
 		}
 		genericClassicModel = a.(*asserts.Model)
 	}
+	genericInitialized = true
 }
 
 // Generic returns a copy of the current set of predefined assertions for the 'generic' authority as used by Open.

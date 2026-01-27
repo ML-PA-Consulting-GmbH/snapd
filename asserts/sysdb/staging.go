@@ -24,25 +24,33 @@ import (
 	"fmt"
 
 	"github.com/snapcore/snapd/asserts"
-	"github.com/snapcore/snapd/constants"
+	"github.com/snapcore/snapd/branding"
 )
 
-func init() {
-	stagingTrustedAccount, err := asserts.Decode([]byte(constants.EncodedStagingTrustedAccount))
+var stagingInitialized bool
+
+// InitStaging initializes the staging assertions from branding config.
+// Must be called after branding.LoadConfig().
+func InitStaging() {
+	if stagingInitialized {
+		return
+	}
+	// For staging, we use the same assertions as production (unified branding)
+	stagingTrustedAccount, err := asserts.Decode([]byte(branding.BrandConfig.Assertions.StoreOwnerAccount))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
 	}
-	stagingRootAccountKey, err := asserts.Decode([]byte(constants.EncodedStagingRootAccountKey))
+	stagingRootAccountKey, err := asserts.Decode([]byte(branding.BrandConfig.Assertions.RootAccountKey))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
 	}
 	trustedStagingAssertions = []asserts.Assertion{stagingTrustedAccount, stagingRootAccountKey}
 
-	genericAccount, err := asserts.Decode([]byte(constants.EncodedStagingGenericAccount))
+	genericAccount, err := asserts.Decode([]byte(branding.BrandConfig.Assertions.StoreOwnerAccount))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s account: %v`, err))
 	}
-	genericModelsAccountKey, err := asserts.Decode([]byte(constants.EncodedStagingGenericModelsAccountKey))
+	genericModelsAccountKey, err := asserts.Decode([]byte(branding.BrandConfig.Assertions.ModelsAccountKey))
 	if err != nil {
 		panic(fmt.Sprintf(`cannot decode "generic"'s "models" account-key: %v`, err))
 	}
@@ -50,11 +58,12 @@ func init() {
 	genericStagingAssertions = []asserts.Assertion{genericAccount, genericModelsAccountKey}
 
 	// Only decode the fallback model if configured (non-empty)
-	if constants.FallbackStagingGenericClassicModel != "" {
-		a, err := asserts.Decode([]byte(constants.FallbackStagingGenericClassicModel))
+	if branding.BrandConfig.Models.GenericClassicModel != "" {
+		a, err := asserts.Decode([]byte(branding.BrandConfig.Models.GenericClassicModel))
 		if err != nil {
 			panic(fmt.Sprintf(`cannot decode staging fallback "generic-classic" model: %v`, err))
 		}
 		genericStagingClassicModel = a.(*asserts.Model)
 	}
+	stagingInitialized = true
 }

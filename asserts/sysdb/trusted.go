@@ -21,8 +21,9 @@ package sysdb
 
 import (
 	"fmt"
+
 	"github.com/snapcore/snapd/asserts"
-	"github.com/snapcore/snapd/constants"
+	"github.com/snapcore/snapd/branding"
 	"github.com/snapcore/snapd/snapdenv"
 )
 
@@ -51,16 +52,24 @@ var (
 	trustedAssertions = append(trustedAssertions, canonicalRootAccountKey)
 }*/
 
-func init() {
-	canonicalAccount, err := asserts.Decode([]byte(constants.EncodedCanonicalAccount))
+var trustedInitialized bool
+
+// InitTrusted initializes the trusted assertions from branding config.
+// Must be called after branding.LoadConfig().
+func InitTrusted() {
+	if trustedInitialized {
+		return
+	}
+	canonicalAccount, err := asserts.Decode([]byte(branding.BrandConfig.Assertions.StoreOwnerAccount))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
 	}
-	canonicalRootAccountKey, err := asserts.Decode([]byte(constants.EncodedCanonicalRootAccountKey))
+	canonicalRootAccountKey, err := asserts.Decode([]byte(branding.BrandConfig.Assertions.RootAccountKey))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted assertion: %v", err))
 	}
 	trustedAssertions = []asserts.Assertion{canonicalAccount, canonicalRootAccountKey}
+	trustedInitialized = true
 }
 
 // Trusted returns a copy of the current set of trusted assertions as used by Open.

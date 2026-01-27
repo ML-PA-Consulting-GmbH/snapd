@@ -22,20 +22,23 @@ package policy
 import (
 	"bytes"
 	"fmt"
-	"github.com/snapcore/snapd/constants"
 	"strings"
+
+	"github.com/snapcore/snapd/branding"
 
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/interfaces"
 	"github.com/snapcore/snapd/interfaces/builtin"
 )
 
-const baseDeclarationHeader = `
+func baseDeclarationHeader() string {
+	return `
 type: base-declaration
-authority-id: ` + constants.AccountId + `
+authority-id: ` + branding.BrandConfig.Store.StoreOwnerAccountID + `
 series: 16
 revision: 0
 `
+}
 
 const baseDeclarationPlugs = `
 plugs:
@@ -58,7 +61,7 @@ func composeBaseDeclaration(ifaces []interfaces.Interface) ([]byte, error) {
 	// Trim newlines at the end of the string. All the elements may have
 	// spurious trailing newlines. All elements start with a leading newline.
 	// We don't want any blanks as that would no longer parse.
-	if _, err := buf.WriteString(trimTrailingNewline(baseDeclarationHeader)); err != nil {
+	if _, err := buf.WriteString(trimTrailingNewline(baseDeclarationHeader())); err != nil {
 		return nil, err
 	}
 	if _, err := buf.WriteString(trimTrailingNewline(baseDeclarationPlugs)); err != nil {
@@ -85,7 +88,14 @@ func composeBaseDeclaration(ifaces []interfaces.Interface) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func init() {
+var baseDeclarationInitialized bool
+
+// InitBaseDeclaration initializes the builtin base-declaration.
+// This must be called after constants.LoadConfig() has been called.
+func InitBaseDeclaration() {
+	if baseDeclarationInitialized {
+		return
+	}
 	decl, err := composeBaseDeclaration(builtin.Interfaces())
 	if err != nil {
 		panic(fmt.Sprintf("cannot compose base-declaration: %v", err))
@@ -93,4 +103,5 @@ func init() {
 	if err := asserts.InitBuiltinBaseDeclaration(decl); err != nil {
 		panic(fmt.Sprintf("cannot initialize the builtin base-declaration: %v", err))
 	}
+	baseDeclarationInitialized = true
 }

@@ -20,34 +20,29 @@
 package naming
 
 import (
-	"github.com/snapcore/snapd/constants"
-	"github.com/snapcore/snapd/snapdenv"
+	"github.com/snapcore/snapd/branding"
 )
 
-var (
-	prodWellKnownSnapIDs = map[string]string{
-		"core":   constants.ProdIdCore,
-		"snapd":  constants.ProdIdSnapd,
-		"core18": constants.ProdIdCore18,
-		"core20": constants.ProdIdCore20,
-		"core22": constants.ProdIdCore22,
-		"core24": constants.ProdIdCore24,
-	}
+var wellKnownSnapIDs map[string]string
+var wellKnownInitialized bool
 
-	stagingWellKnownSnapIDs = map[string]string{
-		"core":   constants.StagingIdCore,
-		"snapd":  constants.StagingIdSnapd,
-		"core18": constants.StagingIdCore18,
-		"core20": constants.StagingIdCore20,
+// InitWellKnownSnapIDs initializes the well-known snap IDs from branding config.
+// Must be called after branding.LoadConfig().
+func InitWellKnownSnapIDs() {
+	if wellKnownInitialized {
+		return
 	}
-)
-
-var wellKnownSnapIDs = prodWellKnownSnapIDs
-
-func init() {
-	if snapdenv.UseStagingStore() {
-		wellKnownSnapIDs = stagingWellKnownSnapIDs
+	// With unified branding, staging and production use the same IDs
+	wellKnownSnapIDs = map[string]string{
+		"core":   branding.BrandConfig.SnapIDs.Core,
+		"snapd":  branding.BrandConfig.SnapIDs.Snapd,
+		"core18": branding.BrandConfig.SnapIDs.Core18,
+		"core20": branding.BrandConfig.SnapIDs.Core20,
+		"core22": branding.BrandConfig.SnapIDs.Core22,
+		"core24": branding.BrandConfig.SnapIDs.Core24,
+		"core26": branding.BrandConfig.SnapIDs.Core26,
 	}
+	wellKnownInitialized = true
 }
 
 // WellKnownSnapID returns the snap-id of well-known snaps (snapd, core*)
@@ -57,13 +52,7 @@ func WellKnownSnapID(snapName string) string {
 }
 
 func UseStagingIDs(staging bool) (restore func()) {
-	old := wellKnownSnapIDs
-	if staging {
-		wellKnownSnapIDs = stagingWellKnownSnapIDs
-	} else {
-		wellKnownSnapIDs = prodWellKnownSnapIDs
-	}
-	return func() {
-		wellKnownSnapIDs = old
-	}
+	// With unified branding, staging and production use the same IDs.
+	// This function is kept for API compatibility but is now a no-op.
+	return func() {}
 }

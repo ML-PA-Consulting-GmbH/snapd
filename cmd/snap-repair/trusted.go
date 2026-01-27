@@ -21,18 +21,26 @@ package main
 
 import (
 	"fmt"
-	"github.com/snapcore/snapd/constants"
 
 	"github.com/snapcore/snapd/asserts"
+	"github.com/snapcore/snapd/branding"
 	"github.com/snapcore/snapd/snapdenv"
 )
 
-func init() {
-	repairRootAccountKey, err := asserts.Decode([]byte(constants.EncodedRepairRootAccountKey))
+var trustedInitialized bool
+
+// InitTrustedRepairKeys initializes the trusted repair keys from branding config.
+// Must be called after branding.LoadConfig().
+func InitTrustedRepairKeys() {
+	if trustedInitialized {
+		return
+	}
+	repairRootAccountKey, err := asserts.Decode([]byte(branding.BrandConfig.Assertions.RepairAccountKey))
 	if err != nil {
 		panic(fmt.Sprintf("cannot decode trusted account-key: %v", err))
 	}
 	if !snapdenv.UseStagingStore() {
 		trustedRepairRootKeys = append(trustedRepairRootKeys, repairRootAccountKey.(*asserts.AccountKey))
 	}
+	trustedInitialized = true
 }

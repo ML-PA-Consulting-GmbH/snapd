@@ -22,15 +22,14 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/snapcore/snapd/constants"
 	"net/url"
 	"os"
 	"path/filepath"
 
+	"github.com/snapcore/snapd/branding"
 	"github.com/snapcore/snapd/dirs"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/osutil"
-	"github.com/snapcore/snapd/snapdenv"
 )
 
 func init() {
@@ -48,14 +47,17 @@ func init() {
 type cmdRun struct{}
 
 var baseURL *url.URL
+var rootBrandIDs []string
+var cmdRunInitialized bool
 
-func init() {
-	var baseurl string
-	if snapdenv.UseStagingStore() {
-		baseurl = constants.BaseUrlSnapcraftStagingApiV2
-	} else {
-		baseurl = constants.BaseUrlSnapcraftApiV2
+// InitCmdRun initializes the repair command configuration from branding.
+// Must be called after branding.LoadConfig().
+func InitCmdRun() {
+	if cmdRunInitialized {
+		return
 	}
+	// With unified branding, staging and production use the same URLs
+	baseurl := branding.BrandConfig.Store.APIV2URL
 
 	// allow redirecting assertion requests under a different base url
 	if forcedURL := os.Getenv("SNAPPY_FORCE_SAS_URL"); forcedURL != "" {
@@ -67,9 +69,10 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("cannot setup base url: %v", err))
 	}
-}
 
-var rootBrandIDs = []string{constants.AccountId}
+	rootBrandIDs = []string{branding.BrandConfig.Store.StoreOwnerAccountID}
+	cmdRunInitialized = true
+}
 
 func (c *cmdRun) Execute(args []string) error {
 	if err := os.MkdirAll(dirs.SnapRunRepairDir, 0755); err != nil {
