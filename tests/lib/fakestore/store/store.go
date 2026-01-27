@@ -26,7 +26,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/snapcore/snapd/constants"
 	"net"
 	"net/http"
 	"net/url"
@@ -37,6 +36,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/snapcore/snapd/branding"
 
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/asserts/sysdb"
@@ -627,22 +628,30 @@ type bulkReplyJSON struct {
 	Payload payload `json:"_embedded"`
 }
 
-var someSnapIDtoName = map[string]map[string]string{
-	"production": {
-		"b8X2psL1ryVrPt5WEmpYiqfr5emixTd7": "ubuntu-core",
-		constants.ProdIdCore:               "core",
-		"bul8uZn9U3Ll4ke6BMqvNVEZjuJCSQvO": "canonical-pc",
-		"SkKeDk2PRgBrX89DdgULk3pyY5DJo6Jk": "canonical-pc-linux",
-		"eFe8BTR5L5V9F7yHeMAPxkEr2NdUXMtw": "test-snapd-tools",
-		"Wcs8QL2iRQMjsPYQ4qz4V1uOlElZ1ZOb": "test-snapd-python-webserver",
-		"DVvhXhpa9oJjcm0rnxfxftH1oo5vTW1M": "test-snapd-go-webserver",
-	},
-	"staging": {
-		constants.StagingIdCore:            "core",
-		"02AHdOomTzby7gTaiLX3M3SGMmXDfLJp": "test-snapd-tools",
-		"uHjTANBWSXSiYzNOUXZNDnOSH3POSqWS": "test-snapd-python-webserver",
-		"edmdK5G9fP1q1bGyrjnaDXS4RkdjiTGV": "test-snapd-go-webserver",
-	},
+// someSnapIDtoName maps snap IDs to names for testing.
+// Note: These are initialized lazily since branding.BrandConfig may not be loaded yet.
+func someSnapIDtoName() map[string]map[string]string {
+	coreID := ""
+	if branding.BrandConfig != nil {
+		coreID = branding.BrandConfig.SnapIDs.Core
+	}
+	return map[string]map[string]string{
+		"production": {
+			"b8X2psL1ryVrPt5WEmpYiqfr5emixTd7": "ubuntu-core",
+			coreID:                             "core",
+			"bul8uZn9U3Ll4ke6BMqvNVEZjuJCSQvO": "canonical-pc",
+			"SkKeDk2PRgBrX89DdgULk3pyY5DJo6Jk": "canonical-pc-linux",
+			"eFe8BTR5L5V9F7yHeMAPxkEr2NdUXMtw": "test-snapd-tools",
+			"Wcs8QL2iRQMjsPYQ4qz4V1uOlElZ1ZOb": "test-snapd-python-webserver",
+			"DVvhXhpa9oJjcm0rnxfxftH1oo5vTW1M": "test-snapd-go-webserver",
+		},
+		"staging": {
+			coreID:                             "core",
+			"02AHdOomTzby7gTaiLX3M3SGMmXDfLJp": "test-snapd-tools",
+			"uHjTANBWSXSiYzNOUXZNDnOSH3POSqWS": "test-snapd-python-webserver",
+			"edmdK5G9fP1q1bGyrjnaDXS4RkdjiTGV": "test-snapd-go-webserver",
+		},
+	}
 }
 
 func (s *Store) bulkEndpoint(w http.ResponseWriter, req *http.Request) {
@@ -667,7 +676,7 @@ func (s *Store) bulkEndpoint(w http.ResponseWriter, req *http.Request) {
 	} else {
 		remoteStore = "production"
 	}
-	snapIDtoName, err := addSnapIDs(bs, someSnapIDtoName[remoteStore])
+	snapIDtoName, err := addSnapIDs(bs, someSnapIDtoName()[remoteStore])
 	if err != nil {
 		http.Error(w, fmt.Sprintf("internal error collecting snapIDs: %v", err), 500)
 		return
@@ -852,7 +861,7 @@ func (s *Store) snapActionEndpoint(w http.ResponseWriter, req *http.Request) {
 	} else {
 		remoteStore = "production"
 	}
-	snapIDtoName, err := addSnapIDs(bs, someSnapIDtoName[remoteStore])
+	snapIDtoName, err := addSnapIDs(bs, someSnapIDtoName()[remoteStore])
 	if err != nil {
 		http.Error(w, fmt.Sprintf("internal error collecting snapIDs: %v", err), 500)
 		return
