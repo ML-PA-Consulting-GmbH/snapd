@@ -74,6 +74,7 @@ func InitTrusted() {
 
 // Trusted returns a copy of the current set of trusted assertions as used by Open.
 func Trusted() []asserts.Assertion {
+	InitTrusted()
 	trusted := []asserts.Assertion(nil)
 	if !snapdenv.UseStagingStore() {
 		trusted = append(trusted, trustedAssertions...)
