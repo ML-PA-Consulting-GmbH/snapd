@@ -114,6 +114,9 @@ func Prepare(opts *Options) error {
 		// snaps seeded image.Prepare will be called with no model assertion,
 		// and we then use the GenericClassicModel.
 		model = sysdb.GenericClassicModel()
+		if model == nil {
+			return fmt.Errorf("--model is required for classic images when no fallback model is available")
+		}
 	} else {
 		model, err = decodeModelAssertion(opts)
 		if err != nil {

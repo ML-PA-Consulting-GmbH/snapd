@@ -610,7 +610,11 @@ func (m *DeviceManager) ensureOperationalShouldBackoff(now time.Time) bool {
 }
 
 func setClassicFallbackModel(st *state.State, device *auth.DeviceState) error {
-	err := assertstate.Add(st, sysdb.GenericClassicModel())
+	model := sysdb.GenericClassicModel()
+	if model == nil {
+		return fmt.Errorf("no model assertion provided and no fallback model available; provide a model assertion in the seed")
+	}
+	err := assertstate.Add(st, model)
 	if err != nil && !asserts.IsUnaccceptedUpdate(err) {
 		return fmt.Errorf(`cannot install "generic-classic" fallback model assertion: %v`, err)
 	}

@@ -171,8 +171,11 @@ func (sc *storeContext) UpdateUserAuth(user *auth.UserState, newDischarges []str
 // and it's not the generic classic model, or the override from the
 // UBUNTU_STORE_ID envvar.
 func StoreID(mod *asserts.Model) string {
-	if mod != nil && mod.Ref().Unique() != sysdb.GenericClassicModel().Ref().Unique() {
-		return mod.Store()
+	if mod != nil {
+		genericModel := sysdb.GenericClassicModel()
+		if genericModel == nil || mod.Ref().Unique() != genericModel.Ref().Unique() {
+			return mod.Store()
+		}
 	}
 	return os.Getenv("UBUNTU_STORE_ID")
 }
