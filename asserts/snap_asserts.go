@@ -1071,10 +1071,16 @@ func BuiltinBaseDeclaration() *BaseDeclaration {
 
 var (
 	builtinBaseDeclarationCheckOrder      = []string{"type", "authority-id", "series"}
-	builtinBaseDeclarationExpectedHeaders = map[string]any{
-		"type":         "base-declaration",
-		"authority-id": branding.BrandConfig.Store.StoreOwnerAccountID,
-		"series":       release.Series,
+	builtinBaseDeclarationExpectedHeaders = func() map[string]any {
+		authorityID := ""
+		if branding.BrandConfig != nil {
+			authorityID = branding.BrandConfig.Store.StoreOwnerAccountID
+		}
+		return map[string]any{
+			"type":         "base-declaration",
+			"authority-id": authorityID,
+			"series":       release.Series,
+		}
 	}
 )
 
@@ -1089,8 +1095,9 @@ func InitBuiltinBaseDeclaration(headers []byte) error {
 	if err != nil {
 		return err
 	}
+	expectedHeaders := builtinBaseDeclarationExpectedHeaders()
 	for _, name := range builtinBaseDeclarationCheckOrder {
-		expected := builtinBaseDeclarationExpectedHeaders[name]
+		expected := expectedHeaders[name]
 		if h[name] != expected {
 			return fmt.Errorf("the builtin base-declaration %q header is not set to expected value %q", name, expected)
 		}
