@@ -53,12 +53,20 @@ require (
 	github.com/canonical/go-kbkdf v0.0.0-20250104172618-3b1308f9acf9 // indirect
 	github.com/canonical/go-password-validator v0.0.0-20250617132709-1b205303ca54 // indirect
 	github.com/canonical/tcglog-parser v0.0.0-20240924110432-d15eaf652981 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/google/go-configfs-tsm v0.3.3-0.20240919001351-b4b5b84fdcbc // indirect
+	github.com/google/go-sev-guest v0.12.1 // indirect
+	github.com/google/go-tdx-guest v0.3.2-0.20241009005452-097ee70d0843 // indirect
+	github.com/google/logger v1.1.1 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/pilebones/go-udev v0.9.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
-	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
-	golang.org/x/term v0.20.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/exp v0.0.0-20240531132922-fd00a4e0eefc // indirect
+	golang.org/x/term v0.27.0 // indirect
+	google.golang.org/protobuf v1.35.1 // indirect
 	maze.io/x/crypto v0.0.0-20190131090603-9b94c9afe066 // indirect
 )
