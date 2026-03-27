@@ -3,6 +3,12 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (for example: v2.67.0)'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -11,6 +17,8 @@ jobs:
     steps:
     - name: Check out code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -19,7 +27,12 @@ jobs:
 
     - name: Extract tag name
       id: extract_tag
-      run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+      run: |
+        if [ -n "${{ github.event.inputs.tag }}" ]; then
+          echo "TAG_NAME=${{ github.event.inputs.tag }}" >> "$GITHUB_ENV"
+        else
+          echo "TAG_NAME=${GITHUB_REF##*/}" >> "$GITHUB_ENV"
+        fi
 
     - name: Pull dependencies
       run: |
@@ -27,16 +40,16 @@ jobs:
         go mod tidy
         go mod vendor
 
-    - name: Create ta rballs
+    - name: Create tarballs
       run: |
-          mv .git /tmp
-          rm -rf .github
-          echo "${{ env.TAG_NAME}}" > release_version
-          tar cfah /tmp/snapd_${{ env.TAG_NAME }}.tar.xz .
-          cd .. 
-          cp -r snapd snapd-${{ env.TAG_NAME }}
-          tar cfah /tmp/snapd_${{ env.TAG_NAME }}.vendor.tar.xz snapd-${{ env.TAG_NAME }}
-          mv /tmp/.git .
+          TAG="${{ env.TAG_NAME }}"
+          echo "${TAG}" > release_version
+
+          tar --exclude-vcs --exclude=.github -caf "/tmp/snapd_${TAG}.tar.xz" .
+
+          rm -rf "/tmp/snapd-${TAG}"
+          cp -a . "/tmp/snapd-${TAG}"
+          tar --exclude-vcs --exclude=.github -caf "/tmp/snapd_${TAG}.vendor.tar.xz" -C /tmp "snapd-${TAG}"
 
     - name: Get release ID
       id: get_release
