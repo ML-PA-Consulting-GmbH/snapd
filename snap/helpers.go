@@ -34,6 +34,9 @@ var (
 )
 
 func IsSnapd(snapID string) bool {
+	if snapID == "" {
+		return false
+	}
 	return snapID == naming.WellKnownSnapID("snapd")
 }
 

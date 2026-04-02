@@ -854,6 +854,9 @@ func (s *imageSeeder) finishSeedCore() error {
 }
 
 func (s *imageSeeder) warnOnUnassertedSnaps() error {
+	if snapdenv.Insecure() {
+		return nil
+	}
 	unassertedSnaps, err := s.w.UnassertedSnaps()
 	if err != nil {
 		return err
@@ -873,8 +876,6 @@ func (s *imageSeeder) finish() error {
 	// contained within the kernel snap.
 	if err := s.w.VerifySnapBootstrapCompatibility(); err != nil {
 		if !s.allowSnapdKernelMismatch {
-			// If not, error out as there is no reason to allow
-			// this as the resulting image will be invalid.
 			return err
 		}
 		fmt.Fprintf(Stderr, "WARNING: %v\n", err)

@@ -31,6 +31,7 @@ import (
 	"github.com/snapcore/snapd/asserts/snapasserts"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/snap"
+	"github.com/snapcore/snapd/snapdenv"
 	"github.com/snapcore/snapd/snap/channel"
 	"github.com/snapcore/snapd/snap/naming"
 	"github.com/snapcore/snapd/snap/squashfs"
@@ -954,7 +955,7 @@ func (w *Writer) modSnaps() ([]*asserts.ModelSnap, error) {
 	if systemSnap := w.policy.systemSnap(); systemSnap != nil {
 		prepend := true
 		for _, modSnap := range modSnaps {
-			if naming.SameSnap(modSnap, systemSnap) {
+			if naming.SameSnap(modSnap, systemSnap) || (snapdenv.Insecure() && modSnap.SnapName() == systemSnap.SnapName()) {
 				prepend = false
 				modes := modSnap.Modes
 				expectedModes := systemSnap.Modes
