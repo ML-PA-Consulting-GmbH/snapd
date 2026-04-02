@@ -26,6 +26,8 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	"github.com/snapcore/snapd/snapdenv"
 )
 
 // NotFoundError is returned when an assertion can not be found.
@@ -485,16 +487,18 @@ func (db *Database) Add(assert Assertion) error {
 		return fmt.Errorf("internal error: assertion type %q has no primary key", ref.Type.Name)
 	}
 
-	err := db.Check(assert)
-	if err != nil {
-		if ufe, ok := err.(*UnsupportedFormatError); ok {
-			_, err := ref.Resolve(db.Find)
-			if err != nil && !errors.Is(err, &NotFoundError{}) {
-				return err
+	if !snapdenv.Insecure() {
+		err := db.Check(assert)
+		if err != nil {
+			if ufe, ok := err.(*UnsupportedFormatError); ok {
+				_, err := ref.Resolve(db.Find)
+				if err != nil && !errors.Is(err, &NotFoundError{}) {
+					return err
+				}
+				return &UnsupportedFormatError{Ref: ufe.Ref, Format: ufe.Format, Update: err == nil}
 			}
-			return &UnsupportedFormatError{Ref: ufe.Ref, Format: ufe.Format, Update: err == nil}
+			return err
 		}
-		return err
 	}
 
 	for i, keyVal := range ref.PrimaryKey {
@@ -506,6 +510,7 @@ func (db *Database) Add(assert Assertion) error {
 	// assuming trusted account keys/assertions will be managed
 	// through the os snap this seems the safest policy until we
 	// know more/better
+	var err error
 	_, err = db.trusted.Get(ref.Type, ref.PrimaryKey, ref.Type.MaxSupportedFormat())
 	if !errors.Is(err, &NotFoundError{}) {
 		return fmt.Errorf("cannot add %q assertion with primary key clashing with a trusted assertion: %v", ref.Type.Name, ref.PrimaryKey)

@@ -47,6 +47,7 @@ import (
 	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/seed/seedwriter"
 	"github.com/snapcore/snapd/snap"
+	"github.com/snapcore/snapd/snapdenv"
 	"github.com/snapcore/snapd/snap/naming"
 	"github.com/snapcore/snapd/snap/snapfile"
 	"github.com/snapcore/snapd/snap/squashfs"
@@ -1131,7 +1132,9 @@ func decodeExtraAssertions(r io.Reader, grade asserts.ModelGrade) ([]asserts.Ass
 
 		switch a.Type() {
 		case asserts.SnapDeclarationType, asserts.SnapRevisionType, asserts.ModelType, asserts.SerialType, asserts.ValidationSetType:
-			return nil, fmt.Errorf("assertion type %v is not allowed for extra assertions", a.Type().Name)
+			if !snapdenv.Insecure() {
+				return nil, fmt.Errorf("assertion type %v is not allowed for extra assertions", a.Type().Name)
+			}
 		case asserts.SystemUserType:
 			if grade != asserts.ModelDangerous {
 				return nil, fmt.Errorf("seeding system-user assertions is allowed for dangerous grade model only")

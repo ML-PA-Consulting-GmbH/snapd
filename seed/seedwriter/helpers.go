@@ -27,6 +27,7 @@ import (
 	"github.com/snapcore/snapd/asserts/snapasserts"
 	"github.com/snapcore/snapd/snap"
 	"github.com/snapcore/snapd/snap/snapfile"
+	"github.com/snapcore/snapd/snapdenv"
 )
 
 func whichModelSnap(modSnap *asserts.ModelSnap, model *asserts.Model) string {
@@ -119,6 +120,11 @@ func DeriveSideInfo(snapPath string, model *asserts.Model, sf SeedAssertionFetch
 	info, err := snap.ReadInfoFromSnapFile(snapf, nil)
 	if err != nil {
 		return nil, nil, err
+	}
+	if snapdenv.Insecure() {
+		// In insecure mode, skip assertion fetching — treat snaps as
+		// unasserted. The caller handles this via NotFoundError.
+		return nil, nil, &asserts.NotFoundError{Type: asserts.SnapRevisionType}
 	}
 	prev := len(sf.Refs())
 	if err := snapasserts.FetchSnapAssertions(sf, digest, info.Provenance()); err != nil {

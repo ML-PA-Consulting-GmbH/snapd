@@ -22,6 +22,8 @@ package asserts
 import (
 	"errors"
 	"fmt"
+
+	"github.com/snapcore/snapd/snapdenv"
 )
 
 type fetchProgress int
@@ -105,13 +107,15 @@ func (f *fetcher) wasFetched(ref *Ref) (bool, error) {
 
 func (f *fetcher) fetchPrerequisitesAndSave(key string, a Assertion) error {
 	f.fetched[key] = fetchRetrieved
-	for _, preref := range assertionPrereqs(a) {
-		if err := f.Fetch(preref); err != nil {
+	if !snapdenv.Insecure() {
+		for _, preref := range assertionPrereqs(a) {
+			if err := f.Fetch(preref); err != nil {
+				return err
+			}
+		}
+		if err := f.fetchAccountKey(a.SignKeyID()); err != nil {
 			return err
 		}
-	}
-	if err := f.fetchAccountKey(a.SignKeyID()); err != nil {
-		return err
 	}
 	if err := f.save(a); err != nil {
 		return err

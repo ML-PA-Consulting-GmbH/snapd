@@ -29,6 +29,7 @@ import (
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/seed/internal"
 	"github.com/snapcore/snapd/snap"
+	"github.com/snapcore/snapd/snapdenv"
 	"github.com/snapcore/snapd/snap/channel"
 	"github.com/snapcore/snapd/snap/naming"
 )
@@ -43,6 +44,9 @@ type policy20 struct {
 var errNotAllowedExceptForDangerous = errors.New("cannot override channels, add devmode snaps, local snaps, or extra snaps/components with a model of grade higher than dangerous")
 
 func (pol *policy20) checkAllowedDangerous() error {
+	if snapdenv.Insecure() {
+		return nil
+	}
 	if pol.model.Grade() != asserts.ModelDangerous {
 		return errNotAllowedExceptForDangerous
 	}
@@ -479,7 +483,7 @@ func (tr *tree20) writeMeta(snapsFromModel []*SeedSnap, extraSnaps []*SeedSnap) 
 	}
 
 	if len(optionsSnaps) != 0 {
-		if tr.grade != asserts.ModelDangerous {
+		if !snapdenv.Insecure() && tr.grade != asserts.ModelDangerous {
 			return fmt.Errorf("internal error: unexpected non-model snap overrides with grade %s", tr.grade)
 		}
 		options20 := &internal.Options20{Snaps: optionsSnaps}
