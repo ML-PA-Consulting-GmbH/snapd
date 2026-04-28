@@ -67,6 +67,10 @@ func (s *baseHandlerSuite) SetUpTest(c *C) {
 
 	snapstate.SetSnapManagerBackend(s.snapmgr, s.fakeBackend)
 
+	// fork addition: opt out of the recovery ensure handler in tests; see
+	// snapmgr.ensureSnapServicesUpdated.
+	s.AddCleanup(snapstate.MockEnsuredSnapServicesUpdated(s.snapmgr, true))
+
 	reset1 := snapstate.MockSnapReadInfo(s.fakeBackend.ReadInfo)
 	reset2 := snapstate.MockReRefreshRetryTimeout(time.Second / 200)
 

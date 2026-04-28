@@ -246,6 +246,10 @@ func (s *snapmgrBaseTest) SetUpTest(c *C) {
 	snapstate.SetSnapManagerBackend(s.snapmgr, s.fakeBackend)
 	// set next cleanup to future, so cleanup doesn't run in tests
 	snapstate.SetStoreCacheCleanNext(s.snapmgr, time.Now().Add(time.Hour))
+	// fork addition: ensure handler that recovers wiped /etc/systemd unit
+	// files would otherwise fire on tests that set seeded=true with active
+	// snaps but no real .service files on disk; opt out by default
+	s.AddCleanup(snapstate.MockEnsuredSnapServicesUpdated(s.snapmgr, true))
 
 	s.o.AddManager(s.snapmgr)
 	s.o.AddManager(s.o.TaskRunner())

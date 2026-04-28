@@ -39,6 +39,7 @@ import (
 	"github.com/snapcore/snapd/overlord/snapstate/sequence"
 	"github.com/snapcore/snapd/overlord/state"
 	"github.com/snapcore/snapd/overlord/swfeats"
+	"github.com/snapcore/snapd/progress"
 	"github.com/snapcore/snapd/randutil"
 	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/sandbox"
@@ -51,6 +52,7 @@ import (
 	"github.com/snapcore/snapd/store"
 	"github.com/snapcore/snapd/strutil"
 	"github.com/snapcore/snapd/systemd"
+	"github.com/snapcore/snapd/timings"
 	"github.com/snapcore/snapd/wrappers"
 )
 
@@ -66,6 +68,7 @@ func init() {
 	swfeats.RegisterEnsure("SnapManager", "atSeed")
 	swfeats.RegisterEnsure("SnapManager", "ensureMountsUpdated")
 	swfeats.RegisterEnsure("SnapManager", "ensureDesktopFilesUpdated")
+	swfeats.RegisterEnsure("SnapManager", "ensureSnapServicesUpdated")
 	swfeats.RegisterEnsure("SnapManager", "ensureDownloadsCleaned")
 	swfeats.RegisterEnsure("SnapManager", "ensureStoreDownloadsCacheCleaned")
 
@@ -89,6 +92,7 @@ type SnapManager struct {
 
 	ensuredMountsUpdated       bool
 	ensuredDesktopFilesUpdated bool
+	ensuredSnapServicesUpdated bool
 	ensuredDownloadsCleaned    bool
 	ensureStoreCacheCleanNext  time.Time
 
@@ -822,6 +826,7 @@ func Manager(st *state.State, runner *state.TaskRunner) (*SnapManager, error) {
 		preseed:                    preseed,
 		ensuredMountsUpdated:       false,
 		ensuredDesktopFilesUpdated: false,
+		ensuredSnapServicesUpdated: false,
 		ensuredDownloadsCleaned:    false,
 	}
 	if preseed {
@@ -1587,6 +1592,159 @@ func (m *SnapManager) ensureDesktopFilesUpdated() error {
 	return nil
 }
 
+// FORK CHANGE: added for Yocto/RAUC systems where /var/lib/snapd is on
+// persistent storage but /etc/systemd/system is on the OS layer and gets
+// wiped on every OS update. Without this, state.json survives but unit
+// files and their wants/ symlinks don't, so services come up disabled.
+//
+// ensureSnapServicesUpdated re-creates and re-enables/starts systemd unit
+// files for installed snaps when the on-disk units have gone missing.
+// It is gated on stat'ing each expected unit file: if all are present it
+// is a no-op. When files are missing, it regenerates them via
+// EnsureSnapServices and then enables and starts them via the same code
+// path the start-snap-services task uses, respecting
+// LastActiveDisabledServices.
+func (m *SnapManager) ensureSnapServicesUpdated() error {
+	if snapdenv.Preseeding() {
+		return nil
+	}
+
+	m.state.Lock()
+	defer m.state.Unlock()
+
+	if m.ensuredSnapServicesUpdated {
+		return nil
+	}
+
+	// only run after we are seeded
+	var seeded bool
+	err := m.state.Get("seeded", &seeded)
+	if err != nil && !errors.Is(err, state.ErrNoState) {
+		return err
+	}
+	if !seeded {
+		return nil
+	}
+
+	allStates, err := All(m.state)
+	if err != nil && !errors.Is(err, state.ErrNoState) {
+		return err
+	}
+
+	logger.Trace("ensure", "manager", "SnapManager", "func", "ensureSnapServicesUpdated")
+
+	deviceCtx, err := DeviceCtx(m.state, nil, nil)
+	if err != nil && !errors.Is(err, state.ErrNoState) {
+		return err
+	}
+
+	requireMountedSnapdSnap := false
+	if deviceCtx != nil && deviceCtx.Model() != nil && !deviceCtx.Classic() && deviceCtx.Model().Base() != "" {
+		requireMountedSnapdSnap = true
+	}
+
+	tm := timings.New(nil)
+	pb := progress.Null
+
+	for _, snapSt := range allStates {
+		if !snapSt.Active {
+			continue
+		}
+		info, err := snapSt.CurrentInfo()
+		if err != nil {
+			return err
+		}
+		// snapd snap is handled by GenerateSnapdWrappers and lives in a
+		// different flow; skip it here.
+		if info.Type() == snap.TypeSnapd {
+			continue
+		}
+		svcs := info.Services()
+		if len(svcs) == 0 {
+			continue
+		}
+		if !anySnapServiceUnitMissing(svcs) {
+			continue
+		}
+
+		logger.Noticef("snap %q has missing service unit files, regenerating", info.InstanceName())
+
+		opts, err := SnapServiceOptions(m.state, info, nil)
+		if err != nil {
+			return err
+		}
+
+		ensureOpts := &wrappers.EnsureSnapServicesOptions{
+			RequireMountedSnapdSnap: requireMountedSnapdSnap,
+		}
+		if err := wrappers.EnsureSnapServices(map[*snap.Info]*wrappers.SnapServiceOptions{
+			info: opts,
+		}, ensureOpts, nil, pb); err != nil {
+			return fmt.Errorf("cannot regenerate service units for snap %q: %v", info.InstanceName(), err)
+		}
+
+		startupOrdered, err := snap.SortServices(svcs)
+		if err != nil {
+			return err
+		}
+		disabled := &wrappers.DisabledServices{
+			SystemServices: append([]string(nil), snapSt.LastActiveDisabledServices...),
+			UserServices:   copyUserServicesMap(snapSt.LastActiveDisabledUserServices),
+		}
+		// also keep services explicitly disabled by hooks disabled
+		disabled.SystemServices = append(disabled.SystemServices, snapSt.ServicesDisabledByHooks...)
+		for uid, names := range snapSt.UserServicesDisabledByHooks {
+			disabled.UserServices[uid] = append(disabled.UserServices[uid], names...)
+		}
+
+		// state may be touched indirectly via task progress, but we hold the
+		// lock for the whole ensure run to keep things simple.
+		m.state.Unlock()
+		err = m.backend.StartServices(startupOrdered, disabled, pb, tm)
+		m.state.Lock()
+		if err != nil {
+			return fmt.Errorf("cannot start services for snap %q: %v", info.InstanceName(), err)
+		}
+	}
+
+	m.ensuredSnapServicesUpdated = true
+
+	return nil
+}
+
+// anySnapServiceUnitMissing reports whether any of the .service unit files
+// expected for the given snap services is missing on disk.
+func anySnapServiceUnitMissing(svcs []*snap.AppInfo) bool {
+	for _, app := range svcs {
+		if !osutil.FileExists(app.ServiceFile()) {
+			return true
+		}
+	}
+	return false
+}
+
+func copyUserServicesMap(in map[int][]string) map[int][]string {
+	if in == nil {
+		return map[int][]string{}
+	}
+	out := make(map[int][]string, len(in))
+	for k, v := range in {
+		out[k] = append([]string(nil), v...)
+	}
+	return out
+}
+
+// MockEnsuredSnapServicesUpdated allows tests to set the
+// ensuredSnapServicesUpdated flag.
+func MockEnsuredSnapServicesUpdated(m *SnapManager, ensured bool) (restore func()) {
+	osutil.MustBeTestBinary("ensured snap services can only be mocked from tests")
+	old := m.ensuredSnapServicesUpdated
+	m.ensuredSnapServicesUpdated = ensured
+	return func() {
+		m.ensuredSnapServicesUpdated = old
+	}
+}
+
 func (m *SnapManager) ensureDownloadsCleaned() error {
 	m.state.Lock()
 	defer m.state.Unlock()
@@ -1699,6 +1857,7 @@ func (m *SnapManager) Ensure() error {
 		m.ensureVulnerableSnapConfineVersionsRemovedOnClassic(),
 		m.ensureMountsUpdated(),
 		m.ensureDesktopFilesUpdated(),
+		m.ensureSnapServicesUpdated(),
 		m.ensureDownloadsCleaned(),
 		m.ensureStoreDownloadsCacheCleaned(),
 	}
