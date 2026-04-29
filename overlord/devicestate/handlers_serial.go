@@ -269,6 +269,10 @@ func (m *DeviceManager) registrationCtx(t *state.Task) (registrationContext, err
 type serialSetup struct {
 	SerialRequest string `json:"serial-request"`
 	Serial        string `json:"serial"`
+	// RequestID is the nonce returned by the request-id endpoint that was
+	// embedded in the serial-request assertion. It is reused as the top-level
+	// nonce when the L-IoT v1 JSON body is sent (see submitSerialRequest).
+	RequestID string `json:"request-id,omitempty"`
 }
 
 type requestIDResp struct {
@@ -312,13 +316,13 @@ func retryBadStatus(t *state.Task, nTentatives int, reason string, resp *http.Re
 	return fmt.Errorf("%s: unexpected status %d", reason, resp.StatusCode)
 }
 
-func (m *DeviceManager) prepareSerialRequest(t *state.Task, regCtx registrationContext, privKey asserts.PrivateKey, device *auth.DeviceState, client *http.Client, cfg *serialRequestConfig) (string, error) {
+func (m *DeviceManager) prepareSerialRequest(t *state.Task, regCtx registrationContext, privKey asserts.PrivateKey, device *auth.DeviceState, client *http.Client, cfg *serialRequestConfig) (string, string, error) {
 	// limit tentatives starting from scratch before going to
 	// slower full retries
 	var nTentatives int
 	err := t.Get("pre-poll-tentatives", &nTentatives)
 	if err != nil && !errors.Is(err, state.ErrNoState) {
-		return "", err
+		return "", "", err
 	}
 	nTentatives++
 	t.Set("pre-poll-tentatives", nTentatives)
@@ -329,7 +333,7 @@ func (m *DeviceManager) prepareSerialRequest(t *state.Task, regCtx registrationC
 
 	req, err := http.NewRequest("POST", cfg.requestIDURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("internal error: cannot create request-id request %q", cfg.requestIDURL)
+		return "", "", fmt.Errorf("internal error: cannot create request-id request %q", cfg.requestIDURL)
 	}
 	req.Header.Set("User-Agent", snapdenv.UserAgent())
 	cfg.applyHeaders(req)
@@ -352,7 +356,7 @@ func (m *DeviceManager) prepareSerialRequest(t *state.Task, regCtx registrationC
 			// as soon as the user configured the network of the
 			// device
 			noNetworkRetryInterval := retryInterval / 2
-			return "", &state.Retry{After: noNetworkRetryInterval}
+			return "", "", &state.Retry{After: noNetworkRetryInterval}
 		}
 		if httputil.IsCertExpiredOrNotValidYetError(err) {
 			// If the cert is expired/not-valid yet that
@@ -364,38 +368,38 @@ func (m *DeviceManager) prepareSerialRequest(t *state.Task, regCtx registrationC
 			// up to 37.5m.
 			switch {
 			case nTentatives <= 5:
-				return "", &state.Retry{After: retryInterval / 2}
+				return "", "", &state.Retry{After: retryInterval / 2}
 			case nTentatives <= 10:
-				return "", &state.Retry{After: retryInterval}
+				return "", "", &state.Retry{After: retryInterval}
 			case nTentatives <= 15:
-				return "", &state.Retry{After: retryInterval * 2}
+				return "", "", &state.Retry{After: retryInterval * 2}
 			case nTentatives <= 20:
-				return "", &state.Retry{After: retryInterval * 4}
+				return "", "", &state.Retry{After: retryInterval * 4}
 			}
 		}
 		if !httputil.ShouldRetryError(err) {
 			// a non temporary net error fully errors out and triggers a retry
 			// retries
-			return "", fmt.Errorf("cannot retrieve request-id for making a request for a serial: %v", err)
+			return "", "", fmt.Errorf("cannot retrieve request-id for making a request for a serial: %v", err)
 		}
 
-		return "", retryErr(t, nTentatives, "cannot retrieve request-id for making a request for a serial: %v", err)
+		return "", "", retryErr(t, nTentatives, "cannot retrieve request-id for making a request for a serial: %v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return "", retryBadStatus(t, nTentatives, "cannot retrieve request-id for making a request for a serial", resp)
+		return "", "", retryBadStatus(t, nTentatives, "cannot retrieve request-id for making a request for a serial", resp)
 	}
 
 	dec := json.NewDecoder(resp.Body)
 	var requestID requestIDResp
 	err = dec.Decode(&requestID)
 	if err != nil { // assume broken i/o
-		return "", retryErr(t, nTentatives, "cannot read response with request-id for making a request for a serial: %v", err)
+		return "", "", retryErr(t, nTentatives, "cannot read response with request-id for making a request for a serial: %v", err)
 	}
 
 	cfgBody, err := m.maybeRunPrepareSerialRequestHook(st, requestID.RequestID, regCtx.GadgetForSerialRequestConfig())
 	if err != nil {
-		return "", fmt.Errorf("failed to run prepare serial request hook: %v", err)
+		return "", "", fmt.Errorf("failed to run prepare serial request hook: %v", err)
 	}
 
 	if cfgBody != nil {
@@ -404,12 +408,12 @@ func (m *DeviceManager) prepareSerialRequest(t *state.Task, regCtx registrationC
 
 	encodedPubKey, err := asserts.EncodePublicKey(privKey.PublicKey())
 	if err != nil {
-		return "", fmt.Errorf("internal error: cannot encode device public key: %v", err)
+		return "", "", fmt.Errorf("internal error: cannot encode device public key: %v", err)
 
 	}
 
 	if deterministicSerial, err := getDeviceSerial(); err != nil {
-		return "", fmt.Errorf("failed generating device serial: %v", err)
+		return "", "", fmt.Errorf("failed generating device serial: %v", err)
 	} else {
 		cfg.proposedSerial = deterministicSerial
 	}
@@ -431,23 +435,23 @@ func (m *DeviceManager) prepareSerialRequest(t *state.Task, regCtx registrationC
 
 	serialReq, err := asserts.SignWithoutAuthority(asserts.SerialRequestType, headers, cfg.body, privKey)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	buf := new(bytes.Buffer)
 	encoder := asserts.NewEncoder(buf)
 	if err := encoder.Encode(serialReq); err != nil {
-		return "", fmt.Errorf("cannot encode serial-request: %v", err)
+		return "", "", fmt.Errorf("cannot encode serial-request: %v", err)
 	}
 
 	for _, ancillaryAs := range regCtx.SerialRequestAncillaryAssertions() {
 		if err := encoder.Encode(ancillaryAs); err != nil {
-			return "", fmt.Errorf("cannot encode ancillary assertion: %v", err)
+			return "", "", fmt.Errorf("cannot encode ancillary assertion: %v", err)
 		}
 
 	}
 
-	return buf.String(), nil
+	return buf.String(), requestID.RequestID, nil
 }
 
 var errPoll = errors.New("serial-request accepted, poll later")
@@ -459,44 +463,78 @@ var logCount = 0
 	logCount++
 }*/
 
-func submitSerialRequest(t *state.Task, serialRequest string, client *http.Client, cfg *serialRequestConfig) (*asserts.Serial, *asserts.Batch, error) {
+func submitSerialRequest(t *state.Task, serialRequest, requestID string, format RegistrationFormat, client *http.Client, cfg *serialRequestConfig) (*asserts.Serial, *asserts.Batch, error) {
 	st := t.State()
+
+	// For v1 we need a partial payload to wrap. If the external
+	// provisioning tool POSTed one we use that; otherwise snapd is the
+	// collector and we synthesise a minimal partial with just snapd's
+	// identity. Either way, snapd injects the authoritative top-level
+	// fields (format_version, nonce, snap.assertions_b64, attestation)
+	// at assembly time.
+	var liotData *LiotRegistrationData
+	if format == FormatV1 {
+		var err error
+		liotData, err = GetLiotRegistrationData(st)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot read L-IoT registration data: %v", err)
+		}
+		if liotData == nil {
+			liotData = defaultSnapdCollectorPayload()
+		}
+	}
+
 	st.Unlock()
 	defer st.Lock()
 
-	req, err := http.NewRequest("POST", cfg.serialRequestURL, bytes.NewBufferString(serialRequest))
+	var bodyBytes []byte
+	var contentType string
+	useLiotJSON := format == FormatV1
+	if useLiotJSON {
+		var err error
+		bodyBytes, err = buildLiotRegistrationBody(liotData, requestID, serialRequest)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cannot build L-IoT registration body: %v", err)
+		}
+		contentType = "application/json"
+	} else {
+		bodyBytes = []byte(serialRequest)
+		contentType = asserts.MediaType
+	}
+
+	req, err := http.NewRequest("POST", cfg.serialRequestURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, nil, fmt.Errorf("internal error: cannot create serial-request request %q", cfg.serialRequestURL)
 	}
-	//superDetailedRequestLogs(req, "created serial request")
 
 	req.Header.Set("User-Agent", snapdenv.UserAgent())
-	//superDetailedRequestLogs(req, "added User-Agent header")
 	req.Header.Set("Snap-Device-Capabilities", strings.Join(registrationCapabilities, " "))
 	req.Header.Set("X-Use-Proposed", "yes")
 
-	//superDetailedRequestLogs(req, "added Snap-Device-Capabilities header")
 	cfg.applyHeaders(req)
-	//superDetailedRequestLogs(req, "added headers from config object")
-	req.Header.Set("Content-Type", asserts.MediaType)
-	//superDetailedRequestLogs(req, "added Content-Type header")
+	req.Header.Set("Content-Type", contentType)
+	if useLiotJSON {
+		req.Header.Set("X-Registration-Format-Version", "1")
+	}
 	if !asserts.HasTpm() {
 		logger.Noticef("No TPM Device, sending unsigned.\n")
 	} else {
-		// mlpa patch: push ek to store
-		if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
-			req.Header.Set("X-Tpm-Ek", ekPubBase64)
-			logger.Noticef("TPM: X-Tpm-Ek: %s", ekPubBase64)
-			//superDetailedRequestLogs(req, "added X-Tpm-Ek header")
+		// When sending the L-IoT v1 JSON body, the EK pubkey is carried
+		// inside the body (attestation.tpm.ek_pub_b64) — see spec §5.2.
+		// For the legacy assertion-stream body we keep emitting the
+		// X-Tpm-Ek header.
+		if !useLiotJSON {
+			if ekPubBase64, err := asserts.TpmGetEndorsementPublicKeyBase64(); err == nil {
+				req.Header.Set("X-Tpm-Ek", ekPubBase64)
+				logger.Noticef("TPM: X-Tpm-Ek: %s", ekPubBase64)
+			}
 		}
 
-		// mlpa patch: always sign payload
-		if bodySerialSignature, err := asserts.TpmSignBytes([]byte(serialRequest)); err == nil {
-			bodySerialSignatureBase64 := base64.StdEncoding.EncodeToString(bodySerialSignature)
-			logger.Noticef("TPM: Body, base64 encoded: %s", base64.StdEncoding.EncodeToString([]byte(serialRequest)))
-			logger.Noticef("TPM: X-Tpm-Body-Signature: %v", bodySerialSignatureBase64)
-			req.Header.Set("X-Tpm-Body-Signature", bodySerialSignatureBase64)
-			//superDetailedRequestLogs(req, "added X-Tpm-Body-Signature header")
+		// Sign the exact bytes we are about to send.
+		if bodySig, err := asserts.TpmSignBytes(bodyBytes); err == nil {
+			bodySigBase64 := base64.StdEncoding.EncodeToString(bodySig)
+			logger.Noticef("TPM: X-Tpm-Body-Signature: %v", bodySigBase64)
+			req.Header.Set("X-Tpm-Body-Signature", bodySigBase64)
 		} else {
 			logger.Noticef("TPM: cannot sign serial request body: %s\nanalyzing problem..", err)
 		}
@@ -615,20 +653,30 @@ func (m *DeviceManager) getSerial(t *state.Task, regCtx registrationContext, pri
 	// previous one used could have expired
 
 	if serialSup.SerialRequest == "" {
-		var serialRequest string
+		var serialRequest, requestID string
 		var err error
 		timings.Run(tm, "prepare-serial-request", "prepare device serial request", func(timings.Measurer) {
-			serialRequest, err = m.prepareSerialRequest(t, regCtx, privKey, device, client, cfg)
+			serialRequest, requestID, err = m.prepareSerialRequest(t, regCtx, privKey, device, client, cfg)
 		})
 		if err != nil { // errors & retries
 			return nil, nil, err
 		}
 
 		serialSup.SerialRequest = serialRequest
+		serialSup.RequestID = requestID
+	}
+
+	// Decide v1 vs. legacy. Probes the discovery endpoint at most once
+	// per registration attempt; verdict is cached in state. A probe error
+	// surfaces as a Retry — we don't lock in a wrong format on a flaky
+	// probe.
+	format, err := SelectRegistrationFormat(st, client, cfg.serialRequestURL)
+	if err != nil {
+		return nil, nil, retryErr(t, 0, "cannot determine registration format: %v", err)
 	}
 
 	timings.Run(tm, "submit-serial-request", "submit device serial request", func(timings.Measurer) {
-		serial, ancillaryBatch, err = submitSerialRequest(t, serialSup.SerialRequest, client, cfg)
+		serial, ancillaryBatch, err = submitSerialRequest(t, serialSup.SerialRequest, serialSup.RequestID, format, client, cfg)
 	})
 	if err == errPoll {
 		// we can/should reuse the serial-request
@@ -867,6 +915,11 @@ func (m *DeviceManager) doRequestSerial(t *state.Task, _ *tomb.Tomb) error {
 		if err := regCtx.FinishRegistration(serial); err != nil {
 			return err
 		}
+		// L-IoT: clear per-registration state (partial payload + probe
+		// cache) on success. The snapd-managed serial assertion is
+		// what callers (e.g. liot-provisioning) check via
+		// /v2/model/serial to see "registered yes/no".
+		ClearLiotRegistrationData(st)
 		t.SetStatus(state.DoneStatus)
 		return nil
 	}

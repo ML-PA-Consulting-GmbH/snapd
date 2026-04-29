@@ -745,3 +745,31 @@ func MockSnapstateGadgetInfo(f func(st *state.State, deviceCtx snapstate.DeviceC
 func MockOsutilBootID(bootID string) (restore func()) {
 	return testutil.Mock(&osutilBootID, func() (string, error) { return bootID, nil })
 }
+
+// L-IoT test exports.
+
+var BuildLiotRegistrationBody = buildLiotRegistrationBody
+
+func MockLiotEKLookup(f func() (string, error)) (restore func()) {
+	return testutil.Mock(&liotEKLookup, f)
+}
+
+// L-IoT format-discovery test exports.
+
+var (
+	ProbeSupportedRegistrationVersions = probeSupportedRegistrationVersions
+	ProbeRegistrationFormatVersionURL  = probeRegistrationFormatVersionURL
+	RegistrationFormatVersionPath      = registrationFormatVersionPath
+)
+
+func MockLiotProbeHTTPGet(f func(client *http.Client, url string) (*http.Response, error)) (restore func()) {
+	return testutil.Mock(&liotProbeHTTPGet, f)
+}
+
+func MockLiotProvisioningToolPresent(f func() bool) (restore func()) {
+	return testutil.Mock(&liotProvisioningToolPresent, f)
+}
+
+var DefaultSnapdCollectorPayload = defaultSnapdCollectorPayload
+
+var BecomeOperationalChangeKind = becomeOperationalChangeKind

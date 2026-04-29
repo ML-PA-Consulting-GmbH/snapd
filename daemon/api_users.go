@@ -31,7 +31,6 @@ import (
 	"github.com/snapcore/snapd/overlord/configstate/config"
 	"github.com/snapcore/snapd/overlord/devicestate"
 	"github.com/snapcore/snapd/overlord/state"
-	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/store"
 )
 
@@ -202,8 +201,8 @@ func logoutUser(c *Command, r *http.Request, user *auth.UserState) Response {
 	return SyncResponse(nil)
 }
 
-// this might need to become a function, if having user admin becomes a config option
-var hasUserAdmin = !release.OnClassic
+// L-IoT: enable user admin on classic systems (e.g. Yocto) via REST API
+var hasUserAdmin = true
 
 const noUserAdmin = "system user administration via snapd is not allowed on this system"
 
@@ -319,9 +318,10 @@ func createUser(c *Command, createData postUserCreateData) Response {
 		if len(users) > 0 {
 			return BadRequest("cannot create user: device already managed")
 		}
-		if release.OnClassic {
-			return BadRequest("cannot create user: device is a classic system")
-		}
+		// L-IoT: allow user creation on classic systems (e.g. Yocto)
+		// if release.OnClassic {
+		// 	return BadRequest("cannot create user: device is a classic system")
+		// }
 	}
 	if createData.Automatic {
 		var enabled bool

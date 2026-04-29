@@ -95,6 +95,8 @@ var api = []*Command{
 	requestsRuleCmd,
 	systemSecurebootCmd,
 	systemVolumesCmd,
+	liotProvisioningRegistrationDataCmd,
+	liotAppstoreURLCmd,
 }
 
 type featureEndpoint struct {
