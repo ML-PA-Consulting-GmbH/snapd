@@ -254,6 +254,7 @@ func Manager(s *state.State, hookManager *hookstate.HookManager, runner *state.T
 	hookManager.Register(regexp.MustCompile("^prepare-serial-request$"), newBasicHookStateHandler)
 
 	runner.AddHandler("generate-device-key", m.doGenerateDeviceKey, nil)
+	runner.AddHandler("await-liot-registration-data", m.doAwaitLiotRegistrationData, nil)
 	runner.AddHandler("request-serial", m.doRequestSerial, nil)
 	// Mark-preseeded touches and records the system-key, ensure that it does
 	// not run in parallel with other tasks touching the system-key
@@ -808,8 +809,20 @@ func (m *DeviceManager) ensureOperational() error {
 	tasks = append(tasks, genKey)
 
 	if willRequestSerial {
+		// Only block on external L-IoT registration data when the
+		// provisioning tool is actually installed on this image.
+		// Without it nobody will ever POST a payload and the task
+		// would wait forever — fall through to the legacy flow.
+		var requestSerialPredecessor *state.Task = genKey
+		if LiotProvisioningToolPresent() {
+			awaitLiot := m.state.NewTask("await-liot-registration-data", i18n.G("Await L-IoT registration data"))
+			awaitLiot.WaitFor(genKey)
+			tasks = append(tasks, awaitLiot)
+			requestSerialPredecessor = awaitLiot
+		}
+
 		requestSerial := m.state.NewTask("request-serial", i18n.G("Request device serial"))
-		requestSerial.WaitFor(genKey)
+		requestSerial.WaitFor(requestSerialPredecessor)
 		tasks = append(tasks, requestSerial)
 	}
 
