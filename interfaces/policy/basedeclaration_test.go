@@ -861,6 +861,7 @@ var (
 		"pulseaudio":                {"app", "core"},
 		"pwm":                       {"core", "gadget"},
 		"qualcomm-ipc-router":       {"core", "app"},
+		"rauc-support":              {"app", "core"},
 		"raw-volume":                {"core", "gadget"},
 		"scsi-generic":              {"core"},
 		"sd-control":                {"core"},
