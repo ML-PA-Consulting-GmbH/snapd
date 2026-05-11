@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"gopkg.in/macaroon.v1"
 
@@ -35,14 +36,23 @@ var (
 	developerAPIBase = storeDeveloperURL()
 	// macaroonACLAPI points to Developer API endpoint to get an ACL macaroon
 	MacaroonACLAPI   = developerAPIBase + "dev/api/acl/"
-	ubuntuoneAPIBase = authURL()
+	ubuntuoneAPIBase     = authURL()
+	ubuntuoneAPIBaseURL  = mustParseAuthURL(ubuntuoneAPIBase)
 	// UbuntuoneLocation is the Ubuntuone location as defined in the store macaroon
 	UbuntuoneLocation = authLocation()
 	// UbuntuoneDischargeAPI points to SSO endpoint to discharge a macaroon
-	UbuntuoneDischargeAPI = ubuntuoneAPIBase + "/tokens/discharge"
+	UbuntuoneDischargeAPI = endpointURL(ubuntuoneAPIBaseURL, "tokens/discharge", nil).String()
 	// UbuntuoneRefreshDischargeAPI points to SSO endpoint to refresh a discharge macaroon
-	UbuntuoneRefreshDischargeAPI = ubuntuoneAPIBase + "/tokens/refresh"
+	UbuntuoneRefreshDischargeAPI = endpointURL(ubuntuoneAPIBaseURL, "tokens/refresh", nil).String()
 )
+
+func mustParseAuthURL(s string) *url.URL {
+	u, err := url.Parse(s)
+	if err != nil {
+		panic(fmt.Sprintf("cannot parse auth URL %q: %v", s, err))
+	}
+	return u
+}
 
 // UserAuthorizer authorizes requests using user credentials managed via
 // the DeviceAndAuthContext.
