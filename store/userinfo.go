@@ -49,7 +49,11 @@ func (s *Store) UserInfo(email string) (userinfo *User, err error) {
 	}
 
 	var v keysReply
-	ssourl := fmt.Sprintf("%s/keys/%s", authURL(), url.QueryEscape(email))
+	authBase, err := url.Parse(authURL())
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse auth URL: %v", err)
+	}
+	ssourl := endpointURL(authBase, "keys", nil).String() + "/" + url.QueryEscape(email)
 
 	resp, err := httputil.RetryRequest(ssourl, func() (*http.Response, error) {
 		return s.client.Get(ssourl)
