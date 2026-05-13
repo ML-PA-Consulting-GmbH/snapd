@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -47,7 +48,6 @@ import (
 	"github.com/snapcore/snapd/release"
 	"github.com/snapcore/snapd/seed/seedwriter"
 	"github.com/snapcore/snapd/snap"
-	"github.com/snapcore/snapd/snapdenv"
 	"github.com/snapcore/snapd/snap/naming"
 	"github.com/snapcore/snapd/snap/snapfile"
 	"github.com/snapcore/snapd/snap/squashfs"
@@ -317,6 +317,16 @@ type imageSeeder struct {
 	db          *asserts.Database
 	w           *seedwriter.Writer
 	f           seedwriter.SeedAssertionFetcher
+
+	// assertionRetrieve, when set, replaces the snap store as the
+	// transport for assertion lookup (offline build mode).
+	assertionRetrieve func(*asserts.Ref) (asserts.Assertion, error)
+
+	// snapDownloadURL, when set, replaces the snap store's
+	// metadata/URL-resolution step. snapd HTTP-GETs the URL the
+	// hook returns and runs the rest of the seed pipeline
+	// (snap.Info, sha3 check, seeding) unchanged.
+	snapDownloadURL func(name string, revision snap.Revision, snapID string) (string, error)
 }
 
 func newImageSeeder(tsto *tooling.ToolingStore, model *asserts.Model, opts *Options) (*imageSeeder, error) {
@@ -336,9 +346,11 @@ func newImageSeeder(tsto *tooling.ToolingStore, model *asserts.Model, opts *Opti
 		architecture:             determineImageArchitecture(model, opts),
 		allowSnapdKernelMismatch: opts.AllowSnapdKernelMismatch,
 
-		hasModes: model.Grade() != asserts.ModelGradeUnset,
-		model:    model,
-		tsto:     tsto,
+		hasModes:          model.Grade() != asserts.ModelGradeUnset,
+		model:             model,
+		tsto:              tsto,
+		assertionRetrieve: opts.AssertionRetrieve,
+		snapDownloadURL:   opts.SnapDownloadURL,
 	}
 
 	if os.Getenv("SNAPD_ALLOW_SNAPD_KERNEL_MISMATCH") == "true" {
@@ -444,17 +456,44 @@ func (s *imageSeeder) start(optSnaps []*seedwriter.OptionsSnap) error {
 	db, err := asserts.OpenDatabase(&asserts.DatabaseConfig{
 		Backstore: asserts.NewMemoryBackstore(),
 		Trusted:   trusted,
+		// In offline mode the assertions come from the operator's
+		// closed ecosystem (e.g. multiple self-hosted stores) whose
+		// brand keys are not anchored in the builder's trusted set,
+		// so signature verification must be skipped.
+		SkipSignatureCheck: s.assertionRetrieve != nil,
 	})
 	if err != nil {
 		return err
 	}
 
 	newFetcher := func(save func(asserts.Assertion) error) asserts.Fetcher {
+		if s.assertionRetrieve != nil {
+			return newLocalAssertionFetcher(db, s.assertionRetrieve, save)
+		}
 		return s.tsto.AssertionSequenceFormingFetcher(db, save)
 	}
 	s.db = db
 	s.f = seedwriter.MakeSeedAssertionFetcher(newFetcher)
 	return s.w.Start(db, s.f)
+}
+
+// newLocalAssertionFetcher builds a fetcher that resolves Refs via
+// the supplied retrieve function (typically an in-memory index of
+// .assert files for offline image builds) instead of going to the
+// snap store. The standard prereq walk and save-into-seed pipeline
+// is reused unchanged.
+func newLocalAssertionFetcher(db *asserts.Database, retrieve func(*asserts.Ref) (asserts.Assertion, error), save func(asserts.Assertion) error) asserts.Fetcher {
+	save2 := func(a asserts.Assertion) error {
+		err := db.Add(a)
+		if err != nil {
+			if _, ok := err.(*asserts.RevisionError); ok {
+				return nil
+			}
+			return fmt.Errorf("cannot add assertion %v: %v", a.Ref(), err)
+		}
+		return save(a)
+	}
+	return asserts.NewFetcher(db, retrieve, save2)
 }
 
 func (s *imageSeeder) snapSupportsImageArch(sn *seedwriter.SeedSnap) bool {
@@ -603,6 +642,16 @@ func (s *imageSeeder) validationSetKeysAndRevisionForSnap(snapName string) ([]sn
 }
 
 func (s *imageSeeder) downloadSnaps(snapsToDownload []*seedwriter.SeedSnap, curSnaps []*tooling.CurrentSnap) (downloadedSnaps map[string]*tooling.DownloadedSnap, err error) {
+	if s.snapDownloadURL != nil {
+		return s.downloadSnapsViaURLHook(snapsToDownload)
+	}
+	if s.assertionRetrieve != nil && len(snapsToDownload) > 0 {
+		names := make([]string, len(snapsToDownload))
+		for i, sn := range snapsToDownload {
+			names[i] = sn.SnapName()
+		}
+		return nil, fmt.Errorf("offline build requires all snaps locally, but these were not provided: %s", strings.Join(names, ", "))
+	}
 	byName := make(map[string]*seedwriter.SeedSnap, len(snapsToDownload))
 	revisions := make(map[string]snap.Revision)
 	beforeDownload := func(info *snap.Info, cinfos map[string]*snap.ComponentInfo) (string, map[string]string, error) {
@@ -690,6 +739,106 @@ func (s *imageSeeder) downloadSnaps(snapsToDownload []*seedwriter.SeedSnap, curS
 	}
 
 	return downloadedSnaps, nil
+}
+
+// downloadSnapsViaURLHook is the snapDownloadURL bypass path: the
+// caller (an external image builder) has provided a per-snap URL
+// resolver, so we skip the SnapAction metadata round-trip entirely.
+// We HTTP-GET each URL, read snap.Info from the downloaded file,
+// register it with the seedwriter, and return the same DownloadedSnap
+// shape the normal path would have produced. The rest of the seed
+// pipeline (sha3 verification, snap-revision assertion match, seed
+// writing) runs unchanged downstream.
+func (s *imageSeeder) downloadSnapsViaURLHook(snapsToDownload []*seedwriter.SeedSnap) (map[string]*tooling.DownloadedSnap, error) {
+	out := make(map[string]*tooling.DownloadedSnap, len(snapsToDownload))
+	for _, sn := range snapsToDownload {
+		rev := s.w.Manifest().AllowedSnapRevision(sn.SnapName())
+		if rev.Unset() {
+			return nil, fmt.Errorf("snapDownloadURL hook requires a pinned revision for %q in the seed manifest", sn.SnapName())
+		}
+		snapID := sn.ID()
+
+		url, err := s.snapDownloadURL(sn.SnapName(), rev, snapID)
+		if err != nil {
+			return nil, fmt.Errorf("resolving download URL for %q: %w", sn.SnapName(), err)
+		}
+
+		// Two-phase: download to a temp file, read snap.Info out of
+		// the .snap, then let the seedwriter assign the final path
+		// via SetInfo and move into place.
+		tmp, err := os.CreateTemp("", "snap-url-hook-*.snap")
+		if err != nil {
+			return nil, err
+		}
+		tmpPath := tmp.Name()
+		if err := httpDownloadToFile(url, tmp); err != nil {
+			tmp.Close()
+			os.Remove(tmpPath)
+			return nil, fmt.Errorf("downloading %q from %s: %w", sn.SnapName(), url, err)
+		}
+		if err := tmp.Close(); err != nil {
+			os.Remove(tmpPath)
+			return nil, err
+		}
+
+		snapf, err := snapfile.Open(tmpPath)
+		if err != nil {
+			os.Remove(tmpPath)
+			return nil, fmt.Errorf("opening downloaded snap %q: %w", sn.SnapName(), err)
+		}
+		info, err := snap.ReadInfoFromSnapFile(snapf, nil)
+		if err != nil {
+			os.Remove(tmpPath)
+			return nil, fmt.Errorf("reading info from downloaded snap %q: %w", sn.SnapName(), err)
+		}
+		info.Revision = rev
+		if snapID != "" {
+			info.SnapID = snapID
+		}
+
+		fmt.Fprintf(Stdout, "Fetching %s (%s) via URL hook\n", sn.SnapName(), rev)
+		if err := s.w.SetInfo(sn, info, nil); err != nil {
+			os.Remove(tmpPath)
+			return nil, err
+		}
+		if err := s.validateSnapArchs([]*seedwriter.SeedSnap{sn}); err != nil {
+			os.Remove(tmpPath)
+			return nil, err
+		}
+
+		// Move temp file to the path the seedwriter assigned. Fall
+		// back to copy-then-remove if rename fails (e.g. cross-device).
+		if err := os.Rename(tmpPath, sn.Path); err != nil {
+			if cerr := osutil.CopyFile(tmpPath, sn.Path, osutil.CopyFlagOverwrite); cerr != nil {
+				os.Remove(tmpPath)
+				return nil, fmt.Errorf("placing %q at %s: %w", sn.SnapName(), sn.Path, cerr)
+			}
+			os.Remove(tmpPath)
+		}
+
+		out[sn.SnapName()] = &tooling.DownloadedSnap{
+			Path: sn.Path,
+			Info: info,
+		}
+	}
+	return out, nil
+}
+
+// httpDownloadToFile streams the given URL into dst. Kept simple --
+// snapd's seedwriter verifies the snap-revision sha3 against the
+// downloaded bytes downstream, so we don't need transport-level
+// content integrity here.
+func httpDownloadToFile(url string, dst io.Writer) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP %d %s", resp.StatusCode, resp.Status)
+	}
+	_, err = io.Copy(dst, resp.Body)
+	return err
 }
 
 func localSnapsWithID(snaps localSnapRefs) []*tooling.CurrentSnap {
@@ -854,9 +1003,6 @@ func (s *imageSeeder) finishSeedCore() error {
 }
 
 func (s *imageSeeder) warnOnUnassertedSnaps() error {
-	if snapdenv.Insecure() {
-		return nil
-	}
 	unassertedSnaps, err := s.w.UnassertedSnaps()
 	if err != nil {
 		return err
@@ -1041,6 +1187,9 @@ var setupSeed = func(tsto *tooling.ToolingStore, model *asserts.Model, opts *Opt
 	// and later either copy them or fetch more appropriate ones.
 	tmpDb := s.db.WithStackedBackstore(asserts.NewMemoryBackstore())
 	tmpFetcher := seedwriter.MakeSeedAssertionFetcher(func(save func(asserts.Assertion) error) asserts.Fetcher {
+		if s.assertionRetrieve != nil {
+			return newLocalAssertionFetcher(tmpDb, s.assertionRetrieve, save)
+		}
 		return tsto.AssertionFetcher(tmpDb, save)
 	})
 
@@ -1133,9 +1282,7 @@ func decodeExtraAssertions(r io.Reader, grade asserts.ModelGrade) ([]asserts.Ass
 
 		switch a.Type() {
 		case asserts.SnapDeclarationType, asserts.SnapRevisionType, asserts.ModelType, asserts.SerialType, asserts.ValidationSetType:
-			if !snapdenv.Insecure() {
-				return nil, fmt.Errorf("assertion type %v is not allowed for extra assertions", a.Type().Name)
-			}
+			return nil, fmt.Errorf("assertion type %v is not allowed for extra assertions", a.Type().Name)
 		case asserts.SystemUserType:
 			if grade != asserts.ModelDangerous {
 				return nil, fmt.Errorf("seeding system-user assertions is allowed for dangerous grade model only")

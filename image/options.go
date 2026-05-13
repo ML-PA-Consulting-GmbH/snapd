@@ -22,6 +22,7 @@ package image
 import (
 	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/seed/seedwriter"
+	"github.com/snapcore/snapd/snap"
 )
 
 type Options struct {
@@ -83,6 +84,29 @@ type Options struct {
 	// for the validated assertions that the Writer and Fetcher will use
 	ExtraAssertionsFiles []string
 	ExtraAssertions      []asserts.Assertion
+
+	// AssertionRetrieve, when set, replaces the snap store as the
+	// source of assertions during image build. This is the
+	// transport hook used by offline image builds: a closed
+	// ecosystem provides a function that resolves Refs from local
+	// data instead of going over the network. The strict assertion
+	// pipeline (prereq walk, save into seed) is unchanged.
+	AssertionRetrieve func(ref *asserts.Ref) (asserts.Assertion, error)
+
+	// SnapDownloadURL, when set, replaces the snap store's
+	// metadata/URL-resolution step with a caller-provided lookup.
+	// The hook returns a fully-formed HTTPS URL pointing at the
+	// .snap blob for the given snap at the given revision; snapd
+	// HTTP-GETs that URL, populates snap.Info from the downloaded
+	// file, and runs the rest of the seed pipeline (snap-revision
+	// sha3 match, assertion chain, seed writing) unchanged. The
+	// resulting image is identical to one built via the normal
+	// store path.
+	//
+	// Intended for closed-ecosystem appstores whose metadata API
+	// is not snap-store-compatible (e.g. GraphQL-fronted stores)
+	// but whose download endpoint is a plain signed HTTPS URL.
+	SnapDownloadURL func(name string, revision snap.Revision, snapID string) (url string, err error)
 }
 
 // Customizatons defines possible image customizations. Not all of
