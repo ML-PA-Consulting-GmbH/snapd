@@ -31,7 +31,6 @@ import (
 	"github.com/snapcore/snapd/asserts/snapasserts"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/snap"
-	"github.com/snapcore/snapd/snapdenv"
 	"github.com/snapcore/snapd/snap/channel"
 	"github.com/snapcore/snapd/snap/naming"
 	"github.com/snapcore/snapd/snap/squashfs"
@@ -955,7 +954,12 @@ func (w *Writer) modSnaps() ([]*asserts.ModelSnap, error) {
 	if systemSnap := w.policy.systemSnap(); systemSnap != nil {
 		prepend := true
 		for _, modSnap := range modSnaps {
-			if naming.SameSnap(modSnap, systemSnap) || (snapdenv.Insecure() && modSnap.SnapName() == systemSnap.SnapName()) {
+			// Match by name as well as id: a model may list its
+			// own snapd snap with a different snap-id from the
+			// canonical one returned by policy.systemSnap(), in
+			// which case the model's entry is the system snap and
+			// we must not prepend a duplicate.
+			if naming.SameSnap(modSnap, systemSnap) || modSnap.SnapName() == systemSnap.SnapName() {
 				prepend = false
 				modes := modSnap.Modes
 				expectedModes := systemSnap.Modes

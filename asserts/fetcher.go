@@ -22,8 +22,6 @@ package asserts
 import (
 	"errors"
 	"fmt"
-
-	"github.com/snapcore/snapd/snapdenv"
 )
 
 type fetchProgress int
@@ -100,22 +98,27 @@ func (f *fetcher) wasFetched(ref *Ref) (bool, error) {
 	case fetchSaved:
 		return true, nil // nothing to do
 	case fetchRetrieved:
-		return false, fmt.Errorf("circular assertions are not expected: %s", ref)
+		// Benign back-reference: an in-flight assertion (e.g. an
+		// account currently being processed) is referenced as a
+		// prereq of one of its own prereqs (e.g. its signing
+		// account-key, whose Prerequisites() points back at the
+		// account). Treat as already-handled — the outer
+		// fetchPrerequisitesAndSave will save it once its prereq
+		// walk completes.
+		return true, nil
 	}
 	return false, nil
 }
 
 func (f *fetcher) fetchPrerequisitesAndSave(key string, a Assertion) error {
 	f.fetched[key] = fetchRetrieved
-	if !snapdenv.Insecure() {
-		for _, preref := range assertionPrereqs(a) {
-			if err := f.Fetch(preref); err != nil {
-				return err
-			}
-		}
-		if err := f.fetchAccountKey(a.SignKeyID()); err != nil {
+	for _, preref := range assertionPrereqs(a) {
+		if err := f.Fetch(preref); err != nil {
 			return err
 		}
+	}
+	if err := f.fetchAccountKey(a.SignKeyID()); err != nil {
+		return err
 	}
 	if err := f.save(a); err != nil {
 		return err

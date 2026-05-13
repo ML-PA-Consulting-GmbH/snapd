@@ -26,8 +26,6 @@ import (
 	"fmt"
 	"regexp"
 	"time"
-
-	"github.com/snapcore/snapd/snapdenv"
 )
 
 // NotFoundError is returned when an assertion can not be found.
@@ -144,6 +142,13 @@ type DatabaseConfig struct {
 	KeypairManager KeypairManager
 	// assertion checkers used by Database.Check, left unset DefaultCheckers will be used which is recommended
 	Checkers []Checker
+	// SkipSignatureCheck disables the signature/consistency check performed
+	// by Database.Add. Use only when consuming assertions from a trusted
+	// source whose signing chain is not (and cannot be) anchored to the
+	// database's trusted root set — for example, an offline image build
+	// pulling assertions from many self-hosted stores whose brand keys are
+	// not known to the builder.
+	SkipSignatureCheck bool
 }
 
 // RevisionError indicates a revision improperly used for an operation.
@@ -269,6 +274,8 @@ type Database struct {
 
 	checkers     []Checker
 	earliestTime time.Time
+
+	skipSignatureCheck bool
 }
 
 // OpenDatabase opens the assertion database based on the configuration.
@@ -329,8 +336,9 @@ func OpenDatabase(cfg *DatabaseConfig) (*Database, error) {
 		// order here is relevant, Find* precedence and
 		// findAccountKey depend on it, trusted should win over the
 		// general backstore!
-		backstores: []Backstore{trustedBackstore, otherPredefinedBackstore, bs},
-		checkers:   dbCheckers,
+		backstores:         []Backstore{trustedBackstore, otherPredefinedBackstore, bs},
+		checkers:           dbCheckers,
+		skipSignatureCheck: cfg.SkipSignatureCheck,
 	}, nil
 }
 
@@ -348,13 +356,14 @@ func (db *Database) WithStackedBackstore(backstore Backstore) *Database {
 	backstores = append(backstores, backstore)
 	backstores = append(backstores, stackedOn...)
 	return &Database{
-		bs:         backstore,
-		keypairMgr: db.keypairMgr,
-		trusted:    db.trusted,
-		predefined: db.predefined,
-		backstores: backstores,
-		stackedOn:  stackedOn,
-		checkers:   db.checkers,
+		bs:                 backstore,
+		keypairMgr:         db.keypairMgr,
+		trusted:            db.trusted,
+		predefined:         db.predefined,
+		backstores:         backstores,
+		stackedOn:          stackedOn,
+		checkers:           db.checkers,
+		skipSignatureCheck: db.skipSignatureCheck,
 	}
 }
 
@@ -487,7 +496,7 @@ func (db *Database) Add(assert Assertion) error {
 		return fmt.Errorf("internal error: assertion type %q has no primary key", ref.Type.Name)
 	}
 
-	if !snapdenv.Insecure() {
+	if !db.skipSignatureCheck {
 		err := db.Check(assert)
 		if err != nil {
 			if ufe, ok := err.(*UnsupportedFormatError); ok {
