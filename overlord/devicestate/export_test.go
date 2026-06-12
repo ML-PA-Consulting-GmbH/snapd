@@ -70,9 +70,12 @@ func MockKeyLength(n int) (restore func()) {
 
 func MockBaseStoreURL(url string) (restore func()) {
 	oldURL := baseStoreURL
-	baseStoreURL = mustParse(url).ResolveReference(authRef)
+	oldRaw := rawBaseURL
+	rawBaseURL = mustParse(url)
+	baseStoreURL = rawBaseURL.ResolveReference(authRef)
 	return func() {
 		baseStoreURL = oldURL
+		rawBaseURL = oldRaw
 	}
 }
 
@@ -762,16 +765,14 @@ func MockLiotEKLookup(f func() (string, error)) (restore func()) {
 
 var (
 	ProbeSupportedRegistrationVersions = probeSupportedRegistrationVersions
-	ProbeRegistrationFormatVersionURL  = probeRegistrationFormatVersionURL
-	RegistrationFormatVersionPath      = registrationFormatVersionPath
 )
-
-func MockLiotProbeHTTPGet(f func(client *http.Client, url string) (*http.Response, error)) (restore func()) {
-	return testutil.Mock(&liotProbeHTTPGet, f)
-}
 
 func MockLiotProvisioningToolPresent(f func() bool) (restore func()) {
 	return testutil.Mock(&liotProvisioningToolPresent, f)
+}
+
+func MockHasTPM(f func() bool) (restore func()) {
+	return testutil.Mock(&hasTPM, f)
 }
 
 var DefaultSnapdCollectorPayload = defaultSnapdCollectorPayload

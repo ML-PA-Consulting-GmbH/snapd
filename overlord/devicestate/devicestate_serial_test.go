@@ -74,6 +74,9 @@ var _ = Suite(&deviceMgrSerialSuite{})
 func (s *deviceMgrSerialSuite) SetUpTest(c *C) {
 	classic := false
 	s.setupBaseTest(c, classic)
+	// keep serial registration tests independent of whether the host
+	// running them exposes a TPM device.
+	s.AddCleanup(devicestate.MockHasTPM(func() bool { return false }))
 }
 
 func (s *deviceMgrSerialSuite) TestSerial(c *C) {
@@ -246,6 +249,115 @@ func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappy(c *C) {
 
 	// cannot unregister
 	c.Check(s.mgr.Unregister(nil), ErrorMatches, `cannot currently unregister device if not classic or model brand is not generic or canonical`)
+}
+
+// TestFullDeviceRegistrationUsesLegacyFormatByDefault exercises the discovery
+// probe end-to-end: with no format-version endpoint (the mock answers 404),
+// snapd must register using the legacy assertion-stream body.
+func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationUsesLegacyFormatByDefault(c *C) {
+	r1 := devicestate.MockKeyLength(testKeyLength)
+	defer r1()
+
+	var serialReqContentType string
+	bhv := &devicestatetest.DeviceServiceBehavior{
+		// no RegistrationFormatVersion handler -> probe gets 404 -> legacy
+		PostPreflight: func(c *C, bhv *devicestatetest.DeviceServiceBehavior, w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == bhv.SerialURLPath {
+				serialReqContentType = r.Header.Get("Content-Type")
+			}
+		},
+	}
+	mockServer := s.mockServer(c, "REQID-1", bhv)
+	defer mockServer.Close()
+
+	r2 := devicestate.MockBaseStoreURL(mockServer.URL)
+	defer r2()
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	s.makeModelAssertionInState(c, "canonical", "pc", map[string]any{
+		"architecture": "amd64",
+		"kernel":       "pc-kernel",
+		"gadget":       "pc",
+	})
+	devicestatetest.SetDevice(s.state, &auth.DeviceState{Brand: "canonical", Model: "pc"})
+	s.seeding()
+	devicestatetest.MockGadget(c, s.state, "pc", snap.R(2), nil, nil)
+	s.state.Set("seeded", true)
+
+	s.state.Unlock()
+	s.settle(c)
+	s.state.Lock()
+
+	becomeOperational := s.findBecomeOperationalChange()
+	c.Assert(becomeOperational, NotNil)
+	c.Check(becomeOperational.Status().Ready(), Equals, true)
+	c.Check(becomeOperational.Err(), IsNil)
+
+	c.Check(serialReqContentType, Equals, asserts.MediaType)
+
+	device, err := devicestatetest.Device(s.state)
+	c.Assert(err, IsNil)
+	c.Check(device.Serial, Not(Equals), "")
+}
+
+// TestFullDeviceRegistrationUsesV1FormatWhenSupported exercises the discovery
+// probe end-to-end: when the backend advertises support for version 1, snapd
+// must register using the new JSON body and the X-Registration-Format-Version
+// header.
+func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationUsesV1FormatWhenSupported(c *C) {
+	r1 := devicestate.MockKeyLength(testKeyLength)
+	defer r1()
+
+	var serialReqContentType, formatVersionHeader string
+	bhv := &devicestatetest.DeviceServiceBehavior{
+		RegistrationFormatVersion: func(c *C, bhv *devicestatetest.DeviceServiceBehavior, w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(200)
+			w.Write([]byte(`{"supported_versions":[1]}`))
+		},
+		PostPreflight: func(c *C, bhv *devicestatetest.DeviceServiceBehavior, w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == bhv.SerialURLPath {
+				serialReqContentType = r.Header.Get("Content-Type")
+				formatVersionHeader = r.Header.Get("X-Registration-Format-Version")
+			}
+		},
+	}
+	mockServer := s.mockServer(c, "REQID-1", bhv)
+	defer mockServer.Close()
+
+	r2 := devicestate.MockBaseStoreURL(mockServer.URL)
+	defer r2()
+
+	s.state.Lock()
+	defer s.state.Unlock()
+
+	s.makeModelAssertionInState(c, "canonical", "pc", map[string]any{
+		"architecture": "amd64",
+		"kernel":       "pc-kernel",
+		"gadget":       "pc",
+	})
+	devicestatetest.SetDevice(s.state, &auth.DeviceState{Brand: "canonical", Model: "pc"})
+	s.seeding()
+	devicestatetest.MockGadget(c, s.state, "pc", snap.R(2), nil, nil)
+	s.state.Set("seeded", true)
+
+	s.state.Unlock()
+	s.settle(c)
+	s.state.Lock()
+
+	becomeOperational := s.findBecomeOperationalChange()
+	c.Assert(becomeOperational, NotNil)
+	c.Check(becomeOperational.Status().Ready(), Equals, true)
+	c.Check(becomeOperational.Err(), IsNil)
+
+	c.Check(serialReqContentType, Equals, "application/json")
+	c.Check(formatVersionHeader, Equals, "1")
+
+	device, err := devicestatetest.Device(s.state)
+	c.Assert(err, IsNil)
+	c.Check(device.Serial, Not(Equals), "")
 }
 
 func (s *deviceMgrSerialSuite) TestFullDeviceRegistrationHappyWithProxy(c *C) {

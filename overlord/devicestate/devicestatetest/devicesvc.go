@@ -21,6 +21,8 @@ package devicestatetest
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -38,12 +40,18 @@ import (
 type DeviceServiceBehavior struct {
 	ReqID string
 
-	RequestIDURLPath     string
-	SerialURLPath        string
-	ExpectedCapabilities string
+	RequestIDURLPath              string
+	SerialURLPath                 string
+	RegistrationFormatVersionPath string
+	ExpectedCapabilities          string
 
 	Head          func(c *C, bhv *DeviceServiceBehavior, w http.ResponseWriter, r *http.Request)
 	PostPreflight func(c *C, bhv *DeviceServiceBehavior, w http.ResponseWriter, r *http.Request)
+
+	// RegistrationFormatVersion handles the GET probe to the registration
+	// format-version discovery endpoint. If nil, the endpoint responds 404,
+	// i.e. a legacy backend that does not support the new registration format.
+	RegistrationFormatVersion func(c *C, bhv *DeviceServiceBehavior, w http.ResponseWriter, r *http.Request)
 
 	SignSerial func(c *C, bhv *DeviceServiceBehavior, headers map[string]any, body []byte) (serial asserts.Assertion, ancillary []asserts.Assertion, err error)
 }
@@ -60,6 +68,10 @@ const (
 const (
 	requestIDURLPath = "/api/v1/snaps/auth/request-id"
 	serialURLPath    = "/api/v1/snaps/auth/devices"
+	// the registration format-version discovery endpoint lives at the host
+	// root (see formatVersionRef in handlers_serial.go), independent of the
+	// request-id/serial base path.
+	registrationFormatVersionPath = "/device/v3/registration/format-version"
 )
 
 func MockDeviceService(c *C, bhv *DeviceServiceBehavior) (mockServer *httptest.Server, extraPemEncodedCerts []byte) {
@@ -69,6 +81,9 @@ func MockDeviceService(c *C, bhv *DeviceServiceBehavior) (mockServer *httptest.S
 	if bhv.RequestIDURLPath == "" {
 		bhv.RequestIDURLPath = requestIDURLPath
 		bhv.SerialURLPath = serialURLPath
+	}
+	if bhv.RegistrationFormatVersionPath == "" {
+		bhv.RegistrationFormatVersionPath = registrationFormatVersionPath
 	}
 	// currently supported
 	if bhv.ExpectedCapabilities == "" {
@@ -97,6 +112,20 @@ func MockDeviceService(c *C, bhv *DeviceServiceBehavior) (mockServer *httptest.S
 				bhv.Head(c, bhv, w, r)
 			} else {
 				w.WriteHeader(200)
+			}
+			return
+		case "GET":
+			// the only GET is the registration format-version probe
+			if r.URL.Path != bhv.RegistrationFormatVersionPath {
+				c.Errorf("unexpected GET request %q", r.URL.String())
+				w.WriteHeader(500)
+				return
+			}
+			if bhv.RegistrationFormatVersion != nil {
+				bhv.RegistrationFormatVersion(c, bhv, w, r)
+			} else {
+				// no new-format support: legacy backend
+				w.WriteHeader(404)
 			}
 			return
 		case "POST":
@@ -129,7 +158,32 @@ func MockDeviceService(c *C, bhv *DeviceServiceBehavior) (mockServer *httptest.S
 			count++
 			mu.Unlock()
 
-			dec := asserts.NewDecoder(r.Body)
+			// The v1 registration body is a JSON envelope carrying the
+			// stacked serial-request + model assertion stream base64-encoded
+			// under snap.assertions_b64. Unwrap it so the rest of the handler
+			// can treat both formats identically.
+			var body io.Reader = r.Body
+			if r.Header.Get("Content-Type") == "application/json" {
+				var v1 struct {
+					Snap struct {
+						AssertionsB64 string `json:"assertions_b64"`
+					} `json:"snap"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&v1); err != nil {
+					c.Errorf("cannot decode v1 registration body: %v", err)
+					w.WriteHeader(400)
+					return
+				}
+				raw, err := base64.StdEncoding.DecodeString(v1.Snap.AssertionsB64)
+				if err != nil {
+					c.Errorf("cannot base64-decode v1 snap.assertions_b64: %v", err)
+					w.WriteHeader(400)
+					return
+				}
+				body = bytes.NewReader(raw)
+			}
+
+			dec := asserts.NewDecoder(body)
 
 			a, err := dec.Decode()
 			if err != nil {
