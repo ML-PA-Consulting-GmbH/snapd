@@ -72,12 +72,17 @@ var (
 	keyLength     = 4096
 	retryInterval = 60 * time.Second
 	maxTentatives = 15
-	baseStoreURL  = baseURL().ResolveReference(authRef)
+	rawBaseURL    = baseURL()
+	baseStoreURL  = rawBaseURL.ResolveReference(authRef)
 
 	authRef    = mustParse("api/v1/snaps/auth/") // authRef must end in / for the following refs to work
 	reqIdRef   = mustParse("request-id")
 	serialRef  = mustParse("serial")
 	devicesRef = mustParse("devices")
+	// the registration format-version discovery endpoint lives under the
+	// deployment prefix but not under the auth sub-path; it is resolved
+	// against the raw base URL (before authRef is appended) in setURLs.
+	formatVersionRef = mustParse(registrationFormatVersionPath)
 
 	// we accept a stream with the serial assertion as well
 	registrationCapabilities = []string{"serial-stream"}
@@ -158,6 +163,10 @@ func newEnoughProxy(st *state.State, proxyURL *url.URL, client *http.Client) (bo
 
 func (cfg *serialRequestConfig) setURLs(proxyURL, svcURL *url.URL) {
 	base := baseStoreURL
+	// registrationFormatVersionBase is the raw deployment root (no authRef
+	// appended) so that the relative formatVersionRef resolves under the path
+	// prefix (e.g. /m2cp/) rather than stripping it.
+	registrationFormatVersionBase := rawBaseURL
 	if proxyURL != nil {
 		if svcURL != nil {
 			if cfg.headers == nil {
@@ -166,8 +175,10 @@ func (cfg *serialRequestConfig) setURLs(proxyURL, svcURL *url.URL) {
 			cfg.headers["X-Snap-Device-Service-URL"] = svcURL.String()
 		}
 		base = proxyURL.ResolveReference(authRef)
+		registrationFormatVersionBase = proxyURL
 	} else if svcURL != nil {
 		base = svcURL
+		registrationFormatVersionBase = svcURL
 	}
 
 	cfg.requestIDURL = base.ResolveReference(reqIdRef).String()
@@ -177,6 +188,7 @@ func (cfg *serialRequestConfig) setURLs(proxyURL, svcURL *url.URL) {
 	} else {
 		cfg.serialRequestURL = base.ResolveReference(devicesRef).String()
 	}
+	cfg.registrationFormatVersionURL = registrationFormatVersionBase.ResolveReference(formatVersionRef).String()
 }
 
 // A registrationContext handles the contextual information needed
@@ -456,13 +468,6 @@ func (m *DeviceManager) prepareSerialRequest(t *state.Task, regCtx registrationC
 
 var errPoll = errors.New("serial-request accepted, poll later")
 
-var logCount = 0
-
-/*func superDetailedRequestLogs(req *http.Request, message string) {
-	logger.Noticef("REQUEST log #%d (%s): method=%s, url=%s\n", logCount, message, req.Method, req.URL.String())
-	logCount++
-}*/
-
 func submitSerialRequest(t *state.Task, serialRequest, requestID string, format RegistrationFormat, client *http.Client, cfg *serialRequestConfig) (*asserts.Serial, *asserts.Batch, error) {
 	st := t.State()
 
@@ -502,6 +507,8 @@ func submitSerialRequest(t *state.Task, serialRequest, requestID string, format 
 		contentType = asserts.MediaType
 	}
 
+	logger.Noticef("submitting serial-request to %q using %q registration format (%d bytes, content-type %q)", cfg.serialRequestURL, format, len(bodyBytes), contentType)
+
 	req, err := http.NewRequest("POST", cfg.serialRequestURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, nil, fmt.Errorf("internal error: cannot create serial-request request %q", cfg.serialRequestURL)
@@ -516,7 +523,7 @@ func submitSerialRequest(t *state.Task, serialRequest, requestID string, format 
 	if useLiotJSON {
 		req.Header.Set("X-Registration-Format-Version", "1")
 	}
-	if !asserts.HasTpm() {
+	if !hasTPM() {
 		logger.Noticef("No TPM Device, sending unsigned.\n")
 	} else {
 		// When sending the L-IoT v1 JSON body, the EK pubkey is carried
@@ -539,30 +546,20 @@ func submitSerialRequest(t *state.Task, serialRequest, requestID string, format 
 			logger.Noticef("TPM: cannot sign serial request body: %s\nanalyzing problem..", err)
 		}
 	}
-	//superDetailedRequestLogs(req, "sending request..")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, nil, retryErr(t, 0, "cannot deliver device serial request retry error: %v : method: %v , header: %v", err, req.Method, req.Header.Get("X-Tpm-Body-Signature"))
 	}
 	defer resp.Body.Close()
 
-	//fmt.Printf("RESPONSE log #%d: status=%d, content-type=%s", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
-	//superDetailedRequestLogs(resp.Request, "received response containing this request as reference")
-	//logger.Noticef("RESPONSE log #%d: status=%d, content-type=%s\n", logCount, resp.StatusCode, resp.Header.Get("Content-Type"))
-
-	/*bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Printf("ERROR: %v", err.Error())
-	}
-	bodyString := string(bodyBytes)*/
 	switch resp.StatusCode {
 	case 200, 201:
-		//fmt.Printf("######## Body response success code 200,201: %v\n", bodyString)
+		logger.Noticef("serial-request accepted by %q (HTTP %d), processing serial assertion", cfg.serialRequestURL, resp.StatusCode)
 	case 202:
-		//fmt.Printf("######## Body response success code 202: %v\n", bodyString)
+		logger.Noticef("serial-request accepted by %q (HTTP 202), serial not ready yet, will poll", cfg.serialRequestURL)
 		return nil, nil, errPoll
 	default:
-		//fmt.Printf("######## Body response from store error body: %v\n", bodyString)
+		logger.Noticef("serial-request to %q rejected with HTTP %d, will retry", cfg.serialRequestURL, resp.StatusCode)
 		return nil, nil, retryBadStatus(t, 0, "cannot deliver device serial request bad request", resp)
 	}
 
@@ -602,6 +599,10 @@ func submitSerialRequest(t *state.Task, serialRequest, requestID string, format 
 }
 
 var httputilNewHTTPClient = httputil.NewHTTPClient
+
+// hasTPM is indirected so tests don't depend on whether the host running them
+// happens to expose a TPM device (/dev/tpmrm0).
+var hasTPM = asserts.HasTpm
 
 var errStoreOffline = errors.New("snap store is marked offline")
 
@@ -664,16 +665,26 @@ func (m *DeviceManager) getSerial(t *state.Task, regCtx registrationContext, pri
 
 		serialSup.SerialRequest = serialRequest
 		serialSup.RequestID = requestID
+		logger.Noticef("prepared serial-request for brand %q model %q (request-id obtained)", device.Brand, device.Model)
 	}
 
 	// Decide v1 vs. legacy. Probes the discovery endpoint at most once
 	// per registration attempt; verdict is cached in state. A probe error
 	// surfaces as a Retry — we don't lock in a wrong format on a flaky
-	// probe.
-	format, err := SelectRegistrationFormat(st, client, cfg.serialRequestURL)
+	// probe. The note describes the probe/cache outcome and is recorded in
+	// the request-serial task log so it is visible via `snap tasks`.
+	format, note, err := SelectRegistrationFormat(st, client, cfg.registrationFormatVersionURL)
 	if err != nil {
+		// retryErr records the cause in the task log and schedules a retry.
 		return nil, nil, retryErr(t, 0, "cannot determine registration format: %v", err)
 	}
+	// Record the probe/cache outcome and the chosen format in the task log
+	// so it shows up in `snap tasks`/`snap change`. note carries the detail
+	// (e.g. "HTTP 403 ... using legacy registration format").
+	if note != "" {
+		t.Logf("%s", note)
+	}
+	t.Logf("using %q device registration format", format)
 
 	timings.Run(tm, "submit-serial-request", "submit device serial request", func(timings.Measurer) {
 		serial, ancillaryBatch, err = submitSerialRequest(t, serialSup.SerialRequest, serialSup.RequestID, format, client, cfg)
@@ -700,6 +711,8 @@ func (m *DeviceManager) getSerial(t *state.Task, regCtx registrationContext, pri
 		}
 	}
 
+	logger.Noticef("obtained device serial %q for brand %q model %q", serial.Serial(), serial.BrandID(), serial.Model())
+
 	if ancillaryBatch == nil {
 		serialSup.Serial = string(asserts.Encode(serial))
 		t.Set("serial-setup", serialSup)
@@ -714,11 +727,12 @@ func (m *DeviceManager) getSerial(t *state.Task, regCtx registrationContext, pri
 }
 
 type serialRequestConfig struct {
-	requestIDURL     string
-	serialRequestURL string
-	headers          map[string]string
-	proposedSerial   string
-	body             []byte
+	requestIDURL                 string
+	serialRequestURL             string
+	registrationFormatVersionURL string
+	headers                      map[string]string
+	proposedSerial               string
+	body                         []byte
 }
 
 func (cfg *serialRequestConfig) applyHeaders(req *http.Request) {

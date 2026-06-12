@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
+	"net/http/httptest"
 
 	. "gopkg.in/check.v1"
 
@@ -133,77 +133,106 @@ func (s *liotHelpersSuite) TestBuildLiotRegistrationBodyOmitsAttestationWithoutT
 
 // --- Format-discovery tests --------------------------------------------------
 
-const fakeSerialURL = "https://api.example.test/api/v1/snaps/auth/devices"
-
-// stubResp builds an *http.Response with the given status and body suitable
-// for returning from a stubbed liotProbeHTTPGet.
-func stubResp(status int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: status,
-		Body:       io.NopCloser(strings.NewReader(body)),
-		Header:     make(http.Header),
-	}
-}
-
-func (s *liotHelpersSuite) TestProbeRegistrationFormatVersionURL(c *C) {
-	got, err := devicestate.ProbeRegistrationFormatVersionURL("https://api.example.test/api/v1/snaps/auth/devices?foo=bar")
-	c.Assert(err, IsNil)
-	c.Check(got, Equals, "https://api.example.test"+devicestate.RegistrationFormatVersionPath)
+// probeServer returns an httptest server whose discovery endpoint replies with
+// the given status and body, and a pointer to the request counter so tests can
+// assert how many times the probe was actually performed.
+func probeServer(status int, body string) (*httptest.Server, *int) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(status)
+		io.WriteString(w, body)
+	}))
+	return srv, &calls
 }
 
 func (s *liotHelpersSuite) TestProbeReturns200Versions(c *C) {
-	var calledURL string
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, url string) (*http.Response, error) {
-		calledURL = url
-		return stubResp(200, `{"supported_versions":[1]}`), nil
-	})
-	defer restore()
+	srv, _ := probeServer(200, `{"supported_versions":[1]}`)
+	defer srv.Close()
 
-	versions, err := devicestate.ProbeSupportedRegistrationVersions(nil, fakeSerialURL)
+	versions, _, err := devicestate.ProbeSupportedRegistrationVersions(srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
 	c.Check(versions, DeepEquals, []int{1})
-	c.Check(calledURL, Equals, "https://api.example.test"+devicestate.RegistrationFormatVersionPath)
 }
 
 func (s *liotHelpersSuite) TestProbeReturns404IsLegacy(c *C) {
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		return stubResp(404, ""), nil
-	})
-	defer restore()
+	srv, _ := probeServer(404, "")
+	defer srv.Close()
 
-	versions, err := devicestate.ProbeSupportedRegistrationVersions(nil, fakeSerialURL)
+	versions, _, err := devicestate.ProbeSupportedRegistrationVersions(srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
 	c.Assert(versions, NotNil)
 	c.Check(versions, HasLen, 0)
 }
 
-func (s *liotHelpersSuite) TestProbeServerErrorIsTransient(c *C) {
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		return stubResp(503, ""), nil
-	})
-	defer restore()
+func (s *liotHelpersSuite) TestProbeReturns403IsLegacy(c *C) {
+	// Some backends/proxies (e.g. nginx with an endpoint allowlist) answer
+	// an unknown path with 403 instead of 404. We must treat this as legacy,
+	// not as a transient error, otherwise registration loops forever.
+	srv, _ := probeServer(403, "")
+	defer srv.Close()
 
-	_, err := devicestate.ProbeSupportedRegistrationVersions(nil, fakeSerialURL)
-	c.Check(err, ErrorMatches, ".*unexpected status 503.*")
+	versions, _, err := devicestate.ProbeSupportedRegistrationVersions(srv.Client(), srv.URL)
+	c.Assert(err, IsNil)
+	c.Assert(versions, NotNil)
+	c.Check(versions, HasLen, 0)
+}
+
+func (s *liotHelpersSuite) TestProbeNon200SuccessIsLegacy(c *C) {
+	// Only a clean 200 with a versions list counts as v1 support. Any other
+	// 2xx (e.g. 202 Accepted) is not the discovery payload we expect, so we
+	// treat it as legacy rather than decoding it.
+	for _, status := range []int{201, 202, 204} {
+		srv, _ := probeServer(status, "")
+
+		versions, _, err := devicestate.ProbeSupportedRegistrationVersions(srv.Client(), srv.URL)
+		c.Assert(err, IsNil, Commentf("status %d should not error", status))
+		c.Assert(versions, NotNil, Commentf("status %d", status))
+		c.Check(versions, HasLen, 0, Commentf("status %d should be legacy", status))
+		srv.Close()
+	}
+}
+
+func (s *liotHelpersSuite) TestProbeServerErrorIsTransient(c *C) {
+	// A 5xx is a server-side error and is transient: we must not cache a
+	// legacy verdict on it. Error out so the task retries — the backend may
+	// recover and start answering the discovery endpoint.
+	srv, _ := probeServer(503, "")
+	defer srv.Close()
+
+	_, _, err := devicestate.ProbeSupportedRegistrationVersions(srv.Client(), srv.URL)
+	c.Check(err, ErrorMatches, ".*transient error 503.*")
+}
+
+func (s *liotHelpersSuite) TestProbeRetryable4xxIsTransient(c *C) {
+	// 408 (request timeout) and 429 (too many requests) are retry-able 4xx
+	// codes. Like a 5xx, they must error out rather than caching a legacy
+	// verdict, so the task retries instead of locking in the wrong format.
+	for _, status := range []int{408, 429} {
+		srv, _ := probeServer(status, "")
+
+		_, _, err := devicestate.ProbeSupportedRegistrationVersions(srv.Client(), srv.URL)
+		c.Check(err, ErrorMatches, fmt.Sprintf(".*transient error %d.*", status), Commentf("status %d should be transient", status))
+		srv.Close()
+	}
 }
 
 func (s *liotHelpersSuite) TestProbeNetworkErrorIsTransient(c *C) {
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		return nil, fmt.Errorf("dial tcp: connection refused")
-	})
-	defer restore()
+	// No backend reachable at all (here: a server we close before probing).
+	srv, _ := probeServer(200, `{"supported_versions":[1]}`)
+	url := srv.URL
+	client := srv.Client()
+	srv.Close()
 
-	_, err := devicestate.ProbeSupportedRegistrationVersions(nil, fakeSerialURL)
-	c.Check(err, ErrorMatches, ".*connection refused.*")
+	_, _, err := devicestate.ProbeSupportedRegistrationVersions(client, url)
+	c.Check(err, ErrorMatches, ".*cannot probe registration format-version endpoint.*")
 }
 
 func (s *liotHelpersSuite) TestProbeMalformedJSONIsTransient(c *C) {
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		return stubResp(200, "not json"), nil
-	})
-	defer restore()
+	srv, _ := probeServer(200, "not json")
+	defer srv.Close()
 
-	_, err := devicestate.ProbeSupportedRegistrationVersions(nil, fakeSerialURL)
+	_, _, err := devicestate.ProbeSupportedRegistrationVersions(srv.Client(), srv.URL)
 	c.Check(err, ErrorMatches, ".*cannot decode.*")
 }
 
@@ -214,18 +243,14 @@ func (s *liotHelpersSuite) TestSelectRegistrationFormatV1WhenAppstoreSupportsItE
 	st.Lock()
 	defer st.Unlock()
 
-	probeCalls := 0
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		probeCalls++
-		return stubResp(200, `{"supported_versions":[1]}`), nil
-	})
-	defer restore()
+	srv, probeCalls := probeServer(200, `{"supported_versions":[1]}`)
+	defer srv.Close()
 
 	// No L-IoT partial payload is set: snapd will be the collector.
-	format, err := devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
+	format, _, err := devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
 	c.Check(format, Equals, devicestate.FormatV1)
-	c.Check(probeCalls, Equals, 1, Commentf("probe must run even without partial payload"))
+	c.Check(*probeCalls, Equals, 1, Commentf("probe must run even without partial payload"))
 }
 
 func (s *liotHelpersSuite) TestSelectRegistrationFormatLegacyWhenAppstoreIsLegacy(c *C) {
@@ -233,12 +258,10 @@ func (s *liotHelpersSuite) TestSelectRegistrationFormatLegacyWhenAppstoreIsLegac
 	st.Lock()
 	defer st.Unlock()
 
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		return stubResp(404, ""), nil
-	})
-	defer restore()
+	srv, _ := probeServer(404, "")
+	defer srv.Close()
 
-	format, err := devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
+	format, _, err := devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
 	c.Check(format, Equals, devicestate.FormatLegacy)
 }
@@ -252,12 +275,10 @@ func (s *liotHelpersSuite) TestSelectRegistrationFormatV1WhenSupported(c *C) {
 		Claim: json.RawMessage(`{"token":"X"}`),
 	})
 
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		return stubResp(200, `{"supported_versions":[1,2]}`), nil
-	})
-	defer restore()
+	srv, _ := probeServer(200, `{"supported_versions":[1,2]}`)
+	defer srv.Close()
 
-	format, err := devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
+	format, _, err := devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
 	c.Check(format, Equals, devicestate.FormatV1)
 }
@@ -271,12 +292,10 @@ func (s *liotHelpersSuite) TestSelectRegistrationFormatLegacyOn404(c *C) {
 		Claim: json.RawMessage(`{"token":"X"}`),
 	})
 
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		return stubResp(404, ""), nil
-	})
-	defer restore()
+	srv, _ := probeServer(404, "")
+	defer srv.Close()
 
-	format, err := devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
+	format, _, err := devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
 	c.Check(format, Equals, devicestate.FormatLegacy)
 }
@@ -290,22 +309,18 @@ func (s *liotHelpersSuite) TestSelectRegistrationFormatCachesVerdict(c *C) {
 		Claim: json.RawMessage(`{"token":"X"}`),
 	})
 
-	probeCalls := 0
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		probeCalls++
-		return stubResp(200, `{"supported_versions":[1]}`), nil
-	})
-	defer restore()
+	srv, probeCalls := probeServer(200, `{"supported_versions":[1]}`)
+	defer srv.Close()
 
-	first, err := devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
+	first, _, err := devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
 	c.Check(first, Equals, devicestate.FormatV1)
 
-	second, err := devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
+	second, _, err := devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
 	c.Check(second, Equals, devicestate.FormatV1)
 
-	c.Check(probeCalls, Equals, 1, Commentf("second call must be served from cache"))
+	c.Check(*probeCalls, Equals, 1, Commentf("second call must be served from cache"))
 }
 
 func (s *liotHelpersSuite) TestSelectRegistrationFormatRefreshesOnURLChange(c *C) {
@@ -317,20 +332,18 @@ func (s *liotHelpersSuite) TestSelectRegistrationFormatRefreshesOnURLChange(c *C
 		Claim: json.RawMessage(`{"token":"X"}`),
 	})
 
-	probeCalls := 0
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		probeCalls++
-		return stubResp(200, `{"supported_versions":[1]}`), nil
-	})
-	defer restore()
+	srv, probeCalls := probeServer(200, `{"supported_versions":[1]}`)
+	defer srv.Close()
 
-	_, err := devicestate.SelectRegistrationFormat(st, nil, "https://old.example.test/serial")
+	// Same server, but a different URL string is a different cache key, so
+	// the verdict must be re-probed.
+	_, _, err := devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL+"/a")
 	c.Assert(err, IsNil)
 
-	_, err = devicestate.SelectRegistrationFormat(st, nil, "https://new.example.test/serial")
+	_, _, err = devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL+"/b")
 	c.Assert(err, IsNil)
 
-	c.Check(probeCalls, Equals, 2, Commentf("URL change must invalidate the cache"))
+	c.Check(*probeCalls, Equals, 2, Commentf("URL change must invalidate the cache"))
 }
 
 func (s *liotHelpersSuite) TestSelectRegistrationFormatProbeErrorPropagates(c *C) {
@@ -342,13 +355,12 @@ func (s *liotHelpersSuite) TestSelectRegistrationFormatProbeErrorPropagates(c *C
 		Claim: json.RawMessage(`{"token":"X"}`),
 	})
 
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		return nil, fmt.Errorf("kaboom")
-	})
-	defer restore()
+	// A 5xx surfaces as a transient error that the caller must retry on.
+	srv, _ := probeServer(500, "")
+	defer srv.Close()
 
-	_, err := devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
-	c.Check(err, ErrorMatches, ".*kaboom.*")
+	_, _, err := devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
+	c.Check(err, ErrorMatches, ".*transient error 500.*")
 }
 
 func (s *liotHelpersSuite) TestClearLiotRegistrationDataAlsoClearsCache(c *C) {
@@ -360,25 +372,21 @@ func (s *liotHelpersSuite) TestClearLiotRegistrationDataAlsoClearsCache(c *C) {
 		Claim: json.RawMessage(`{"token":"X"}`),
 	})
 
-	probeCalls := 0
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		probeCalls++
-		return stubResp(200, `{"supported_versions":[1]}`), nil
-	})
-	defer restore()
+	srv, probeCalls := probeServer(200, `{"supported_versions":[1]}`)
+	defer srv.Close()
 
 	// First probe populates the cache.
-	_, err := devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
+	_, _, err := devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
-	c.Check(probeCalls, Equals, 1)
+	c.Check(*probeCalls, Equals, 1)
 
 	// Clear should drop both the partial payload AND the probe cache, so
 	// the next call probes again.
 	devicestate.ClearLiotRegistrationData(st)
 
-	_, err = devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
+	_, _, err = devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
-	c.Check(probeCalls, Equals, 2, Commentf("ClearLiotRegistrationData must invalidate the probe cache"))
+	c.Check(*probeCalls, Equals, 2, Commentf("ClearLiotRegistrationData must invalidate the probe cache"))
 }
 
 // --- Provisioning-tool gate tests --------------------------------------------
@@ -429,12 +437,11 @@ func (s *liotHelpersSuite) TestLiotForgetClearsPayloadAndCache(c *C) {
 		Claim: json.RawMessage(`{"token":"X"}`),
 	})
 
-	restore := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		return stubResp(200, `{"supported_versions":[1]}`), nil
-	})
-	defer restore()
-	_, err := devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
+	srv, probeCalls := probeServer(200, `{"supported_versions":[1]}`)
+	defer srv.Close()
+	_, _, err := devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
+	c.Check(*probeCalls, Equals, 1)
 
 	devicestate.LiotForget(st)
 
@@ -443,19 +450,14 @@ func (s *liotHelpersSuite) TestLiotForgetClearsPayloadAndCache(c *C) {
 	c.Check(data, IsNil)
 
 	// The probe cache should also be gone — same observable as
-	// ClearLiotRegistrationData; this asserts LiotForget delegates.
-	probeCalls := 0
-	restore2 := devicestate.MockLiotProbeHTTPGet(func(_ *http.Client, _ string) (*http.Response, error) {
-		probeCalls++
-		return stubResp(200, `{"supported_versions":[1]}`), nil
-	})
-	defer restore2()
+	// ClearLiotRegistrationData; this asserts LiotForget delegates. Same
+	// URL, so a re-probe only happens if the cached verdict was dropped.
 	devicestate.SetLiotRegistrationData(st, &devicestate.LiotRegistrationData{
 		Claim: json.RawMessage(`{"token":"Y"}`),
 	})
-	_, err = devicestate.SelectRegistrationFormat(st, nil, fakeSerialURL)
+	_, _, err = devicestate.SelectRegistrationFormat(st, srv.Client(), srv.URL)
 	c.Assert(err, IsNil)
-	c.Check(probeCalls, Equals, 1, Commentf("probe should run again after forget+resubmit"))
+	c.Check(*probeCalls, Equals, 2, Commentf("probe should run again after forget+resubmit"))
 }
 
 func (s *liotHelpersSuite) TestLiotForgetAbortsActiveBecomeOperational(c *C) {
