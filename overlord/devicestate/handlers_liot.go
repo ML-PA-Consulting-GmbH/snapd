@@ -24,12 +24,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"gopkg.in/tomb.v2"
 
 	"github.com/snapcore/snapd/asserts"
+	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/overlord/configstate/config"
 	"github.com/snapcore/snapd/overlord/state"
@@ -67,9 +67,8 @@ const (
 
 // registrationFormatVersionPath is the well-known discovery endpoint exposed
 // by the Appstore. A 200 response carries the supported versions list; a 404
-// definitively means the backend is legacy. The path is co-located with the
-// serial endpoint host (same scheme + host + port).
-const registrationFormatVersionPath = "/device/v3/registration/format-version"
+// definitively means the backend is legacy.
+const registrationFormatVersionPath = "device/v3/registration/format-version"
 
 // RegistrationFormat is the body shape selected for the outgoing serial
 // request. Determined by the discovery probe (see selectRegistrationFormat).
@@ -137,11 +136,11 @@ type liotRegistrationBody struct {
 	Collector     json.RawMessage `json:"collector,omitempty"`
 	Nonce         string          `json:"nonce"`
 
-	Claim       json.RawMessage     `json:"claim,omitempty"`
+	Claim       json.RawMessage      `json:"claim,omitempty"`
 	Snap        liotRegistrationSnap `json:"snap"`
-	Attestation *liotAttestation    `json:"attestation,omitempty"`
-	Hardware    json.RawMessage     `json:"hardware,omitempty"`
-	Software    json.RawMessage     `json:"software,omitempty"`
+	Attestation *liotAttestation     `json:"attestation,omitempty"`
+	Hardware    json.RawMessage      `json:"hardware,omitempty"`
+	Software    json.RawMessage      `json:"software,omitempty"`
 }
 
 type liotRegistrationSnap struct {
@@ -160,7 +159,7 @@ type liotAttestationTPM struct {
 // so tests can stub it without bringing up a TPM. Returns ("", nil) when no
 // TPM is present; a non-nil error indicates a real retrieval failure.
 var liotEKLookup = func() (string, error) {
-	if !asserts.HasTpm() {
+	if !hasTPM() {
 		return "", nil
 	}
 	return asserts.TpmGetEndorsementPublicKeyBase64()
@@ -220,12 +219,6 @@ type liotSupportedVersionsCache struct {
 	Versions  []int  `json:"versions"`
 }
 
-// liotProbeHTTPGet is indirected so tests can stub the probe without standing
-// up an httptest server. Production binds it to client.Get.
-var liotProbeHTTPGet = func(client *http.Client, url string) (*http.Response, error) {
-	return client.Get(url)
-}
-
 // probeRegistrationFormatVersionResp matches the discovery endpoint contract:
 //
 //	GET /device/v3/registration/format-version
@@ -235,72 +228,98 @@ type probeRegistrationFormatVersionResp struct {
 	SupportedVersions []int `json:"supported_versions"`
 }
 
-// probeRegistrationFormatVersionURL derives the discovery URL from the serial
-// endpoint URL: same scheme + host, swap the path. This matches the
-// Appstore's promise that the probe is co-located with the serial endpoint.
-func probeRegistrationFormatVersionURL(serialRequestURL string) (string, error) {
-	u, err := url.Parse(serialRequestURL)
-	if err != nil {
-		return "", fmt.Errorf("cannot parse serial-request URL %q: %v", serialRequestURL, err)
-	}
-	u.Path = registrationFormatVersionPath
-	u.RawQuery = ""
-	u.Fragment = ""
-	return u.String(), nil
-}
-
-// probeSupportedRegistrationVersions queries the discovery endpoint and
-// returns the backend's supported registration body versions.
+// probeSupportedRegistrationVersions queries the discovery endpoint at probeURL
+// and returns the backend's supported registration body versions. probeURL is
+// built in setURLs from the same base as request-id/devices, so it follows the
+// proxy / custom device-service selection. The returned note is a short
+// human-readable description of the outcome, suitable for both the journal and
+// the request-serial task log.
 //
 // Return-value contract:
 //   - len > 0           → 200, JSON parsed, this is the authoritative list.
-//   - len == 0, err nil → 404, the backend definitively does not support v1+
-//     (caller falls back to legacy).
-//   - err != nil        → transient (5xx, network, malformed JSON).
-//     Caller MUST NOT cache and MUST retry.
-func probeSupportedRegistrationVersions(client *http.Client, serialRequestURL string) ([]int, error) {
-	probeURL, err := probeRegistrationFormatVersionURL(serialRequestURL)
-	if err != nil {
-		return nil, err
-	}
+//   - len == 0, err nil → a non-200 status that is a definitive verdict
+//     (404 endpoint not implemented, 403 not whitelisted, other 4xx, or any
+//     non-200 2xx). The backend does not offer the new format here, so it is
+//     treated as legacy and the caller falls back to the snapd-native format.
+//   - err != nil        → transient: a transport error (no HTTP response at
+//     all, e.g. no network), a 5xx server error, a retry-able 4xx (408, 429),
+//     or a malformed 200 body. Caller MUST NOT cache and MUST retry — these
+//     may resolve on their own.
+func probeSupportedRegistrationVersions(client *http.Client, probeURL string) (versions []int, note string, err error) {
+	logger.Debugf("probing registration format-version endpoint %q", probeURL)
 
-	resp, err := liotProbeHTTPGet(client, probeURL)
+	resp, err := client.Get(probeURL)
 	if err != nil {
-		return nil, fmt.Errorf("cannot probe registration format-version endpoint: %v", err)
+		// No HTTP response at all (often no network yet). We cannot tell
+		// which format the backend speaks, so this is transient: retry.
+		note = fmt.Sprintf("registration format probe %q got no response from the backend (network down or backend unreachable): %v; will retry", probeURL, err)
+		logger.Noticef("WARNING: %s", note)
+		return nil, note, fmt.Errorf("cannot probe registration format-version endpoint: %v", err)
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var parsed probeRegistrationFormatVersionResp
-		if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-			return nil, fmt.Errorf("cannot decode registration format-version response: %v", err)
-		}
-		// An empty list from a 200 response would be a misconfigured
-		// backend — surface it as legacy rather than treating it as
-		// transient. The caller will pick legacy. We return a non-nil
-		// empty slice to keep the (len, nil) "definitive" contract.
-		if parsed.SupportedVersions == nil {
-			return []int{}, nil
-		}
-		return parsed.SupportedVersions, nil
-	case http.StatusNotFound:
-		// Definitive: backend does not implement the discovery
-		// endpoint, hence does not implement v1+. Use legacy.
-		return []int{}, nil
-	default:
-		return nil, fmt.Errorf("registration format-version probe returned unexpected status %d", resp.StatusCode)
+	// A 5xx is a server-side error and is transient: the backend may
+	// recover, so we must not lock in (and cache) a legacy verdict on it.
+	// 408 (request timeout) and 429 (too many requests) are retry-able 4xx
+	// codes — same reasoning. Error out so the caller retries registration
+	// later, just like a network error.
+	if resp.StatusCode >= 500 || resp.StatusCode == http.StatusRequestTimeout || resp.StatusCode == http.StatusTooManyRequests {
+		note = fmt.Sprintf("registration format probe %q: HTTP %d (transient server error); will retry", probeURL, resp.StatusCode)
+		logger.Noticef("WARNING: %s", note)
+		return nil, note, fmt.Errorf("registration format-version probe returned transient error %d", resp.StatusCode)
 	}
+
+	// Any other non-200 response (the retry-able codes above are already
+	// handled) is a definitive "the discovery endpoint does not give us a
+	// versions list here" verdict. Rather than guessing or looping, we treat
+	// the backend as legacy. Only a clean 200 carrying a versions list is
+	// taken as v1 support. This covers 404 (endpoint not implemented), 403
+	// (e.g. an nginx allowlist that does not expose the new path), and any
+	// other 2xx that is not a plain 200.
+	if resp.StatusCode != http.StatusOK {
+		switch resp.StatusCode {
+		case http.StatusNotFound:
+			note = fmt.Sprintf("registration format probe %q: HTTP 404, backend does not implement the discovery endpoint; using legacy registration format", probeURL)
+			logger.Noticef("%s", note)
+		case http.StatusForbidden:
+			note = fmt.Sprintf("registration format probe %q: HTTP 403 (forbidden); using legacy registration format", probeURL)
+			logger.Noticef("WARNING: %s", note)
+		default:
+			note = fmt.Sprintf("registration format probe %q: unexpected HTTP %d; using legacy registration format", probeURL, resp.StatusCode)
+			logger.Noticef("WARNING: %s", note)
+		}
+		return []int{}, note, nil
+	}
+
+	var parsed probeRegistrationFormatVersionResp
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		// A 200 that we cannot decode is a misbehaving backend. We do not
+		// know the supported versions, so this is transient: retry.
+		note = fmt.Sprintf("registration format probe %q returned HTTP %d with an undecodable body: %v; will retry", probeURL, resp.StatusCode, err)
+		logger.Noticef("WARNING: %s", note)
+		return nil, note, fmt.Errorf("cannot decode registration format-version response: %v", err)
+	}
+	// An empty list from a 200 response would be a misconfigured backend —
+	// surface it as legacy rather than treating it as transient. We return a
+	// non-nil empty slice to keep the (len, nil) "definitive" contract.
+	if parsed.SupportedVersions == nil {
+		note = fmt.Sprintf("registration format probe %q: HTTP %d with no supported_versions; using legacy registration format", probeURL, resp.StatusCode)
+		logger.Noticef("%s", note)
+		return []int{}, note, nil
+	}
+	note = fmt.Sprintf("registration format probe %q: backend supports versions %v", probeURL, parsed.SupportedVersions)
+	logger.Noticef("%s", note)
+	return parsed.SupportedVersions, note, nil
 }
 
 // probeWithLockReleased runs the discovery probe with the state lock
 // released. The deferred re-lock ensures the caller's lock invariant is
 // restored even if the probe panics. Caller MUST hold the state lock on
 // entry; on return the state lock is held again.
-func probeWithLockReleased(st *state.State, client *http.Client, serialRequestURL string) ([]int, error) {
+func probeWithLockReleased(st *state.State, client *http.Client, probeURL string) ([]int, string, error) {
 	st.Unlock()
 	defer st.Lock()
-	return probeSupportedRegistrationVersions(client, serialRequestURL)
+	return probeSupportedRegistrationVersions(client, probeURL)
 }
 
 // supportsV1 reports whether 1 appears in the supported-versions list.
@@ -338,35 +357,47 @@ func supportsV1(versions []int) bool {
 // runs with the lock RELEASED — holding the state lock during an HTTP call
 // to the Appstore would block every other snapd API request for the
 // duration of the probe (including `snap changes`).
-func SelectRegistrationFormat(st *state.State, client *http.Client, serialRequestURL string) (RegistrationFormat, error) {
+// The returned note is a short human-readable description of how the format
+// was decided (probe outcome or cache hit), suitable for recording in the
+// request-serial task log so it is visible via `snap tasks`/`snap change`.
+func SelectRegistrationFormat(st *state.State, client *http.Client, probeURL string) (format RegistrationFormat, note string, err error) {
 	var cached liotSupportedVersionsCache
 	if err := st.Get(liotSupportedVersionsCacheStateKey, &cached); err != nil && !errors.Is(err, state.ErrNoState) {
-		return "", err
+		return "", "", err
 	}
-	if cached.ProbedURL == serialRequestURL && cached.Versions != nil {
+	if cached.ProbedURL == probeURL && cached.Versions != nil {
 		if supportsV1(cached.Versions) {
-			return FormatV1, nil
+			note = fmt.Sprintf("using cached registration format verdict for %q: v1 (supported versions %v)", probeURL, cached.Versions)
+			logger.Debugf("%s", note)
+			return FormatV1, note, nil
 		}
-		return FormatLegacy, nil
+		note = fmt.Sprintf("using cached registration format verdict for %q: legacy (supported versions %v)", probeURL, cached.Versions)
+		logger.Debugf("%s", note)
+		return FormatLegacy, note, nil
 	}
 
 	// Release the state lock while the probe is in flight — it's an HTTP
 	// call to the Appstore and may block for the client timeout if the
 	// network or backend misbehaves. probeWithLockReleased uses defer so
 	// the lock is restored even on panic.
-	versions, probeErr := probeWithLockReleased(st, client, serialRequestURL)
+	versions, note, probeErr := probeWithLockReleased(st, client, probeURL)
 	if probeErr != nil {
-		return "", probeErr
+		// Transient failure (no network, malformed 2xx response). We do
+		// not cache and do not guess a format — the caller retries.
+		logger.Noticef("cannot determine registration format for %q, will retry: %v", probeURL, probeErr)
+		return "", note, probeErr
 	}
 
 	st.Set(liotSupportedVersionsCacheStateKey, liotSupportedVersionsCache{
-		ProbedURL: serialRequestURL,
+		ProbedURL: probeURL,
 		Versions:  versions,
 	})
 	if supportsV1(versions) {
-		return FormatV1, nil
+		logger.Noticef("selected registration format for %q: v1 (new JSON registration body)", probeURL)
+		return FormatV1, note, nil
 	}
-	return FormatLegacy, nil
+	logger.Noticef("selected registration format for %q: legacy (snapd-native assertion stream)", probeURL)
+	return FormatLegacy, note, nil
 }
 
 // LiotResolveAppstoreURL returns the Appstore base URL configured for this
