@@ -1166,6 +1166,16 @@ func (w *Writer) checkBase(sn *SeedSnap) error {
 		if w.policy.allowsDangerousFeatures() == nil && sn.optionSnap != nil {
 			return nil
 		}
+		// A trusted external builder (AllowExtraSnaps) may satisfy a
+		// snap's base with an extra snap that is downloaded in a later
+		// batch than the snap being checked here (e.g. a model app
+		// whose base is supplied via extra-snaps). The base is not yet
+		// in availableByMode at this point, so skip the check; the
+		// base ends up in the seed regardless, and the builder owns
+		// and verifies the resulting snap set.
+		if w.opts.AllowExtraSnaps {
+			return nil
+		}
 	}
 	return err
 }

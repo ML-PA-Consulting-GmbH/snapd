@@ -327,6 +327,14 @@ type imageSeeder struct {
 	// hook returns and runs the rest of the seed pipeline
 	// (snap.Info, sha3 check, seeding) unchanged.
 	snapDownloadURL func(name string, revision snap.Revision, snapID string) (string, error)
+
+	// snapIDForName, when set, resolves a snap's store-assigned
+	// snap-id by name. Used by the snapDownloadURL path for snaps
+	// not declared in the model (extra snaps): their snap-id is not
+	// in the .snap blob and not known from the model, so it is
+	// resolved here (from the prefetched snap-declaration) and
+	// stamped on snap.Info before the seedwriter validates it.
+	snapIDForName func(name string) (string, error)
 }
 
 func newImageSeeder(tsto *tooling.ToolingStore, model *asserts.Model, opts *Options) (*imageSeeder, error) {
@@ -351,6 +359,7 @@ func newImageSeeder(tsto *tooling.ToolingStore, model *asserts.Model, opts *Opti
 		tsto:              tsto,
 		assertionRetrieve: opts.AssertionRetrieve,
 		snapDownloadURL:   opts.SnapDownloadURL,
+		snapIDForName:     opts.SnapIDForName,
 	}
 
 	if os.Getenv("SNAPD_ALLOW_SNAPD_KERNEL_MISMATCH") == "true" {
@@ -758,6 +767,16 @@ func (s *imageSeeder) downloadSnapsViaURLHook(snapsToDownload []*seedwriter.Seed
 			return nil, fmt.Errorf("snapDownloadURL hook requires a pinned revision for %q in the seed manifest", sn.SnapName())
 		}
 		snapID := sn.ID()
+		if snapID == "" && s.snapIDForName != nil {
+			// Extra snaps (not in the model) have no snap-id from the
+			// model and none in the .snap blob; resolve it from the
+			// prefetched snap-declaration so it can be stamped below.
+			id, err := s.snapIDForName(sn.SnapName())
+			if err != nil {
+				return nil, fmt.Errorf("resolving snap-id for %q: %w", sn.SnapName(), err)
+			}
+			snapID = id
+		}
 
 		url, err := s.snapDownloadURL(sn.SnapName(), rev, snapID)
 		if err != nil {

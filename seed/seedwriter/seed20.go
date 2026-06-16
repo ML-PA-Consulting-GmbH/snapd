@@ -486,7 +486,7 @@ func (tr *tree20) writeMeta(snapsFromModel []*SeedSnap, extraSnaps []*SeedSnap) 
 	}
 
 	if len(optionsSnaps) != 0 {
-		if tr.grade != asserts.ModelDangerous {
+		if tr.grade != asserts.ModelDangerous && !tr.opts.AllowExtraSnaps {
 			return fmt.Errorf("internal error: unexpected non-model snap overrides with grade %s", tr.grade)
 		}
 		options20 := &internal.Options20{Snaps: optionsSnaps}

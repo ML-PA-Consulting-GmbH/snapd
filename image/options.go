@@ -108,6 +108,15 @@ type Options struct {
 	// but whose download endpoint is a plain signed HTTPS URL.
 	SnapDownloadURL func(name string, revision snap.Revision, snapID string) (url string, err error)
 
+	// SnapIDForName, when set, resolves a snap's store-assigned
+	// snap-id by name. The SnapDownloadURL path uses it for snaps not
+	// declared in the model (extra snaps): such a snap's snap-id is
+	// neither known from the model nor present in the .snap blob, so
+	// it is resolved here (typically from a prefetched
+	// snap-declaration) and stamped on snap.Info before seed
+	// validation, which requires every non-local snap to carry one.
+	SnapIDForName func(name string) (snapID string, err error)
+
 	// AllowExtraSnaps, when set, lets the seed include snaps not
 	// declared in the model (and override channels) regardless of the
 	// model's grade -- behaviour otherwise restricted to grade
