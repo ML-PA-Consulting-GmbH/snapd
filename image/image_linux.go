@@ -389,6 +389,7 @@ func newImageSeeder(tsto *tooling.ToolingStore, model *asserts.Model, opts *Opti
 		TestSkipCopyUnverifiedModel: osutil.GetenvBool("UBUNTU_IMAGE_SKIP_COPY_UNVERIFIED_MODEL"),
 
 		ExtraAssertions: opts.ExtraAssertions,
+		AllowExtraSnaps: opts.AllowExtraSnaps,
 	}
 	w, err := seedwriter.New(model, wOpts)
 	if err != nil {

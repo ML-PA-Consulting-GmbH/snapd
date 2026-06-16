@@ -68,6 +68,20 @@ type Options struct {
 
 	// Assertions to inject into the built image
 	ExtraAssertions []asserts.Assertion
+
+	// AllowExtraSnaps, when set, relaxes the policy that otherwise
+	// forbids adding extra snaps/components, overriding channels, or
+	// adding devmode/local snaps unless the model is grade dangerous.
+	// It makes a model of any grade behave, for these seed-composition
+	// checks only, as if it were dangerous.
+	//
+	// Intended for trusted external builders that pin an exact snap
+	// set in a manifest and verify the resulting image out of band
+	// (e.g. liot-image manifest mode, which seeds snaps not declared
+	// in the signed model). It affects image composition only and has
+	// no bearing on the device: the on-device snapd reads the seed and
+	// installs the seeded snaps independently of this flag.
+	AllowExtraSnaps bool
 }
 
 // manifest returns either the manifest already provided by the

@@ -43,6 +43,13 @@ type policy20 struct {
 var errNotAllowedExceptForDangerous = errors.New("cannot override channels, add devmode snaps, local snaps, or extra snaps/components with a model of grade higher than dangerous")
 
 func (pol *policy20) checkAllowedDangerous() error {
+	// A trusted external builder may opt into the dangerous-grade
+	// seed-composition behaviour (extra snaps, channel overrides,
+	// devmode/local snaps) for a model of any grade. See
+	// Options.AllowExtraSnaps.
+	if pol.opts != nil && pol.opts.AllowExtraSnaps {
+		return nil
+	}
 	if pol.model.Grade() != asserts.ModelDangerous {
 		return errNotAllowedExceptForDangerous
 	}

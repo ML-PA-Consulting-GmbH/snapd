@@ -107,6 +107,16 @@ type Options struct {
 	// is not snap-store-compatible (e.g. GraphQL-fronted stores)
 	// but whose download endpoint is a plain signed HTTPS URL.
 	SnapDownloadURL func(name string, revision snap.Revision, snapID string) (url string, err error)
+
+	// AllowExtraSnaps, when set, lets the seed include snaps not
+	// declared in the model (and override channels) regardless of the
+	// model's grade -- behaviour otherwise restricted to grade
+	// dangerous. Intended for trusted external builders that pin an
+	// exact snap set in a manifest and verify the image out of band
+	// (e.g. liot-image manifest mode). Affects image composition only;
+	// the seeded snaps are installed by the device's own snapd at
+	// boot, which does not consult this flag.
+	AllowExtraSnaps bool
 }
 
 // Customizatons defines possible image customizations. Not all of
