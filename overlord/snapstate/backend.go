@@ -82,6 +82,9 @@ type StoreService interface {
 	CleanupDownloadArtifacts(targetFn string, dl *snap.DownloadInfo) error
 
 	ExchangeMessages(ctx context.Context, req *store.MessageExchangeRequest) (*store.MessageExchangeResponse, error)
+
+	ReportUpdateEvents(ctx context.Context, events []store.UpdateEvent) error
+	SupportedUpdateMajors(ctx context.Context) ([]int, error)
 }
 
 type managerBackend interface {
