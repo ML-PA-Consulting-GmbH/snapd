@@ -198,7 +198,11 @@ type snapActionResult struct {
 	Snap             storeSnap `json:"snap"`
 	EffectiveChannel string    `json:"effective-channel,omitempty"`
 	RedirectChannel  string    `json:"redirect-channel,omitempty"`
-	Error            struct {
+	// UpdateActionID correlates a store action result (install or refresh) with
+	// a backend update action for transparent-update event reporting (L-IoT).
+	// Only present for snap binary actions initiated by a backend update action.
+	UpdateActionID string `json:"update-action-id,omitempty"`
+	Error          struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 		Extra   struct {
@@ -317,6 +321,10 @@ type SnapActionResult struct {
 	*snap.Info
 	Resources       []SnapResourceResult
 	RedirectChannel string
+	// UpdateActionID is the backend-assigned update action identifier for this
+	// refresh, used for transparent-update event reporting (L-IoT). Empty when
+	// the refresh is not tied to a backend update action.
+	UpdateActionID string
 }
 
 type SnapResourceResult struct {
@@ -747,6 +755,7 @@ func (s *Store) snapAction(ctx context.Context, currentSnaps []*CurrentSnap, act
 			Info:            snapInfo,
 			RedirectChannel: res.RedirectChannel,
 			Resources:       resources,
+			UpdateActionID:  res.UpdateActionID,
 		})
 	}
 

@@ -215,6 +215,7 @@ func targetFromActionResult(sar store.SnapActionResult, snapst *SnapState, revOp
 			Channel:           trackedChannel,
 			CohortKey:         revOpts.CohortKey,
 			IntegrityDataInfo: sar.IntegrityData,
+			UpdateActionID:    sar.UpdateActionID,
 		},
 		components: components,
 	}, nil
@@ -276,11 +277,12 @@ func (t *target) setups(st *state.State, opts Options) (SnapSetup, []ComponentSe
 	providerContentAttrs := defaultProviderContentAttrs(st, t.info, opts.PrereqTracker)
 
 	snapsup := SnapSetup{
-		Channel:      t.setup.Channel,
-		CohortKey:    t.setup.CohortKey,
-		DownloadInfo: t.setup.DownloadInfo,
-		SnapPath:     t.setup.SnapPath,
-		AlwaysUpdate: t.setup.AlwaysUpdate,
+		Channel:        t.setup.Channel,
+		CohortKey:      t.setup.CohortKey,
+		DownloadInfo:   t.setup.DownloadInfo,
+		SnapPath:       t.setup.SnapPath,
+		AlwaysUpdate:   t.setup.AlwaysUpdate,
+		UpdateActionID: t.setup.UpdateActionID,
 
 		Base:               t.info.Base,
 		Prereq:             keys(providerContentAttrs),
