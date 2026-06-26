@@ -138,3 +138,11 @@ func (Store) CleanupDownloadArtifacts(targetFn string, dl *snap.DownloadInfo) er
 func (Store) ExchangeMessages(ctx context.Context, req *store.MessageExchangeRequest) (*store.MessageExchangeResponse, error) {
 	panic("ExchangeMessages not expected")
 }
+
+func (Store) ReportUpdateEvents(ctx context.Context, events []store.UpdateEvent) error {
+	panic("ReportUpdateEvents not expected")
+}
+
+func (Store) SupportedUpdateMajors(ctx context.Context) ([]int, error) {
+	panic("SupportedUpdateMajors not expected")
+}

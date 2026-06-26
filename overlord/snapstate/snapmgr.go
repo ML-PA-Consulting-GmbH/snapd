@@ -191,6 +191,12 @@ type SnapSetup struct {
 
 	// IntegrityDataInfo contains the integrity data to be used when mounting this snap.
 	IntegrityDataInfo *snap.IntegrityDataInfo `json:"integrity-data-info,omitempty"`
+
+	// UpdateActionID is the backend-assigned update action identifier this
+	// refresh belongs to, as received in the snap refresh response. It is used
+	// to correlate transparent-update events (L-IoT) emitted while this change
+	// runs. Empty when the refresh is not tied to a backend update action.
+	UpdateActionID string `json:"update-action-id,omitempty"`
 }
 
 func (snapsup *SnapSetup) InstanceName() string {
