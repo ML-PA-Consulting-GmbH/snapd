@@ -169,6 +169,89 @@ func (s *updateEventsSuite) TestStatusChangeGeneratesEvents(c *C) {
 	c.Check(*pending[1].OrderHint, Equals, hint1)
 }
 
+func (s *updateEventsSuite) TestDownloadProgressSampling(c *C) {
+	now := time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)
+	defer updateevents.MockTimeNow(func() time.Time { return now })()
+
+	s.st.Lock()
+	t := s.newUpdateTask("download-snap", "act-1")
+	t.SetStatus(state.DoingStatus)
+	t.SetProgress("", 100, 1000)
+	// Drop the phase-start (150) event so only sampled progress is observed.
+	s.mgr.SetPending(nil, nil)
+	s.st.Unlock()
+
+	// Sampled before the first-delay elapses: nothing emitted yet.
+	c.Assert(s.mgr.Ensure(), IsNil)
+	c.Check(s.store.reportedBatches, HasLen, 0)
+
+	// After the first-delay a single progress event is emitted, with the speed
+	// measured since the download was first seen (300 bytes over 30s = 10 B/s).
+	now = now.Add(updateevents.DownloadProgressFirstDelay)
+	s.st.Lock()
+	t.SetProgress("", 400, 1000)
+	s.st.Unlock()
+
+	c.Assert(s.mgr.Ensure(), IsNil)
+	c.Assert(s.store.reportedBatches, HasLen, 1)
+	c.Assert(s.store.reportedBatches[0], HasLen, 1)
+	ev := s.store.reportedBatches[0][0]
+	c.Check(ev.Phase, Equals, store.UpdatePhaseDownload)
+	c.Check(ev.StatusCode, Equals, store.UpdateStatusProgress)
+	c.Check(ev.Message, Matches, `Downloading "foo": 40% at .*`)
+	c.Check(ev.Details["progress_percent"], Equals, 40.0)
+	c.Check(ev.Details["speed_bytes"], Equals, int64(10))
+
+	// Before the cadence interval elapses again: no further event.
+	now = now.Add(updateevents.DownloadProgressInterval - time.Second)
+	s.st.Lock()
+	t.SetProgress("", 500, 1000)
+	s.st.Unlock()
+	c.Assert(s.mgr.Ensure(), IsNil)
+	c.Check(s.store.reportedBatches, HasLen, 1)
+
+	// Once the interval elapses, a second progress event is emitted.
+	now = now.Add(time.Second)
+	s.st.Lock()
+	t.SetProgress("", 700, 1000)
+	s.st.Unlock()
+	c.Assert(s.mgr.Ensure(), IsNil)
+	c.Assert(s.store.reportedBatches, HasLen, 2)
+	c.Check(s.store.reportedBatches[1][0].Details["progress_percent"], Equals, 70.0)
+}
+
+func (s *updateEventsSuite) TestDownloadProgressShortDownloadEmitsNothingExtra(c *C) {
+	now := time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)
+	defer updateevents.MockTimeNow(func() time.Time { return now })()
+
+	s.st.Lock()
+	t := s.newUpdateTask("download-snap", "act-1")
+	t.SetStatus(state.DoingStatus)
+	t.SetProgress("", 100, 1000)
+	s.mgr.SetPending(nil, nil)
+	s.st.Unlock()
+
+	// Sample repeatedly, but always within the first-delay window.
+	for i := 0; i < 3; i++ {
+		now = now.Add(5 * time.Second)
+		c.Assert(s.mgr.Ensure(), IsNil)
+	}
+	c.Check(s.store.reportedBatches, HasLen, 0)
+
+	// The download completes before any intermediate event was due.
+	s.st.Lock()
+	t.SetProgress("", 1000, 1000)
+	t.SetStatus(state.DoneStatus)
+	s.st.Unlock()
+	now = now.Add(time.Minute)
+	c.Assert(s.mgr.Ensure(), IsNil)
+
+	// Only the phase-completion (200) event was reported; no 150 progress event.
+	c.Assert(s.store.reportedBatches, HasLen, 1)
+	c.Assert(s.store.reportedBatches[0], HasLen, 1)
+	c.Check(s.store.reportedBatches[0][0].StatusCode, Equals, store.UpdateStatusPhaseSuccess)
+}
+
 func (s *updateEventsSuite) TestStatusChangeMapsErrorToFatal(c *C) {
 	s.st.Lock()
 	defer s.st.Unlock()

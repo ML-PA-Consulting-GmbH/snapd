@@ -30,15 +30,28 @@ package updateevents
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/overlord/snapstate"
 	"github.com/snapcore/snapd/overlord/state"
 	"github.com/snapcore/snapd/store"
+	"github.com/snapcore/snapd/strutil/quantity"
 )
 
 const updateEventsStateKey = "update-events"
+
+const (
+	// downloadProgressFirstDelay is how long a download must run before its
+	// first intermediate progress event is emitted. Short downloads finish
+	// before this and never produce intermediate events.
+	downloadProgressFirstDelay = 30 * time.Second
+	// downloadProgressInterval is the cadence of subsequent progress events
+	// once the first has been emitted.
+	downloadProgressInterval = 60 * time.Second
+)
 
 // majorsCacheTTL bounds how long a supported-update-majors verdict from the OTA
 // discovery endpoint is reused before re-probing. Within the TTL the cached
@@ -148,17 +161,41 @@ type majorsCache struct {
 	Probed time.Time `json:"probed"`
 }
 
+// downloadProgress is the in-memory sampling state of one in-progress
+// download-snap task, used to throttle intermediate progress events and to
+// derive transfer speed between samples. It is intentionally not persisted: a
+// download that is interrupted by a snapd restart is restarted from scratch, so
+// any stale sample would be meaningless.
+type downloadProgress struct {
+	// firstSeen is when the manager first observed the download running, used
+	// to defer the first progress event by downloadProgressFirstDelay.
+	firstSeen time.Time
+	// emitted reports whether the first progress event has been sent.
+	emitted bool
+	// refTime and refBytes are the time and byte count of the last emitted
+	// progress event, the reference point for the next speed computation.
+	refTime  time.Time
+	refBytes int
+}
+
 // UpdateEventsManager buffers and reports transparent-update status events.
 type UpdateEventsManager struct {
 	state *state.State
 
 	taskHandlerID   int
 	changeHandlerID int
+
+	// downloads tracks per-task download progress sampling state, keyed by task
+	// ID. Only accessed from Ensure under the state lock.
+	downloads map[string]*downloadProgress
 }
 
 // Manager creates a new UpdateEventsManager.
 func Manager(st *state.State) *UpdateEventsManager {
-	return &UpdateEventsManager{state: st}
+	return &UpdateEventsManager{
+		state:     st,
+		downloads: make(map[string]*downloadProgress),
+	}
 }
 
 // StartUp implements StateStarterUp.StartUp. It registers the status-change
@@ -316,6 +353,107 @@ func (m *UpdateEventsManager) pruneOrderHints(es *updateEventsState) {
 	m.setState(es)
 }
 
+// sampleDownloads inspects in-progress download-snap tasks of tracked updates
+// and appends throttled download-phase progress events (status 150) to the
+// buffer. The first event for a download is deferred by
+// downloadProgressFirstDelay and subsequent ones spaced by
+// downloadProgressInterval, so short downloads emit nothing extra and long ones
+// report at a bounded rate. Each event carries a human-readable Message and a
+// Details payload with progress_percent and speed_bytes (bytes/second since the
+// previous sample).
+//
+// It returns whether any download is still active (so the caller re-arms the
+// ensure timer), whether it appended an event (so the caller persists state),
+// and how long until the next sample is due. Caller must hold the state lock.
+func (m *UpdateEventsManager) sampleDownloads(es *updateEventsState) (active, emitted bool, nextWake time.Duration) {
+	now := timeNow()
+	seen := make(map[string]bool)
+	nextWake = downloadProgressInterval
+
+	for _, chg := range m.state.Changes() {
+		if chg.IsReady() {
+			continue
+		}
+		for _, t := range chg.Tasks() {
+			if t.Kind() != "download-snap" || t.Status() != state.DoingStatus {
+				continue
+			}
+			snapsup, err := snapstate.TaskSnapSetup(t)
+			if err != nil || snapsup.UpdateActionID == "" {
+				continue
+			}
+			_, done, total := t.Progress()
+			if total <= 0 {
+				continue
+			}
+
+			active = true
+			id := t.ID()
+			seen[id] = true
+
+			dp := m.downloads[id]
+			if dp == nil {
+				dp = &downloadProgress{firstSeen: now, refTime: now, refBytes: done}
+				m.downloads[id] = dp
+			}
+
+			var untilDue time.Duration
+			if !dp.emitted {
+				untilDue = downloadProgressFirstDelay - now.Sub(dp.firstSeen)
+			} else {
+				untilDue = downloadProgressInterval - now.Sub(dp.refTime)
+			}
+
+			if untilDue <= 0 {
+				secs := now.Sub(dp.refTime).Seconds()
+				var speed int64
+				if secs > 0 {
+					speed = int64(float64(done-dp.refBytes) / secs)
+				}
+				percent := float64(done) / float64(total) * 100
+
+				hint := m.nextOrderHint(es, snapsup.UpdateActionID)
+				es.Pending = append(es.Pending, store.UpdateEvent{
+					UpdateActionID: snapsup.UpdateActionID,
+					Component:      store.UpdateComponentTarget,
+					Mechanism:      store.UpdateMechanismSnap,
+					Phase:          store.UpdatePhaseDownload,
+					StatusCode:     store.UpdateStatusProgress,
+					Timestamp:      now.UTC().Format(time.RFC3339),
+					OrderHint:      &hint,
+					Message:        fmt.Sprintf("Downloading %q: %.0f%% at %s", snapsup.InstanceName(), percent, strings.TrimSpace(quantity.FormatBPS(float64(done-dp.refBytes), secs, -1))),
+					Details: map[string]any{
+						"progress_percent": float64(int64(percent*10+0.5)) / 10,
+						"speed_bytes":      speed,
+					},
+				})
+				emitted = true
+
+				dp.emitted = true
+				dp.refTime = now
+				dp.refBytes = done
+				untilDue = downloadProgressInterval
+			}
+
+			if untilDue < nextWake {
+				nextWake = untilDue
+			}
+		}
+	}
+
+	// Drop sampling state of downloads that are no longer running.
+	for id := range m.downloads {
+		if !seen[id] {
+			delete(m.downloads, id)
+		}
+	}
+
+	if nextWake < time.Second {
+		nextWake = time.Second
+	}
+	return active, emitted, nextWake
+}
+
 // Ensure implements StateManager.Ensure. When events are pending it consults the
 // store's OTA discovery endpoint (using a cached verdict within majorsCacheTTL,
 // or falling back to a stale cached verdict when the uplink is unavailable) and,
@@ -341,6 +479,16 @@ func (m *UpdateEventsManager) Ensure() error {
 	// here, outside the status-handler call stack, so it cannot race with the
 	// generation of a change's final event.
 	m.pruneOrderHints(es)
+
+	// Sample in-progress downloads, appending throttled progress events, and
+	// re-arm the ensure timer so sampling continues while a download runs.
+	active, emitted, nextWake := m.sampleDownloads(es)
+	if emitted {
+		m.setState(es)
+	}
+	if active {
+		m.state.EnsureBefore(nextWake)
+	}
 
 	if len(es.Pending) == 0 {
 		m.state.Unlock()

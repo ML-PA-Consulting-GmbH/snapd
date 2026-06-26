@@ -28,6 +28,12 @@ import (
 // MajorsCacheTTL exposes the discovery-verdict cache TTL for tests.
 const MajorsCacheTTL = majorsCacheTTL
 
+// Download-progress sampling cadence, exposed for tests.
+const (
+	DownloadProgressFirstDelay = downloadProgressFirstDelay
+	DownloadProgressInterval   = downloadProgressInterval
+)
+
 // MockTimeNow replaces the time source used for event timestamps.
 func MockTimeNow(f func() time.Time) (restore func()) {
 	old := timeNow
