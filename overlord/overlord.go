@@ -63,6 +63,7 @@ import (
 	_ "github.com/snapcore/snapd/overlord/snapstate/agentnotify"
 	"github.com/snapcore/snapd/overlord/state"
 	"github.com/snapcore/snapd/overlord/storecontext"
+	"github.com/snapcore/snapd/overlord/updateevents"
 	"github.com/snapcore/snapd/snapdenv"
 	"github.com/snapcore/snapd/store"
 	"github.com/snapcore/snapd/systemd"
@@ -123,6 +124,7 @@ type Overlord struct {
 	confdbMgr     *confdbstate.ConfdbManager
 	deviceMgmtMgr *devicemgmtstate.DeviceMgmtManager
 	certStateMgr  *certstate.CertManager
+	updateEvtMgr  *updateevents.UpdateEventsManager
 
 	// proxyConf mediates the http proxy config
 	proxyConf func(req *http.Request) (*url.URL, error)
@@ -213,6 +215,8 @@ func New(restartHandler restart.Handler) (*Overlord, error) {
 
 	o.addManager(devicemgmtstate.Manager(s, o.runner, deviceMgr))
 
+	o.addManager(updateevents.Manager(s))
+
 	// the shared task runner should be added last!
 	o.stateEng.AddManager(o.runner)
 
@@ -258,6 +262,8 @@ func (o *Overlord) addManager(mgr StateManager) {
 		o.deviceMgmtMgr = x
 	case *certstate.CertManager:
 		o.certStateMgr = x
+	case *updateevents.UpdateEventsManager:
+		o.updateEvtMgr = x
 	}
 	o.stateEng.AddManager(mgr)
 }
