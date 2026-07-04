@@ -40,6 +40,26 @@ import (
 // to be set to 1 (do re-exec); that is: set it to 0 to disable.
 const reExecKey = "SNAP_REEXEC"
 
+// reExecDefault is the value SNAP_REEXEC is treated as when the
+// environment variable is not set at all.
+//
+// TODO: this is a temporary default so re-exec behaves as if
+// SNAP_REEXEC=force were set everywhere, without requiring it to
+// actually be present in the environment (which would otherwise be
+// needed on distros not in DistroSupportsReExec's allow-list, and to
+// bypass the "don't re-exec into an older version" check). Revisit
+// once this is no longer needed.
+const reExecDefault = "force"
+
+// reExecValue returns the effective value of SNAP_REEXEC: the literal
+// environment variable when set, or reExecDefault when it is not.
+func reExecValue() string {
+	if v, isSet := os.LookupEnv(reExecKey); isSet {
+		return v
+	}
+	return reExecDefault
+}
+
 var (
 	// snapdSnap is the place to look for the snapd snap; we will re-exec
 	// here
@@ -149,7 +169,7 @@ func IsReexecEnabled() bool {
 // IsReexecExplicitlyEnabled is a stronger check than IsReexecEnabled as it
 // really expects the relevant environment variable to be set.
 func IsReexecExplicitlyEnabled() bool {
-	return os.Getenv(reExecKey) != "" && IsReexecEnabled()
+	return reExecValue() != "" && IsReexecEnabled()
 }
 
 // mustUnsetenv will unset the given environment key or panic if it
@@ -177,7 +197,7 @@ func pathInSnapdSnap(relativeExePath string) string {
 
 // IsReexecForced returns true if reexec is explicitly forced.
 func IsReexecForced() bool {
-	return os.Getenv(reExecKey) == "force"
+	return reExecValue() == "force"
 }
 
 // ExecInSnapdOrCoreSnap makes sure you're executing the binary that ships in

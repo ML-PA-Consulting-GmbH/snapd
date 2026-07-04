@@ -446,18 +446,30 @@ func (s *toolSuite) TestExecInSnapdOrCoreSnapBadSelfExe(c *C) {
 }
 
 func (s *toolSuite) TestExecInSnapdOrCoreSnapBailsNoDistroSupport(c *C) {
-	snapReexec := os.Getenv("SNAP_REEXEC")
-	defer os.Setenv("SNAP_REEXEC", snapReexec)
-	err := os.Unsetenv("SNAP_REEXEC")
-	c.Assert(err, IsNil)
+	snapReexec, hadSnapReexec := os.LookupEnv("SNAP_REEXEC")
+	defer func() {
+		if hadSnapReexec {
+			os.Setenv("SNAP_REEXEC", snapReexec)
+		} else {
+			os.Unsetenv("SNAP_REEXEC")
+		}
+	}()
 
 	defer s.mockReExecFor(c, s.snapdPath, "potato", dirs.DefaultDistroLibexecDir)()
 
 	// no distro support:
 	defer release.MockOnClassic(false)()
 
+	// SNAP_REEXEC=0 always bails, regardless of distro support
+	c.Assert(os.Setenv("SNAP_REEXEC", "0"), IsNil)
 	snapdtool.ExecInSnapdOrCoreSnap()
 	c.Check(s.execCalled, Equals, 0)
+
+	// but with SNAP_REEXEC unset we now default to forcing reexec, even
+	// without distro support
+	c.Assert(os.Unsetenv("SNAP_REEXEC"), IsNil)
+	c.Check(snapdtool.ExecInSnapdOrCoreSnap, PanicMatches, `>exec of "[^"]+/potato" in tests<`)
+	c.Check(s.execCalled, Equals, 1)
 }
 
 func (s *toolSuite) TestExecInSnapdOrCoreSnapNoDouble(c *C) {
@@ -492,13 +504,15 @@ func (s *toolSuite) testExecInSnapdOrCoreSnapOnUnsupportedDistro(c *C, libexecDi
 	// set up desired libexecdir
 	defer s.mockReExecFor(c, s.snapdPath, "potato", libexecDir)()
 
-	// reexec does not happen
+	// explicitly disabling still bails, even without distro support
+	os.Setenv("SNAP_REEXEC", "0")
+	defer os.Unsetenv("SNAP_REEXEC")
 	snapdtool.ExecInSnapdOrCoreSnap()
 	c.Check(s.execCalled, Equals, 0)
 
-	// unless explicitly requested through the environment
-	os.Setenv("SNAP_REEXEC", "1")
-	defer os.Unsetenv("SNAP_REEXEC")
+	// by default (SNAP_REEXEC unset) we now reexec anyway, even without
+	// distro support
+	os.Unsetenv("SNAP_REEXEC")
 
 	// in which case we do reexec
 	c.Check(snapdtool.ExecInSnapdOrCoreSnap, PanicMatches, `>exec of "[^"]+/potato" in tests<`)
@@ -528,20 +542,22 @@ func (s *toolSuite) TestExecInSnapdOrCoreForced(c *C) {
 	// snapd snap version is lower than ours, normally this would not reexec
 	defer snapdtool.MockVersion("999")()
 
-	// reexec does not happen, because version is lower
-	snapdtool.ExecInSnapdOrCoreSnap()
-	c.Check(s.execCalled, Equals, 0)
-
-	// even if explicitly enabled in environment
+	// explicitly enabled (but not forced) does not reexec, because version
+	// is lower
 	os.Setenv("SNAP_REEXEC", "1")
 	defer os.Unsetenv("SNAP_REEXEC")
 
 	snapdtool.ExecInSnapdOrCoreSnap()
 	c.Check(s.execCalled, Equals, 0)
 
-	// unless we force it
+	// by default (SNAP_REEXEC unset) reexec is forced regardless of version
+	os.Unsetenv("SNAP_REEXEC")
+	c.Check(snapdtool.ExecInSnapdOrCoreSnap, PanicMatches, `>exec of "[^"]+/potato" in tests<`)
+	c.Check(s.execCalled, Equals, 1)
+	s.execCalled = 0
+
+	// and explicitly forcing it has the same effect
 	os.Setenv("SNAP_REEXEC", "force")
-	defer os.Unsetenv("SNAP_REEXEC")
 
 	// in which case we do reexec
 	c.Check(snapdtool.ExecInSnapdOrCoreSnap, PanicMatches, `>exec of "[^"]+/potato" in tests<`)
