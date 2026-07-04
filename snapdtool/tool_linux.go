@@ -58,18 +58,23 @@ var (
 
 // DistroSupportsReExec returns true if the distribution we are running on can use re-exec.
 //
-// This is true by default except for a "core/all" snap system where it makes
-// no sense and in certain distributions that we don't want to enable re-exec
-// yet because of missing validation or other issues.
+// Upstream snapd gates this on a debian/ubuntu-like allow-list, because re-exec
+// has not been validated on other distributions. This fork, however, ships only
+// on our own tested embedded (Yocto/RAUC) images. Those are classic systems but
+// are not "debian/ubuntu-like", so the upstream allow-list would wrongly disable
+// re-exec on them even though re-exec is required there: the snapd shipped inside
+// the snapd/core snap must take over from the smaller snapd baked into the OS
+// image. We therefore allow re-exec on any classic system rather than encoding a
+// brittle os-release ID match; this is safe for us because we only run on
+// hardware and images we control and test.
+//
+// Note that this only relaxes *where* re-exec is attempted. The "do not re-exec
+// into an older snapd" safety check in ExecInSnapdOrCoreSnap (candidateVersionNewer)
+// still applies, so this cannot silently downgrade snapd.
+//
+// It stays false on a "core/all" snap system, where re-exec makes no sense.
 func DistroSupportsReExec() bool {
-	if !release.OnClassic {
-		return false
-	}
-	if !release.DistroLike("debian", "ubuntu") {
-		logger.Debugf("re-exec not supported on distro %q yet", release.ReleaseInfo.ID)
-		return false
-	}
-	return true
+	return release.OnClassic
 }
 
 // candidateVersionNewer returns true if the given core/snapd snap is newer than
