@@ -136,15 +136,15 @@ func (s *toolSuite) TestDistroSupportsReExec(c *C) {
 	restore := release.MockOnClassic(true)
 	defer restore()
 
-	// Some distributions don't support re-execution yet.
-	for _, id := range []string{"fedora", "centos", "rhel", "opensuse", "suse", "poky"} {
-		restore = release.MockReleaseInfo(&release.OS{ID: id})
-		defer restore()
-		c.Check(snapdtool.DistroSupportsReExec(), Equals, false, Commentf("ID: %q", id))
-	}
-
-	// While others do.
-	for _, id := range []string{"debian", "ubuntu"} {
+	// Unlike upstream, this fork enables re-exec on any classic distribution
+	// (see the comment on DistroSupportsReExec): we only ship on our own
+	// tested embedded images, whose os-release ID ("poky" and friends) is not
+	// in the upstream debian/ubuntu allow-list. So every classic distro here
+	// -- including the ones upstream gates off -- supports re-exec.
+	for _, id := range []string{
+		"debian", "ubuntu", "poky",
+		"fedora", "centos", "rhel", "opensuse", "suse", "arch", "archlinux",
+	} {
 		restore = release.MockReleaseInfo(&release.OS{ID: id})
 		defer restore()
 		c.Check(snapdtool.DistroSupportsReExec(), Equals, true, Commentf("ID: %q", id))
@@ -446,14 +446,20 @@ func (s *toolSuite) TestExecInSnapdOrCoreSnapBadSelfExe(c *C) {
 }
 
 func (s *toolSuite) TestExecInSnapdOrCoreSnapBailsNoDistroSupport(c *C) {
-	snapReexec := os.Getenv("SNAP_REEXEC")
-	defer os.Setenv("SNAP_REEXEC", snapReexec)
-	err := os.Unsetenv("SNAP_REEXEC")
-	c.Assert(err, IsNil)
+	snapReexec, hadSnapReexec := os.LookupEnv("SNAP_REEXEC")
+	defer func() {
+		if hadSnapReexec {
+			os.Setenv("SNAP_REEXEC", snapReexec)
+		} else {
+			os.Unsetenv("SNAP_REEXEC")
+		}
+	}()
+	c.Assert(os.Unsetenv("SNAP_REEXEC"), IsNil)
 
 	defer s.mockReExecFor(c, s.snapdPath, "potato", dirs.DefaultDistroLibexecDir)()
 
-	// no distro support:
+	// not a classic system, so DistroSupportsReExec() is false and re-exec
+	// does not happen unless it is explicitly requested via the environment
 	defer release.MockOnClassic(false)()
 
 	snapdtool.ExecInSnapdOrCoreSnap()
@@ -480,8 +486,13 @@ func (s *toolSuite) TestExecInSnapdOrCoreSnapDisabled(c *C) {
 	c.Check(s.execCalled, Equals, 0)
 }
 
-func (s *toolSuite) testExecInSnapdOrCoreSnapOnUnsupportedDistro(c *C, libexecDir string) {
-	// distro which does not support reexec
+// testExecInSnapdOrCoreSnapOnNonAllowlistedDistro checks the fork-specific
+// behaviour of DistroSupportsReExec: upstream would refuse to re-exec on a
+// distro that is not debian/ubuntu-like, but this fork re-execs on any classic
+// system (see the comment on DistroSupportsReExec), because we ship on our own
+// tested embedded images whose os-release ID is not in the upstream allow-list.
+func (s *toolSuite) testExecInSnapdOrCoreSnapOnNonAllowlistedDistro(c *C, libexecDir string) {
+	// a distro that upstream would not re-exec on (not debian/ubuntu-like)
 	defer release.MockReleaseInfo(&release.OS{ID: "arch"})()
 
 	dirs.SetRootDir(s.fakeroot)
@@ -492,13 +503,15 @@ func (s *toolSuite) testExecInSnapdOrCoreSnapOnUnsupportedDistro(c *C, libexecDi
 	// set up desired libexecdir
 	defer s.mockReExecFor(c, s.snapdPath, "potato", libexecDir)()
 
-	// reexec does not happen
+	// explicitly disabling still bails
+	os.Setenv("SNAP_REEXEC", "0")
+	defer os.Unsetenv("SNAP_REEXEC")
 	snapdtool.ExecInSnapdOrCoreSnap()
 	c.Check(s.execCalled, Equals, 0)
 
-	// unless explicitly requested through the environment
-	os.Setenv("SNAP_REEXEC", "1")
-	defer os.Unsetenv("SNAP_REEXEC")
+	// but by default (SNAP_REEXEC unset) this fork re-execs on any classic
+	// distro, not just the upstream debian/ubuntu allow-list
+	os.Unsetenv("SNAP_REEXEC")
 
 	// in which case we do reexec
 	c.Check(snapdtool.ExecInSnapdOrCoreSnap, PanicMatches, `>exec of "[^"]+/potato" in tests<`)
@@ -508,12 +521,12 @@ func (s *toolSuite) testExecInSnapdOrCoreSnapOnUnsupportedDistro(c *C, libexecDi
 	c.Check(s.lastExecArgv, DeepEquals, os.Args)
 }
 
-func (s *toolSuite) TestExecInSnapdOrCoreSnapOnUnsupportedDistro(c *C) {
-	s.testExecInSnapdOrCoreSnapOnUnsupportedDistro(c, dirs.DefaultDistroLibexecDir)
+func (s *toolSuite) TestExecInSnapdOrCoreSnapOnNonAllowlistedDistro(c *C) {
+	s.testExecInSnapdOrCoreSnapOnNonAllowlistedDistro(c, dirs.DefaultDistroLibexecDir)
 }
 
-func (s *toolSuite) TestExecInSnapdOrCoreSnapOnUnsupportedDistroAltLibexecdir(c *C) {
-	s.testExecInSnapdOrCoreSnapOnUnsupportedDistro(c, dirs.AltDistroLibexecDir)
+func (s *toolSuite) TestExecInSnapdOrCoreSnapOnNonAllowlistedDistroAltLibexecdir(c *C) {
+	s.testExecInSnapdOrCoreSnapOnNonAllowlistedDistro(c, dirs.AltDistroLibexecDir)
 }
 
 func (s *toolSuite) TestExecInSnapdOrCoreForced(c *C) {
