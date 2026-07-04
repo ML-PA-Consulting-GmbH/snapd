@@ -193,6 +193,59 @@ func (s *systemKeySuite) TestInterfaceWriteSystemKeyErrorOnBuildID(c *C) {
 	c.Assert(err, ErrorMatches, "no build ID for you")
 }
 
+func (s *systemKeySuite) writeSystemKeyForBuildInfoTest(c *C) []byte {
+	restore := interfaces.MockIsHomeUsingRemoteFS(func() (bool, error) { return false, nil })
+	defer restore()
+	restore = interfaces.MockReadBuildID(func(p string) (string, error) { return s.buildID, nil })
+	defer restore()
+	restore = interfaces.MockIsRootWritableOverlay(func() (string, error) { return "", nil })
+	defer restore()
+	restore = cgroup.MockVersion(1, nil)
+	defer restore()
+
+	err := interfaces.WriteSystemKey(interfaces.SystemKeyExtraData{})
+	c.Assert(err, IsNil)
+
+	systemKey, err := os.ReadFile(dirs.SnapSystemKeyFile)
+	c.Assert(err, IsNil)
+	return systemKey
+}
+
+func (s *systemKeySuite) TestInterfaceWriteSystemKeyNoBuildInfo(c *C) {
+	// no /etc/buildinfo under the (fake) root: the field must be omitted,
+	// not merely empty, so old and new snapd agree on distros that never
+	// have the file.
+	systemKey := s.writeSystemKeyForBuildInfoTest(c)
+	c.Check(strings.Contains(string(systemKey), "buildinfo-hash"), Equals, false)
+}
+
+func (s *systemKeySuite) TestInterfaceWriteSystemKeyWithBuildInfo(c *C) {
+	buildInfo := filepath.Join(s.tmp, "/etc/buildinfo")
+	c.Assert(os.MkdirAll(filepath.Dir(buildInfo), 0755), IsNil)
+	c.Assert(os.WriteFile(buildInfo, []byte(`Lay: meta-phytec = "master:abc123"`), 0644), IsNil)
+
+	key1 := s.writeSystemKeyForBuildInfoTest(c)
+	c.Check(strings.Contains(string(key1), `"buildinfo-hash":"`), Equals, true)
+
+	// changing the build info content changes the system key, so a
+	// mismatch is detected and profiles get regenerated even though
+	// nothing else (kernel, snapd build-id, ...) changed.
+	c.Assert(os.WriteFile(buildInfo, []byte(`Lay: meta-phytec = "master:def456"`), 0644), IsNil)
+	key2 := s.writeSystemKeyForBuildInfoTest(c)
+	c.Check(string(key1) == string(key2), Equals, false)
+}
+
+func (s *systemKeySuite) TestInterfaceWriteSystemKeyBuildInfoNotRegularFile(c *C) {
+	// /etc/buildinfo that is not a regular file (here a directory; on a real
+	// system a FIFO/device could block open/read) must be treated as absent so
+	// system-key generation stays cheap and never blocks on `snap run`.
+	buildInfo := filepath.Join(s.tmp, "/etc/buildinfo")
+	c.Assert(os.MkdirAll(buildInfo, 0755), IsNil)
+
+	systemKey := s.writeSystemKeyForBuildInfoTest(c)
+	c.Check(strings.Contains(string(systemKey), "buildinfo-hash"), Equals, false)
+}
+
 func (s *systemKeySuite) TestInterfaceSystemKeyMismatchHappy(c *C) {
 	s.AddCleanup(interfaces.MockSystemKey(`
 {
@@ -439,6 +492,7 @@ func (s *systemKeySuite) TestStaticVersion(c *C) {
 		"SecCompActions:[]",
 		"SeccompCompilerVersion:",
 		"CgroupVersion:",
+		"BuildInfoHash:",
 	}, " ")+"}")
 }
 
