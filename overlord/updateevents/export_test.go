@@ -41,6 +41,13 @@ func MockTimeNow(f func() time.Time) (restore func()) {
 	return func() { timeNow = old }
 }
 
+// MockMaxPendingEvents lowers the buffered-event cap for tests.
+func MockMaxPendingEvents(n int) (restore func()) {
+	old := maxPendingEvents
+	maxPendingEvents = n
+	return func() { maxPendingEvents = old }
+}
+
 // PendingEvents returns the buffered events. Caller must hold the state lock.
 func (m *UpdateEventsManager) PendingEvents() []store.UpdateEvent {
 	es, err := m.getState()
