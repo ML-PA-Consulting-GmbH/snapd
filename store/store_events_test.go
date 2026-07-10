@@ -21,6 +21,7 @@ package store_test
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -36,10 +37,6 @@ type storeEventsSuite struct {
 }
 
 var _ = Suite(&storeEventsSuite{})
-
-func (s *storeEventsSuite) SetUpTest(c *C) {
-	s.baseStoreSuite.SetUpTest(c)
-}
 
 func intPtr(i int) *int { return &i }
 
@@ -122,8 +119,14 @@ func (s *storeEventsSuite) TestReportUpdateEventsOK(c *C) {
 }
 
 func (s *storeEventsSuite) TestReportUpdateEventsEmptyIsNoop(c *C) {
+	// An empty batch must not hit the network at all. Rather than asserting
+	// from inside the handler goroutine (c.Fatalf there is unreliable), count
+	// requests and assert in the test goroutine after the synchronous calls
+	// return.
+	var requests int
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c.Fatalf("unexpected request for empty batch")
+		requests++
+		w.WriteHeader(204)
 	}))
 	defer mockServer.Close()
 
@@ -135,6 +138,36 @@ func (s *storeEventsSuite) TestReportUpdateEventsEmptyIsNoop(c *C) {
 
 	c.Check(sto.ReportUpdateEvents(s.ctx, nil), IsNil)
 	c.Check(sto.ReportUpdateEvents(s.ctx, []store.UpdateEvent{}), IsNil)
+
+	c.Check(requests, Equals, 0)
+}
+
+func (s *storeEventsSuite) TestReportUpdateEventsSurfacesStructuredError(c *C) {
+	// A non-204 carrying the store's standard error-list body must surface the
+	// backend's detail, not just the HTTP status code.
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error-list": []map[string]any{
+				{"code": "unknown-action", "message": "no such update action"},
+			},
+		})
+	}))
+	defer mockServer.Close()
+
+	mockServerURL, _ := url.Parse(mockServer.URL)
+	dauthCtx := &testDauthContext{c: c, device: s.device}
+	sto := store.New(&store.Config{
+		StoreBaseURL: mockServerURL,
+	}, dauthCtx)
+
+	events := []store.UpdateEvent{{UpdateActionID: "ua-123"}}
+	err := sto.ReportUpdateEvents(s.ctx, events)
+	c.Assert(err, ErrorMatches, `store rejected update events: no such update action \(code: unknown-action\) \(status: 400\)`)
+	// A 4xx is a definitive rejection so the caller can drop the batch rather
+	// than resend it forever.
+	c.Check(errors.Is(err, store.ErrUpdateEventsRejected), Equals, true)
 }
 
 func (s *storeEventsSuite) TestReportUpdateEventsServerError(c *C) {
@@ -153,6 +186,8 @@ func (s *storeEventsSuite) TestReportUpdateEventsServerError(c *C) {
 	events := []store.UpdateEvent{{UpdateActionID: "ua-123"}}
 	err := sto.ReportUpdateEvents(s.ctx, events)
 	c.Assert(err, ErrorMatches, "cannot report update events: got unexpected HTTP status code 500 via POST to .*")
+	// A 5xx is transient, not a definitive rejection: the caller should retry.
+	c.Check(errors.Is(err, store.ErrUpdateEventsRejected), Equals, false)
 }
 
 func (s *storeEventsSuite) TestReportUpdateEventsUnexpectedStatus(c *C) {
@@ -258,5 +293,38 @@ func (s *storeEventsSuite) TestSupportedUpdateMajorsServerError(c *C) {
 
 	majors, err := sto.SupportedUpdateMajors(s.ctx)
 	c.Assert(err, ErrorMatches, "cannot query supported update majors: .*")
+	c.Check(majors, IsNil)
+}
+
+func (s *storeEventsSuite) TestSupportedUpdateMajorsUndecodableBodyIsTransient(c *C) {
+	// A 200 with a body that does not decode is transient (nil, err), not a
+	// definitive verdict: the caller must not cache it and should retry later.
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write([]byte("this is not json"))
+	}))
+	defer mockServer.Close()
+
+	mockServerURL, _ := url.Parse(mockServer.URL)
+	dauthCtx := &testDauthContext{c: c, device: s.device}
+	sto := store.New(&store.Config{
+		StoreBaseURL: mockServerURL,
+	}, dauthCtx)
+
+	majors, err := sto.SupportedUpdateMajors(s.ctx)
+	c.Assert(err, ErrorMatches, "cannot query supported update majors: .*")
+	c.Check(majors, IsNil)
+}
+
+func (s *storeEventsSuite) TestSupportedUpdateMajorsStoreOffline(c *C) {
+	mockServerURL, _ := url.Parse("http://store.example.local")
+	dauthCtx := &testDauthContext{c: c, device: s.device, storeOffline: true}
+	sto := store.New(&store.Config{
+		StoreBaseURL: mockServerURL,
+	}, dauthCtx)
+
+	majors, err := sto.SupportedUpdateMajors(s.ctx)
+	c.Assert(err, testutil.ErrorIs, store.ErrStoreOffline)
 	c.Check(majors, IsNil)
 }

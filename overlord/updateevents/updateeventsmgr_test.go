@@ -176,7 +176,7 @@ func (s *updateEventsSuite) TestDownloadProgressSampling(c *C) {
 	s.st.Lock()
 	t := s.newUpdateTask("download-snap", "act-1")
 	t.SetStatus(state.DoingStatus)
-	t.SetProgress("", 100, 1000)
+	t.SetProgress("foo", 100, 1000)
 	// Drop the phase-start (150) event so only sampled progress is observed.
 	s.mgr.SetPending(nil, nil)
 	s.st.Unlock()
@@ -189,7 +189,7 @@ func (s *updateEventsSuite) TestDownloadProgressSampling(c *C) {
 	// measured since the download was first seen (300 bytes over 30s = 10 B/s).
 	now = now.Add(updateevents.DownloadProgressFirstDelay)
 	s.st.Lock()
-	t.SetProgress("", 400, 1000)
+	t.SetProgress("foo", 400, 1000)
 	s.st.Unlock()
 
 	c.Assert(s.mgr.Ensure(), IsNil)
@@ -205,7 +205,7 @@ func (s *updateEventsSuite) TestDownloadProgressSampling(c *C) {
 	// Before the cadence interval elapses again: no further event.
 	now = now.Add(updateevents.DownloadProgressInterval - time.Second)
 	s.st.Lock()
-	t.SetProgress("", 500, 1000)
+	t.SetProgress("foo", 500, 1000)
 	s.st.Unlock()
 	c.Assert(s.mgr.Ensure(), IsNil)
 	c.Check(s.store.reportedBatches, HasLen, 1)
@@ -213,7 +213,7 @@ func (s *updateEventsSuite) TestDownloadProgressSampling(c *C) {
 	// Once the interval elapses, a second progress event is emitted.
 	now = now.Add(time.Second)
 	s.st.Lock()
-	t.SetProgress("", 700, 1000)
+	t.SetProgress("foo", 700, 1000)
 	s.st.Unlock()
 	c.Assert(s.mgr.Ensure(), IsNil)
 	c.Assert(s.store.reportedBatches, HasLen, 2)
@@ -227,7 +227,7 @@ func (s *updateEventsSuite) TestDownloadProgressShortDownloadEmitsNothingExtra(c
 	s.st.Lock()
 	t := s.newUpdateTask("download-snap", "act-1")
 	t.SetStatus(state.DoingStatus)
-	t.SetProgress("", 100, 1000)
+	t.SetProgress("foo", 100, 1000)
 	s.mgr.SetPending(nil, nil)
 	s.st.Unlock()
 
@@ -240,7 +240,7 @@ func (s *updateEventsSuite) TestDownloadProgressShortDownloadEmitsNothingExtra(c
 
 	// The download completes before any intermediate event was due.
 	s.st.Lock()
-	t.SetProgress("", 1000, 1000)
+	t.SetProgress("foo", 1000, 1000)
 	t.SetStatus(state.DoneStatus)
 	s.st.Unlock()
 	now = now.Add(time.Minute)
@@ -250,6 +250,51 @@ func (s *updateEventsSuite) TestDownloadProgressShortDownloadEmitsNothingExtra(c
 	c.Assert(s.store.reportedBatches, HasLen, 1)
 	c.Assert(s.store.reportedBatches[0], HasLen, 1)
 	c.Check(s.store.reportedBatches[0][0].StatusCode, Equals, store.UpdateStatusPhaseSuccess)
+}
+
+func (s *updateEventsSuite) TestDownloadProgressSkipsBeforeProgressSet(c *C) {
+	now := time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)
+	defer updateevents.MockTimeNow(func() time.Time { return now })()
+
+	s.st.Lock()
+	// A download-snap task that has entered DoingStatus but whose download
+	// meter has not started reporting yet. state.Task.Progress returns
+	// ("", 1, 1) in this window, which naively reads as 100% done.
+	t := s.newUpdateTask("download-snap", "act-1")
+	t.SetStatus(state.DoingStatus)
+	label, done, total := t.Progress()
+	c.Assert(label, Equals, "")
+	c.Assert(done, Equals, 1)
+	c.Assert(total, Equals, 1)
+	// Drop the phase-start (150) event so only sampled progress is observed.
+	s.mgr.SetPending(nil, nil)
+	s.st.Unlock()
+
+	// Even well past the first-delay, no progress event is emitted for a
+	// download that has not begun reporting: no spurious 100% event.
+	now = now.Add(updateevents.DownloadProgressFirstDelay + time.Minute)
+	c.Assert(s.mgr.Ensure(), IsNil)
+
+	s.st.Lock()
+	c.Check(s.mgr.PendingEvents(), HasLen, 0)
+	s.st.Unlock()
+	c.Check(s.store.reportedBatches, HasLen, 0)
+}
+
+func (s *updateEventsSuite) TestStopUnregistersHandlers(c *C) {
+	// Stop takes the state lock itself, so it must be called without holding it.
+	s.mgr.Stop()
+
+	s.st.Lock()
+	defer s.st.Unlock()
+
+	// A marker-task transition after Stop must not buffer any event, since the
+	// status-change handlers have been unregistered.
+	t := s.newUpdateTask("link-snap", "act-1")
+	t.SetStatus(state.DoingStatus)
+	t.SetStatus(state.DoneStatus)
+
+	c.Check(s.mgr.PendingEvents(), HasLen, 0)
 }
 
 func (s *updateEventsSuite) TestStatusChangeMapsErrorToFatal(c *C) {
@@ -343,7 +388,7 @@ func (s *updateEventsSuite) TestEnsureReportsWhenOTA3Available(c *C) {
 	c.Check(s.mgr.PendingEvents(), HasLen, 0)
 }
 
-func (s *updateEventsSuite) TestEnsureDropsWhenNoOTA3(c *C) {
+func (s *updateEventsSuite) TestEnsureRetainsWhenNoOTA3(c *C) {
 	s.store.majorsFn = func(context.Context) ([]int, error) { return []int{2}, nil }
 
 	s.st.Lock()
@@ -354,12 +399,14 @@ func (s *updateEventsSuite) TestEnsureDropsWhenNoOTA3(c *C) {
 	err := s.mgr.Ensure()
 	c.Assert(err, IsNil)
 
-	// Definitive no-OTA3: nothing reported and the buffer is dropped.
+	// Backend does not advertise OTA3: nothing is reported, but the buffer is
+	// retained (not dropped) - this may be a transitional state, and it will be
+	// re-probed after backoff. Growth is bounded by the cap, not by dropping.
 	c.Check(s.store.reportedBatches, HasLen, 0)
 
 	s.st.Lock()
 	defer s.st.Unlock()
-	c.Check(s.mgr.PendingEvents(), HasLen, 0)
+	c.Check(s.mgr.PendingEvents(), HasLen, 1)
 }
 
 func (s *updateEventsSuite) TestEnsureRetainsOnTransientDiscoveryError(c *C) {
@@ -397,6 +444,132 @@ func (s *updateEventsSuite) TestEnsureRetainsOnTransientSendError(c *C) {
 
 	c.Check(s.store.reportedBatches, HasLen, 1)
 
+	s.st.Lock()
+	defer s.st.Unlock()
+	c.Check(s.mgr.PendingEvents(), HasLen, 1)
+}
+
+func (s *updateEventsSuite) TestEnsureRetainsWhenStoreOfflineOnDiscovery(c *C) {
+	s.store.majorsFn = func(context.Context) ([]int, error) {
+		return nil, store.ErrStoreOffline
+	}
+
+	s.st.Lock()
+	t := s.newUpdateTask("download-snap", "act-1")
+	t.SetStatus(state.DoneStatus)
+	s.st.Unlock()
+
+	err := s.mgr.Ensure()
+	c.Assert(err, IsNil)
+
+	// store.access=offline is reversible: nothing is reported, but the buffer is
+	// retained (bounded by the cap) so it can be delivered once the store is back
+	// online, rather than being lost.
+	c.Check(s.store.reportedBatches, HasLen, 0)
+
+	s.st.Lock()
+	defer s.st.Unlock()
+	c.Check(s.mgr.PendingEvents(), HasLen, 1)
+}
+
+func (s *updateEventsSuite) TestEnsureRetainsWhenStoreOfflineOnReport(c *C) {
+	// Discovery succeeds (or is served from cache) and reports OTA3 support,
+	// but the actual report attempt hits the offline store.
+	s.store.reportFn = func(context.Context, []store.UpdateEvent) error {
+		return store.ErrStoreOffline
+	}
+
+	s.st.Lock()
+	t := s.newUpdateTask("download-snap", "act-1")
+	t.SetStatus(state.DoneStatus)
+	s.st.Unlock()
+
+	err := s.mgr.Ensure()
+	c.Assert(err, IsNil)
+
+	c.Check(s.store.reportedBatches, HasLen, 1)
+
+	// Offline is a temporary condition: the buffer is retained for delivery once
+	// the store is back, not dropped.
+	s.st.Lock()
+	defer s.st.Unlock()
+	c.Check(s.mgr.PendingEvents(), HasLen, 1)
+}
+
+func (s *updateEventsSuite) TestEnsureDropsWhenBackendRejects(c *C) {
+	// The backend advertises OTA3 but definitively rejects the batch (a
+	// non-retryable 4xx, surfaced as store.ErrUpdateEventsRejected).
+	s.store.reportFn = func(context.Context, []store.UpdateEvent) error {
+		return store.ErrUpdateEventsRejected
+	}
+
+	s.st.Lock()
+	t := s.newUpdateTask("download-snap", "act-1")
+	t.SetStatus(state.DoneStatus)
+	s.st.Unlock()
+
+	err := s.mgr.Ensure()
+	c.Assert(err, IsNil)
+
+	c.Check(s.store.reportedBatches, HasLen, 1)
+
+	// A definitive rejection is not treated as a transient failure: the batch
+	// is dropped instead of being resent forever.
+	s.st.Lock()
+	defer s.st.Unlock()
+	c.Check(s.mgr.PendingEvents(), HasLen, 0)
+}
+
+func (s *updateEventsSuite) TestEnsureBufferCapEvictsOldestAction(c *C) {
+	restore := updateevents.MockMaxPendingEvents(3)
+	defer restore()
+
+	// Backend does not advertise OTA3 so events are retained (not drained),
+	// which isolates the cap behaviour.
+	s.store.majorsFn = func(context.Context) ([]int, error) { return []int{2}, nil }
+
+	s.st.Lock()
+	s.mgr.SetPending([]store.UpdateEvent{
+		{UpdateActionID: "act-1"}, {UpdateActionID: "act-1"},
+		{UpdateActionID: "act-2"}, {UpdateActionID: "act-2"},
+	}, nil)
+	s.st.Unlock()
+
+	err := s.mgr.Ensure()
+	c.Assert(err, IsNil)
+
+	s.st.Lock()
+	defer s.st.Unlock()
+	// The oldest whole action group (act-1) is evicted to get under the cap;
+	// act-2's events are kept intact (no stranded 150/200 pairs).
+	pending := s.mgr.PendingEvents()
+	c.Assert(pending, HasLen, 2)
+	for _, ev := range pending {
+		c.Check(ev.UpdateActionID, Equals, "act-2")
+	}
+}
+
+func (s *updateEventsSuite) TestEnsureBacksOffAfterFailure(c *C) {
+	s.store.reportFn = func(context.Context, []store.UpdateEvent) error {
+		return errors.New("temporary failure")
+	}
+
+	s.st.Lock()
+	t := s.newUpdateTask("download-snap", "act-1")
+	t.SetStatus(state.DoneStatus)
+	s.st.Unlock()
+
+	// First pass attempts and fails, arming the backoff.
+	c.Assert(s.mgr.Ensure(), IsNil)
+	c.Check(s.store.reportedBatches, HasLen, 1)
+
+	// An immediate second pass must NOT re-attempt (still within backoff), so a
+	// burst of new events cannot hammer a down uplink. EnsureBefore alone could
+	// not enforce this - the nextAttempt gate does.
+	c.Assert(s.mgr.Ensure(), IsNil)
+	c.Check(s.store.reportedBatches, HasLen, 1)
+
+	// The buffer is still retained for a later retry.
 	s.st.Lock()
 	defer s.st.Unlock()
 	c.Check(s.mgr.PendingEvents(), HasLen, 1)
