@@ -53,11 +53,38 @@ const (
 	downloadProgressInterval = 60 * time.Second
 )
 
+// reportTimeout bounds the total time the reporting I/O in Ensure may block the
+// shared state-engine ensure loop (and, in turn, snapd shutdown). Like
+// catalogRefresh/autoRefresh, this manager does its store I/O inline in Ensure;
+// the bound caps the worst case (a hung connection) to something well under
+// systemd's stop timeout. It is roughly the store client's own per-request
+// retry budget: on the common path a pass reports only (discovery is served
+// from the cache within majorsCacheTTL); a rare cache-stale pass makes both
+// calls and shares this budget between them.
+const reportTimeout = 40 * time.Second
+
+// Backoff for deferred reporting attempts. EnsureBefore can only pull the ensure
+// timer earlier, never push it out, so it cannot rate-limit on its own; the
+// manager gates its own attempts with nextAttempt/retryBackoff instead (as
+// autorefresh does with its own retry gate).
+const (
+	reportRetryMin = 30 * time.Second
+	reportRetryMax = 5 * time.Minute
+)
+
 // majorsCacheTTL bounds how long a supported-update-majors verdict from the OTA
 // discovery endpoint is reused before re-probing. Within the TTL the cached
 // verdict is used without a network round-trip; once stale we re-probe but fall
 // back to the cached verdict when the uplink is unavailable.
 const majorsCacheTTL = time.Hour
+
+// maxPendingEvents caps the buffered-event backlog so a long uplink outage or a
+// backend stuck without OTA-3 support cannot grow state.json without bound. It
+// is a last-resort safety valve: in normal operation events only exist while an
+// update carrying a backend-assigned update_action_id is in flight, and drain
+// as soon as they are delivered. When exceeded, whole oldest action groups are
+// evicted (see enforceBufferCap). A var so tests can lower it.
+var maxPendingEvents = 1000
 
 var timeNow = time.Now
 
@@ -188,6 +215,14 @@ type UpdateEventsManager struct {
 	// downloads tracks per-task download progress sampling state, keyed by task
 	// ID. Only accessed from Ensure under the state lock.
 	downloads map[string]*downloadProgress
+
+	// nextAttempt gates reporting: while now is before it, Ensure skips the
+	// report I/O (backoff after a deferred attempt). retryBackoff is the current
+	// backoff step. Both are in-memory only and touched solely from Ensure
+	// (single ensure goroutine); a restart resetting them to "attempt now" is
+	// intentional.
+	nextAttempt  time.Time
+	retryBackoff time.Duration
 }
 
 // Manager creates a new UpdateEventsManager.
@@ -382,8 +417,13 @@ func (m *UpdateEventsManager) sampleDownloads(es *updateEventsState) (active, em
 			if err != nil || snapsup.UpdateActionID == "" {
 				continue
 			}
-			_, done, total := t.Progress()
-			if total <= 0 {
+			label, done, total := t.Progress()
+			// state.Task.Progress returns ("", 1, 1) for a task whose progress
+			// has not been set yet. The download meter always starts reporting
+			// with a non-empty label (the snap name), so an empty label here
+			// means the transfer has not begun; skip it to avoid emitting a
+			// spurious 100%-progress event before the first byte is fetched.
+			if label == "" || total <= 0 {
 				continue
 			}
 
@@ -457,15 +497,28 @@ func (m *UpdateEventsManager) sampleDownloads(es *updateEventsState) (active, em
 // Ensure implements StateManager.Ensure. When events are pending it consults the
 // store's OTA discovery endpoint (using a cached verdict within majorsCacheTTL,
 // or falling back to a stale cached verdict when the uplink is unavailable) and,
-// only if the backend advertises OTA major 3, reports the buffered events. The
-// discovery probe is tri-state:
+// only if the backend advertises OTA major 3, reports the buffered events.
 //
-//   - transient failure (network error, 5xx, ...) → fall back to a cached
-//     verdict if one exists, otherwise keep the buffer and retry.
-//   - definitive "no OTA major 3" → drop the buffer; the backend will never
-//     accept these events, so retaining them would leak memory unboundedly.
-//   - OTA major 3 available → report; on success trim the delivered events, on
-//     a transient send failure keep them for the next pass.
+// The guiding rule is "keep until deliverable, drop only when delivery is
+// provably pointless". Events are only ever created for updates that carry a
+// backend-assigned update_action_id, so a backend that does not do transparent
+// updates produces nothing to buffer. On top of that generation guard the
+// backlog is bounded by maxPendingEvents (enforceBufferCap). Given both, the
+// delivery policy is:
+//
+//   - cannot reach the store right now (network error, 5xx, or store.access=
+//     offline) → retain the buffer and back off (deferReport); it drains when the
+//     uplink returns.
+//   - backend does not advertise OTA major 3 → retain and re-probe after backoff;
+//     this may be a transitional/rollout state, and a genuinely unsupported
+//     backend produces no events anyway.
+//   - OTA major 3 available and the backend definitively rejects the batch
+//     (non-retryable 4xx) → drop it; resending the identical batch is futile.
+//   - OTA major 3 available and delivery succeeds → trim the delivered events.
+//
+// Reporting I/O runs inline here (like catalogRefresh/autoRefresh) but bounded by
+// reportTimeout; the nextAttempt gate enforces the backoff since EnsureBefore
+// cannot rate-limit on its own.
 func (m *UpdateEventsManager) Ensure() error {
 	m.state.Lock()
 
@@ -490,15 +543,32 @@ func (m *UpdateEventsManager) Ensure() error {
 		m.state.EnsureBefore(nextWake)
 	}
 
+	// Keep the backlog bounded regardless of whether we can deliver right now.
+	m.enforceBufferCap(es)
+
 	if len(es.Pending) == 0 {
+		m.state.Unlock()
+		// Nothing to deliver: clear any backoff so the next event is attempted
+		// promptly.
+		m.clearRetry()
+		return nil
+	}
+
+	// Respect the backoff gate: after a deferred attempt we hold off until
+	// nextAttempt, so a burst of new events (each of which calls EnsureBefore(0))
+	// cannot hammer a down uplink. The events remain buffered meanwhile.
+	if now := timeNow(); m.nextAttempt.After(now) {
 		m.state.Unlock()
 		return nil
 	}
 
 	deviceCtx, err := snapstate.DevicePastSeeding(m.state, nil)
 	if err != nil {
-		// Device not ready yet (e.g. not seeded). Keep the buffer and retry on
-		// a later ensure pass.
+		// Device not ready yet (e.g. not seeded), a change conflict during
+		// remodeling, or a genuine state-read error. Keep the buffer and retry
+		// on a later ensure pass; log so a persistent internal error does not
+		// stay invisible while the buffer grows.
+		logger.Debugf("cannot get device context, deferring update-event reporting: %v", err)
 		m.state.Unlock()
 		return nil
 	}
@@ -521,7 +591,10 @@ func (m *UpdateEventsManager) Ensure() error {
 
 	m.state.Unlock()
 
-	ctx := context.TODO()
+	// Bound the reporting I/O so a hung connection cannot stall the shared
+	// ensure loop (and, in turn, snapd shutdown) indefinitely.
+	ctx, cancel := context.WithTimeout(context.Background(), reportTimeout)
+	defer cancel()
 
 	if !haveFresh {
 		probed, err := sto.SupportedUpdateMajors(ctx)
@@ -531,38 +604,105 @@ func (m *UpdateEventsManager) Ensure() error {
 			m.cacheMajors(probed)
 			logger.Debugf("backend advertises update majors %v; transparent-update reporting (OTA major %d) supported: %v", probed, store.UpdateMajorOTA3, containsMajor(probed, store.UpdateMajorOTA3))
 		case haveStale:
-			// Transient discovery failure but we have a cached verdict (uplink
-			// unavailable): fall back to it rather than stalling reporting.
+			// Transient discovery failure (network down, 5xx, or store.access=
+			// offline) but we have a cached verdict: fall back to it rather than
+			// stalling reporting.
 			logger.Debugf("cannot determine supported update majors, using cached verdict: %v", err)
 			majors = staleMajors
 		default:
-			// Transient discovery failure and nothing cached: keep the buffer
-			// and retry later.
-			logger.Debugf("cannot determine supported update majors, will retry: %v", err)
+			// Transient discovery failure and nothing cached: retain the buffer
+			// and back off. This covers a temporarily offline/unreachable store;
+			// events stay buffered (bounded by the cap) until it recovers.
+			m.deferReport(fmt.Sprintf("cannot determine supported update majors: %v", err))
 			return nil
 		}
 	}
 
 	if !containsMajor(majors, store.UpdateMajorOTA3) {
-		// Definitive verdict: the backend does not serve OTA major 3, so it has
-		// no update events endpoint. Drop the buffered events rather than
-		// retaining them forever.
-		logger.Debugf("store does not advertise OTA major %d; dropping %d buffered update event(s)", store.UpdateMajorOTA3, len(events))
-		m.dropEvents(len(events))
+		// The backend does not (currently) advertise OTA major 3. Retain the
+		// buffer rather than dropping it: on our own gateway this can be a
+		// transitional/rollout state, and a definitively unsupported backend
+		// never assigns an update_action_id in the first place, so it produces
+		// no events to accumulate. The cap bounds the pathological case. Back off
+		// and re-probe once the cached verdict expires.
+		m.deferReport(fmt.Sprintf("store does not advertise OTA major %d; retaining %d event(s)", store.UpdateMajorOTA3, len(events)))
 		return nil
 	}
 
 	if err := sto.ReportUpdateEvents(ctx, events); err != nil {
-		// Transient send failure: keep the buffer and retry later.
-		logger.Debugf("cannot report update events, will retry: %v", err)
+		if errors.Is(err, store.ErrUpdateEventsRejected) {
+			// The backend definitively rejected the batch (non-retryable 4xx).
+			// Resending the identical batch would fail identically forever, so
+			// this is the one case we drop. Logged at Notice because a rejection
+			// points at a real problem (a stale update_action_id or a malformed
+			// event) worth seeing.
+			logger.Noticef("backend rejected %d update event(s), dropping them: %v", len(events), err)
+			m.dropEvents(len(events))
+			m.clearRetry()
+			return nil
+		}
+		// Any other failure (5xx, throttling, network, store.access=offline) is
+		// temporary: retain the buffer and back off.
+		m.deferReport(fmt.Sprintf("cannot report update events: %v", err))
 		return nil
 	}
 
 	logger.Debugf("reported %d transparent-update event(s) to the backend for action(s) %v", len(events), distinctActionIDs(events))
 
 	m.dropEvents(len(events))
+	m.clearRetry()
 
 	return nil
+}
+
+// deferReport records that a reporting attempt could not be delivered now and
+// schedules the next attempt with exponential backoff (capped). Only called
+// from Ensure (single ensure goroutine).
+func (m *UpdateEventsManager) deferReport(reason string) {
+	if m.retryBackoff == 0 {
+		m.retryBackoff = reportRetryMin
+	} else if m.retryBackoff *= 2; m.retryBackoff > reportRetryMax {
+		m.retryBackoff = reportRetryMax
+	}
+	m.nextAttempt = timeNow().Add(m.retryBackoff)
+	logger.Debugf("update-event reporting deferred (%s); retrying in %s", reason, m.retryBackoff)
+	// Wake up to retry even if no new event arrives. EnsureBefore only pulls the
+	// timer earlier, so this is a floor, not a throttle - the nextAttempt gate is
+	// what enforces the backoff.
+	m.state.EnsureBefore(m.retryBackoff)
+}
+
+// clearRetry resets the backoff after a successful delivery or when the buffer
+// drains. Only called from Ensure.
+func (m *UpdateEventsManager) clearRetry() {
+	m.retryBackoff = 0
+	m.nextAttempt = time.Time{}
+}
+
+// enforceBufferCap keeps es.Pending bounded by maxPendingEvents. When exceeded
+// it evicts whole oldest update_action_id groups (never individual events) so a
+// phase's success (200) is not stranded without its start (150) and a terminal
+// event is not dropped in isolation. Evictions are data loss, so logged at
+// Notice. Caller must hold the state lock.
+func (m *UpdateEventsManager) enforceBufferCap(es *updateEventsState) {
+	if len(es.Pending) <= maxPendingEvents {
+		return
+	}
+	for len(es.Pending) > maxPendingEvents && len(es.Pending) > 0 {
+		oldest := es.Pending[0].UpdateActionID
+		kept := make([]store.UpdateEvent, 0, len(es.Pending))
+		dropped := 0
+		for _, ev := range es.Pending {
+			if ev.UpdateActionID == oldest {
+				dropped++
+				continue
+			}
+			kept = append(kept, ev)
+		}
+		es.Pending = kept
+		logger.Noticef("update-event buffer exceeded %d events; dropped %d event(s) for oldest action %q", maxPendingEvents, dropped, oldest)
+	}
+	m.setState(es)
 }
 
 // distinctActionIDs returns the unique update_action_ids present in events, in

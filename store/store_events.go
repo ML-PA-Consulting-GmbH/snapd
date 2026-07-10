@@ -23,9 +23,15 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 )
+
+// ErrUpdateEventsRejected indicates the store definitively rejected a batch of
+// update events with a non-retryable (4xx) response. The batch will never be
+// accepted as-is, so the caller must drop it rather than resend it forever.
+var ErrUpdateEventsRejected = errors.New("store rejected update events")
 
 const (
 	updateEventsEndpointPath = "device/v3/update/events"
@@ -172,6 +178,29 @@ type updateEventsRequest struct {
 	Events []UpdateEvent `json:"events"`
 }
 
+// updateEventsError is a structured error response from the update events
+// endpoint. It follows the store's standard error-list format, matching the
+// messaging endpoint's error shape, so backend-side rejections (e.g. an unknown
+// update_action_id or a malformed event) surface with their detail rather than
+// only an HTTP status code.
+type updateEventsError struct {
+	ErrorList []struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"error-list"`
+}
+
+func (e *updateEventsError) Error() string {
+	msg := ""
+	for i, err := range e.ErrorList {
+		if i > 0 {
+			msg += "; "
+		}
+		msg += fmt.Sprintf("%s (code: %s)", err.Message, err.Code)
+	}
+	return msg
+}
+
 // ReportUpdateEvents posts a batch of transparent-update events to the store's
 // update events endpoint (Transparent Update Status Model §12). It uses the same
 // device-session authentication as all other store requests. The store responds
@@ -199,13 +228,29 @@ func (s *Store) ReportUpdateEvents(ctx context.Context, events []UpdateEvent) er
 		Accept:      jsonContentType,
 	}
 
-	httpResp, err := s.retryRequestDecodeJSON(ctx, reqOptions, nil, nil, nil)
+	var errResp updateEventsError
+	httpResp, err := s.retryRequestDecodeJSON(ctx, reqOptions, nil, nil, &errResp)
 	if err != nil {
 		return fmt.Errorf("cannot report update events: %w", err)
 	}
 
 	if httpResp.StatusCode != 204 {
-		return respToError(httpResp, "report update events")
+		// Server errors and throttling/timeout are transient: the caller should
+		// retry the same batch later (mirrors the discovery probe contract).
+		if httpResp.StatusCode >= 500 || httpResp.StatusCode == http.StatusRequestTimeout || httpResp.StatusCode == http.StatusTooManyRequests {
+			if len(errResp.ErrorList) > 0 {
+				return fmt.Errorf("cannot report update events: %w (status: %d)", &errResp, httpResp.StatusCode)
+			}
+			return respToError(httpResp, "report update events")
+		}
+		// Any other non-204 (a 4xx, e.g. an expired/unknown update_action_id or
+		// a malformed event) is a definitive rejection: resending the identical
+		// batch will fail identically, so signal the caller to drop it via
+		// ErrUpdateEventsRejected rather than retaining it forever.
+		if len(errResp.ErrorList) > 0 {
+			return fmt.Errorf("%w: %v (status: %d)", ErrUpdateEventsRejected, &errResp, httpResp.StatusCode)
+		}
+		return fmt.Errorf("%w: %v", ErrUpdateEventsRejected, respToError(httpResp, "report update events"))
 	}
 
 	return nil
