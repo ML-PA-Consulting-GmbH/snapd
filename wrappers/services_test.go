@@ -3639,6 +3639,23 @@ func (s *servicesTestSuite) TestStartServicesNoEnable(c *C) {
 	})
 }
 
+func (s *servicesTestSuite) TestStartServicesNoBlock(c *C) {
+	info := snaptest.MockSnap(c, packageHello, &snap.SideInfo{Revision: snap.R(12)})
+	svcFile := filepath.Join(dirs.GlobalRootDir, "/etc/systemd/system/snap.hello-snap.svc1.service")
+
+	// NoBlock makes the start non-blocking (systemctl start --no-block); the
+	// enable/daemon-reload steps are unaffected.
+	opts := &wrappers.StartServicesOptions{Enable: true, NoBlock: true}
+	err := wrappers.StartServices(info.Services(), nil, opts, &progress.Null, s.perfTimings)
+	c.Assert(err, IsNil)
+
+	c.Check(s.sysdLog, DeepEquals, [][]string{
+		{"--no-reload", "enable", filepath.Base(svcFile)},
+		{"daemon-reload"},
+		{"start", "--no-block", filepath.Base(svcFile)},
+	})
+}
+
 func (s *servicesTestSuite) TestStartServicesUserDaemons(c *C) {
 	info := snaptest.MockSnap(c, packageHelloNoSrv+`
  svc1:

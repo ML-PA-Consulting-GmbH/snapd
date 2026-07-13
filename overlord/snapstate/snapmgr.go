@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -35,6 +36,7 @@ import (
 	"github.com/snapcore/snapd/i18n"
 	"github.com/snapcore/snapd/logger"
 	"github.com/snapcore/snapd/osutil"
+	"github.com/snapcore/snapd/osutil/squashfs"
 	"github.com/snapcore/snapd/overlord/snapstate/backend"
 	"github.com/snapcore/snapd/overlord/snapstate/sequence"
 	"github.com/snapcore/snapd/overlord/state"
@@ -63,6 +65,7 @@ var (
 
 func init() {
 	swfeats.RegisterEnsure("SnapManager", "ensureVulnerableSnapConfineVersionsRemovedOnClassic")
+	swfeats.RegisterEnsure("SnapManager", "ensureSnapMountsMounted")
 	swfeats.RegisterEnsure("SnapManager", "ensureForceDevmodeDropsDevmodeFromState")
 	swfeats.RegisterEnsure("SnapManager", "ensureUbuntuCoreTransition")
 	swfeats.RegisterEnsure("SnapManager", "atSeed")
@@ -95,6 +98,18 @@ type SnapManager struct {
 	ensuredSnapServicesUpdated bool
 	ensuredDownloadsCleaned    bool
 	ensureStoreCacheCleanNext  time.Time
+
+	// FORK CHANGE: tracks the "name/revision" of snap squashfs we have
+	// already attempted to direct-mount in ensureSnapMountsActive this run,
+	// so that when it runs repeatedly (StartUp + every Ensure tick) it does
+	// not re-attempt or re-log the same (in particular failing) mount.
+	// Accessed without a lock: it is touched only from healSnapMounts, which
+	// runs solely on the single ensure goroutine (the StateEngine serializes
+	// StartUp and Ensure), so it is never accessed concurrently. It grows for
+	// the life of the process (one entry per name/revision ever seen unmounted),
+	// which is bounded by real snap/revision churn - intentionally per-process,
+	// not per-boot.
+	mountHealAttempts map[string]bool
 
 	changeCallbackID int
 }
@@ -834,6 +849,7 @@ func Manager(st *state.State, runner *state.TaskRunner) (*SnapManager, error) {
 		ensuredDesktopFilesUpdated: false,
 		ensuredSnapServicesUpdated: false,
 		ensuredDownloadsCleaned:    false,
+		mountHealAttempts:          make(map[string]bool),
 	}
 	if preseed {
 		m.backend = backend.NewForPreseedMode()
@@ -931,9 +947,226 @@ func Manager(st *state.State, runner *state.TaskRunner) (*SnapManager, error) {
 	return m, nil
 }
 
+// FORK CHANGE: added for Yocto/RAUC systems where /var/lib/snapd is on
+// persistent storage but /etc/systemd/system (which holds the snap squashfs
+// .mount units and their snapd.mounts.target.wants/ enablement symlinks) is on
+// the OS layer and gets wiped on every OS image update. Without this the snap
+// squashfs are not mounted when snapd starts, so InterfaceManager.StartUp reads
+// every snap as "broken" (missing meta/snap.yaml), floods the log and drops
+// interface connections until systemd mounts the units (pulled in only via
+// WantedBy=multi-user.target) ~10s later.
+//
+// ensureSnapMountsActive runs at the very start of SnapManager.StartUp, before
+// any other manager's StartUp reads snap.yaml, and for each installed snap whose
+// squashfs is not currently mounted brings it up. Crucially it derives the mount
+// paths from the snap's SideInfo (name + revision from state.json) via
+// MinimalPlaceInfo, so it does NOT read meta/snap.yaml and thus avoids the
+// circular dependency that makes ensureMountsUpdated (which calls CurrentInfo)
+// unable to recover this situation.
+//
+// It does NOT go through systemd to start the mount: a snap .mount unit is
+// ordered Before=snapd.mounts.target, which is itself ordered before
+// snapd.service, so issuing a blocking "systemctl start" of such a unit while
+// snapd.service is still activating (StartUp runs before snapd notifies systemd
+// READY=1) deadlocks against the service start timeout and makes systemd kill and
+// restart snapd in a loop. Instead it mounts the squashfs directly (no systemd
+// job queue involved) and separately writes+enables the mount unit file so that
+// systemd adopts the active mount, subsequent boots bring it up normally, and the
+// later ensureMountsUpdated reconciliation is a no-op (identical unit content).
+//
+// It is gated on osutil.IsMounted per snap: on a normal boot where all snaps are
+// already mounted it performs only a handful of mountinfo checks and makes no
+// systemd calls and no mounts, so it is effectively free.
+//
+// It runs both at StartUp and on every Ensure tick, so that a current revision
+// which is found unmounted later (e.g. StartUp raced with unsettled state, or a
+// refresh undo unmounted it) still gets healed before the next operation that
+// needs it (e.g. a refresh's stop-services, which reads CurrentInfo and fails
+// hard on an unmounted squashfs). To keep the repeated runs cheap and quiet,
+// each "name/revision" is attempted at most once per snapd run (see
+// m.mountHealAttempts): a successful mount makes IsMounted true on the next
+// pass, and a failing one is not hammered/re-logged every tick.
+//
+// writeUnit controls whether the mount unit file is (re)written+enabled in
+// addition to the direct mount. At StartUp we write it (so systemd adopts the
+// mount and subsequent boots bring it up normally). In the Ensure loop we do
+// not: ensureMountsUpdated runs in the same loop and owns the unit files, so the
+// loop variant only needs the direct mount to un-break the snap.
+func (m *SnapManager) ensureSnapMountsActive() error {
+	return m.healSnapMounts(true)
+}
+
+// ensureSnapMountsMounted is the Ensure-loop variant of ensureSnapMountsActive:
+// it only mounts current revisions found unmounted, leaving mount-unit file
+// bookkeeping to ensureMountsUpdated.
+func (m *SnapManager) ensureSnapMountsMounted() error {
+	logger.Trace("ensure", "manager", "SnapManager", "func", "ensureSnapMountsMounted")
+	return m.healSnapMounts(false)
+}
+
+func (m *SnapManager) healSnapMounts(writeUnit bool) error {
+	// m.preseed is set from snapdenv.Preseeding() at construction; one check is
+	// enough. (The Ensure-loop caller is already guarded by SnapManager.Ensure;
+	// this also covers the StartUp caller, which is not.)
+	if m.preseed {
+		return nil
+	}
+
+	type mountTarget struct {
+		name string
+		rev  snap.Revision
+		typ  snap.Type
+	}
+
+	m.state.Lock()
+	allStates, err := All(m.state)
+	if err != nil {
+		m.state.Unlock()
+		if errors.Is(err, state.ErrNoState) {
+			return nil
+		}
+		return err
+	}
+	var targets []mountTarget
+	for name, snapSt := range allStates {
+		si := snapSt.CurrentSideInfo()
+		if si == nil {
+			// installed snap with no resolvable current revision: an
+			// anomaly worth surfacing, since it means we cannot heal its
+			// mount here. Debug level to avoid spamming every Ensure tick.
+			logger.Debugf("ensureSnapMountsActive: snap %q has no current side info, skipping", name)
+			continue
+		}
+		// Type() may be unset for very old state; default to app, which
+		// uses the regular (model-independent) mount unit flags.
+		typ, err := snapSt.Type()
+		if err != nil {
+			typ = snap.TypeApp
+		}
+		targets = append(targets, mountTarget{
+			name: snapSt.InstanceName(),
+			rev:  si.Revision,
+			typ:  typ,
+		})
+	}
+	m.state.Unlock()
+
+	if len(targets) == 0 {
+		return nil
+	}
+
+	sysd := getSystemD()
+	var firstErr error
+	setErr := func(e error) {
+		if firstErr == nil {
+			firstErr = e
+		}
+	}
+	for _, t := range targets {
+		// Kernel mount units need model context (e.g. mounting before
+		// drivers load) that is not reliably available this early in
+		// startup; leave those to ensureMountsUpdated. Classic systems,
+		// which is where this fork change matters, have no kernel snap.
+		if t.typ == snap.TypeKernel {
+			continue
+		}
+
+		pi := snap.MinimalPlaceInfo(t.name, t.rev)
+		mountDir := pi.MountDir()
+
+		mounted, err := osutil.IsMounted(mountDir)
+		if err != nil {
+			setErr(err)
+			continue
+		}
+		if mounted {
+			logger.Debugf("ensureSnapMountsActive: snap %q revision %s already mounted", t.name, t.rev)
+			continue
+		}
+
+		// Attempt each (name, revision) at most once per snapd run so that
+		// running on every Ensure tick does not re-attempt or re-log the
+		// same (possibly failing) mount.
+		attemptKey := t.name + "/" + t.rev.String()
+		if m.mountHealAttempts[attemptKey] {
+			logger.Debugf("ensureSnapMountsActive: snap %q revision %s not mounted but already attempted this run, skipping", t.name, t.rev)
+			continue
+		}
+		m.mountHealAttempts[attemptKey] = true
+
+		logger.Noticef("snap %q revision %s squashfs is not mounted, mounting directly", t.name, t.rev)
+
+		// Write and enable the mount unit file (but do not start it, see
+		// the function doc). The description and flags match
+		// ensureMountsUpdated so that its later reconciliation finds the
+		// unit unchanged and does not restart it. MountDescription() is
+		// fmt.Sprintf("Mount unit for %s, revision %s", InstanceName(),
+		// Revision), which we can build from the SideInfo alone. In the
+		// Ensure-loop variant (writeUnit false) we skip this: ensureMountsUpdated
+		// owns the unit files, we only need the direct mount here.
+		if writeUnit {
+			mountDescription := fmt.Sprintf("Mount unit for %s, revision %s", t.name, t.rev)
+			squashfsPath := dirs.StripRootDir(pi.MountFile())
+			whereDir := dirs.StripRootDir(mountDir)
+			if _, err := sysd.EnsureMountUnitFile(mountDescription,
+				squashfsPath, whereDir, "squashfs", systemd.EnsureMountUnitFlags{
+					// SkipStart already prevents any start/restart from here
+					// (see EnsureMountUnitFileWithOptions), so we do not also
+					// need PreventRestartIfModified.
+					SkipStart: true,
+				}); err != nil {
+				setErr(fmt.Errorf("cannot ensure mount unit for snap %q: %v", t.name, err))
+				// still attempt the direct mount below so snap.yaml becomes
+				// readable even if unit bookkeeping failed
+			}
+		}
+
+		// Bring the squashfs up now with a direct mount, bypassing
+		// systemd's job queue entirely. systemd adopts the resulting mount
+		// as active for the unit written above.
+		if err := mountSnapSquashfs(pi.MountFile(), mountDir); err != nil {
+			// Log at Notice too: a failing heal (e.g. a missing squashfs
+			// blob) leaves the snap broken and blocks operations on it, so
+			// it must be visible without debug logging.
+			logger.Noticef("cannot mount snap %q revision %s: %v", t.name, t.rev, err)
+			setErr(fmt.Errorf("cannot mount snap %q: %v", t.name, err))
+			continue
+		}
+	}
+
+	return firstErr
+}
+
+// mountSnapSquashfs mounts a snap squashfs directly (without going through
+// systemd) at the given mount directory. It is a variable so it can be mocked
+// in tests.
+var mountSnapSquashfs = func(squashfsPath, mountDir string) error {
+	if err := os.MkdirAll(mountDir, 0755); err != nil {
+		return err
+	}
+	fstype, options := squashfs.FsType()
+	args := []string{"-t", fstype}
+	if len(options) > 0 {
+		args = append(args, "-o", strings.Join(options, ","))
+	}
+	args = append(args, squashfsPath, mountDir)
+	if output, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
+		return osutil.OutputErr(output, err)
+	}
+	return nil
+}
+
 // StartUp implements StateStarterUp.Startup.
 func (m *SnapManager) StartUp() error {
 	writeSnapReadme()
+
+	// FORK CHANGE: ensure snap squashfs are mounted before the rest of
+	// startup (in particular InterfaceManager.StartUp) reads snap.yaml. This
+	// is best-effort: on failure we log and continue, degrading to the
+	// previous behaviour rather than blocking snapd startup.
+	if err := m.ensureSnapMountsActive(); err != nil {
+		logger.Noticef("cannot ensure snap mounts are active at startup: %v", err)
+	}
 
 	m.state.Lock()
 	defer m.state.Unlock()
@@ -1652,13 +1885,24 @@ func (m *SnapManager) ensureSnapServicesUpdated() error {
 	tm := timings.New(nil)
 	pb := progress.Null
 
+	// Heal every snap we can; a single broken snap (e.g. one whose squashfs
+	// has not been re-mounted yet) must not prevent the others from having
+	// their service units regenerated. Collect the first error for visibility
+	// but keep going, mirroring healSnapMounts.
+	var firstErr error
+	setErr := func(e error) {
+		if firstErr == nil {
+			firstErr = e
+		}
+	}
 	for _, snapSt := range allStates {
 		if !snapSt.Active {
 			continue
 		}
 		info, err := snapSt.CurrentInfo()
 		if err != nil {
-			return err
+			setErr(fmt.Errorf("cannot get current info for snap %q: %v", snapSt.InstanceName(), err))
+			continue
 		}
 		// snapd snap is handled by GenerateSnapdWrappers and lives in a
 		// different flow; skip it here.
@@ -1677,7 +1921,8 @@ func (m *SnapManager) ensureSnapServicesUpdated() error {
 
 		opts, err := SnapServiceOptions(m.state, info, nil)
 		if err != nil {
-			return err
+			setErr(fmt.Errorf("cannot get service options for snap %q: %v", info.InstanceName(), err))
+			continue
 		}
 
 		ensureOpts := &wrappers.EnsureSnapServicesOptions{
@@ -1686,12 +1931,14 @@ func (m *SnapManager) ensureSnapServicesUpdated() error {
 		if err := wrappers.EnsureSnapServices(map[*snap.Info]*wrappers.SnapServiceOptions{
 			info: opts,
 		}, ensureOpts, nil, pb); err != nil {
-			return fmt.Errorf("cannot regenerate service units for snap %q: %v", info.InstanceName(), err)
+			setErr(fmt.Errorf("cannot regenerate service units for snap %q: %v", info.InstanceName(), err))
+			continue
 		}
 
 		startupOrdered, err := snap.SortServices(svcs)
 		if err != nil {
-			return err
+			setErr(fmt.Errorf("cannot order services for snap %q: %v", info.InstanceName(), err))
+			continue
 		}
 		disabled := &wrappers.DisabledServices{
 			SystemServices: append([]string(nil), snapSt.LastActiveDisabledServices...),
@@ -1703,26 +1950,64 @@ func (m *SnapManager) ensureSnapServicesUpdated() error {
 			disabled.UserServices[uid] = append(disabled.UserServices[uid], names...)
 		}
 
+		// Start the services non-blocking (systemctl start --no-block). This
+		// runs inside snapd's own Ensure loop, and a snap service's ExecStart
+		// is "snap run ...", which needs snapd to make progress; a blocking
+		// start would deadlock snapd against its own services (it hangs hard
+		// on Type=oneshot units, whose start job only completes when the
+		// program exits). systemd still honours the units' After=/Requires=
+		// ordering, so starting them non-blocking is equivalent to how they
+		// come up on a normal boot.
+		//
+		// NoBlock covers system-scope services, which is the deadlock class
+		// here. User-scope daemons are started via the session agent (a separate
+		// process), not snapd's own systemctl, so they do not reproduce this
+		// deadlock; they are also not expected on our headless embedded target,
+		// and any failure there is logged-and-skipped like the rest of the loop.
+		//
+		// We call wrappers.StartServices directly rather than
+		// m.backend.StartServices because the backend path hardcodes a blocking
+		// start with no way to request NoBlock, and it must stay blocking for the
+		// normal task-runner flow.
+		startOpts := &wrappers.StartServicesOptions{Enable: true, NoBlock: true}
 		// state may be touched indirectly via task progress, but we hold the
 		// lock for the whole ensure run to keep things simple.
 		m.state.Unlock()
-		err = m.backend.StartServices(startupOrdered, disabled, pb, tm)
+		err = wrappers.StartServices(startupOrdered, disabled, startOpts, pb, tm)
 		m.state.Lock()
 		if err != nil {
-			return fmt.Errorf("cannot start services for snap %q: %v", info.InstanceName(), err)
+			setErr(fmt.Errorf("cannot start services for snap %q: %v", info.InstanceName(), err))
+			continue
 		}
 	}
 
+	// This is a one-shot startup heal: mark it done even if some snaps failed
+	// (those were logged above) so we do not re-scan every snap on every ensure
+	// tick. Snaps healed this pass are skipped next time via
+	// anySnapServiceUnitMissing anyway. The mount healer, which runs earlier in
+	// the ensure loop, is responsible for making squashfs readable first.
 	m.ensuredSnapServicesUpdated = true
 
-	return nil
+	return firstErr
 }
 
 // anySnapServiceUnitMissing reports whether any of the .service unit files
 // expected for the given snap services is missing on disk.
 func anySnapServiceUnitMissing(svcs []*snap.AppInfo) bool {
 	for _, app := range svcs {
+		// Check every unit a service brings, not just the .service: an OS image
+		// wipe removes .socket/.timer activation units too, and a snap may have
+		// only those regenerated-and-missing. Mirrors the unit set that
+		// EnsureSnapServices writes (see serviceUnits in wrappers/services.go).
 		if !osutil.FileExists(app.ServiceFile()) {
+			return true
+		}
+		for _, socket := range app.Sockets {
+			if !osutil.FileExists(socket.File()) {
+				return true
+			}
+		}
+		if app.Timer != nil && !osutil.FileExists(app.Timer.File()) {
 			return true
 		}
 	}
@@ -1861,6 +2146,11 @@ func (m *SnapManager) Ensure() error {
 		m.catalogRefresh.Ensure(),
 		m.localInstallCleanup(),
 		m.ensureVulnerableSnapConfineVersionsRemovedOnClassic(),
+		// FORK CHANGE: also heal missing snap mounts continuously, not only
+		// at StartUp, so a current revision found unmounted later self-heals
+		// before the next operation (e.g. refresh stop-services) needs it.
+		// Mount-only; ensureMountsUpdated (below) owns the unit files.
+		m.ensureSnapMountsMounted(),
 		m.ensureMountsUpdated(),
 		m.ensureDesktopFilesUpdated(),
 		m.ensureSnapServicesUpdated(),

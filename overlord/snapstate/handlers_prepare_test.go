@@ -25,6 +25,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	"github.com/snapcore/snapd/dirs"
+	"github.com/snapcore/snapd/osutil"
 	"github.com/snapcore/snapd/overlord"
 	"github.com/snapcore/snapd/overlord/snapstate"
 	"github.com/snapcore/snapd/overlord/snapstate/snapstatetest"
@@ -70,6 +71,10 @@ func (s *baseHandlerSuite) SetUpTest(c *C) {
 	// fork addition: opt out of the recovery ensure handler in tests; see
 	// snapmgr.ensureSnapServicesUpdated.
 	s.AddCleanup(snapstate.MockEnsuredSnapServicesUpdated(s.snapmgr, true))
+	// fork addition: the mount healer runs in Ensure and calls osutil.IsMounted
+	// (which panics if mountinfo is not mocked) and mountSnapSquashfs; mock both.
+	s.AddCleanup(osutil.MockMountInfo(""))
+	s.AddCleanup(snapstate.MockMountSnapSquashfs(func(_, _ string) error { return nil }))
 
 	reset1 := snapstate.MockSnapReadInfo(s.fakeBackend.ReadInfo)
 	reset2 := snapstate.MockReRefreshRetryTimeout(time.Second / 200)
