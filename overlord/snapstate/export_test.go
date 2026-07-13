@@ -369,6 +369,43 @@ func GetEnsuredDownloadsCleanedNext(m *SnapManager) time.Time {
 	return m.ensuredDownloadsCleanedNext
 }
 
+// EnsureSnapMountsActive exposes ensureSnapMountsActive for testing.
+func (m *SnapManager) EnsureSnapMountsActive() error {
+	return m.ensureSnapMountsActive()
+}
+
+// EnsureSnapMountsMounted exposes the Ensure-loop variant (mounts the squashfs
+// but does not write/enable the mount unit) for testing.
+func (m *SnapManager) EnsureSnapMountsMounted() error {
+	return m.ensureSnapMountsMounted()
+}
+
+// AnySnapServiceUnitMissing exposes anySnapServiceUnitMissing for testing.
+func AnySnapServiceUnitMissing(svcs []*snap.AppInfo) bool {
+	return anySnapServiceUnitMissing(svcs)
+}
+
+// EnsureSnapServicesUpdated exposes ensureSnapServicesUpdated for testing.
+func (m *SnapManager) EnsureSnapServicesUpdated() error {
+	return m.ensureSnapServicesUpdated()
+}
+
+// EnsuredSnapServicesUpdated exposes the ensuredSnapServicesUpdated one-shot
+// flag for testing.
+func (m *SnapManager) EnsuredSnapServicesUpdated() bool {
+	return m.ensuredSnapServicesUpdated
+}
+
+// MockMountSnapSquashfs mocks the direct squashfs mount used by
+// ensureSnapMountsActive and records the (squashfsPath, mountDir) of each call.
+func MockMountSnapSquashfs(f func(squashfsPath, mountDir string) error) (restore func()) {
+	old := mountSnapSquashfs
+	mountSnapSquashfs = f
+	return func() {
+		mountSnapSquashfs = old
+	}
+}
+
 func MockPidsOfSnap(f func(instanceName string) (map[string][]int, error)) func() {
 	old := pidsOfSnap
 	pidsOfSnap = f

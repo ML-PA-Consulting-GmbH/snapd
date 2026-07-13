@@ -125,7 +125,6 @@ type Overlord struct {
 	confdbMgr     *confdbstate.ConfdbManager
 	deviceMgmtMgr *devicemgmtstate.DeviceMgmtManager
 	certStateMgr  *certstate.CertManager
-	updateEvtMgr  *updateevents.UpdateEventsManager
 
 	// proxyConf mediates the http proxy config
 	proxyConf func(req *http.Request) (*url.URL, error)
@@ -266,8 +265,6 @@ func (o *Overlord) addManager(mgr StateManager) {
 		o.deviceMgmtMgr = x
 	case *certstate.CertManager:
 		o.certStateMgr = x
-	case *updateevents.UpdateEventsManager:
-		o.updateEvtMgr = x
 	}
 	o.stateEng.AddManager(mgr)
 }

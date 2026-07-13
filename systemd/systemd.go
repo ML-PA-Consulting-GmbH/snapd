@@ -375,6 +375,10 @@ type MountUnitOptions struct {
 	// EnsureStartIfUnchanged is set if we want to make sure that the unit
 	// is started even if it was not modified.
 	EnsureStartIfUnchanged bool
+	// SkipStart is set if the unit must only be written, reloaded and
+	// enabled but never started or restarted from here. See the identically
+	// named field in EnsureMountUnitFlags for the rationale.
+	SkipStart bool
 }
 
 // Backend identifies the implementation backend in use by a Systemd instance.
@@ -396,6 +400,24 @@ const (
 	MountUpdated
 	MountCreated
 )
+
+// EnsureMountUnitFlags contains flags that modify behavior of EnsureMountUnitFile
+// TODO should we call directly EnsureMountUnitFileWithOptions and
+// remove this type instead?
+type EnsureMountUnitFlags struct {
+	// PreventRestartIfModified is set if we do not want to restart the
+	// mount unit if even though it was modified
+	PreventRestartIfModified bool
+	// StartBeforeDriversLoad is set if the unit is needed before
+	// udevd starts to run rules
+	StartBeforeDriversLoad bool
+	// SkipStart is set if the caller will bring the mount up itself (e.g.
+	// with a direct mount very early in startup) and the unit must only be
+	// written, reloaded and enabled, never started/restarted from here. This
+	// avoids a blocking systemctl start/restart of a unit that is ordered
+	// before snapd.service while snapd.service is still activating.
+	SkipStart bool
+}
 
 // Systemd exposes a minimal interface to manage systemd via the systemctl command.
 type Systemd interface {
@@ -1565,10 +1587,15 @@ func (s *systemd) ConfigureMountUnitOptions(o *MountUnitOptions, fstype string, 
 		fsOpts = append(fsOpts, "bind")
 		hostFsType = "none"
 	}
-
-	mountUnitType := RegularMountUnit
-	if startBeforeDrivers {
-		mountUnitType = BeforeDriversLoadMountUnit
+	mountOptions := &MountUnitOptions{
+		Lifetime:                 Persistent,
+		Description:              description,
+		What:                     what,
+		Where:                    where,
+		Fstype:                   hostFsType,
+		Options:                  options,
+		PreventRestartIfModified: flags.PreventRestartIfModified,
+		SkipStart:                flags.SkipStart,
 	}
 
 	o.Fstype = hostFsType
@@ -1596,6 +1623,12 @@ func (s *systemd) EnsureMountUnitFile(unitOptions *MountUnitOptions) (string, er
 
 		if err := s.EnableNoReload(units); err != nil {
 			return "", err
+		}
+
+		// The caller will bring the mount up itself; never issue a
+		// (blocking) start/restart from here.
+		if unitOptions.SkipStart {
+			return mountUnitName, nil
 		}
 
 		// If just modified, some times it is not convenient to restart
