@@ -327,6 +327,9 @@ func (s *snapmgrBaseTest) SetUpTest(c *C) {
 	// files would otherwise fire on tests that set seeded=true with active
 	// snaps but no real .service files on disk; opt out by default
 	s.AddCleanup(snapstate.MockEnsuredSnapServicesUpdated(s.snapmgr, true))
+	// fork addition: the mount healer runs at StartUp and on every Ensure
+	// tick; stub the direct mount so tests never shell out to real mount(8).
+	s.AddCleanup(snapstate.MockMountSnapSquashfs(func(_, _ string) error { return nil }))
 
 	s.o.AddManager(s.snapmgr)
 	s.o.AddManager(s.o.TaskRunner())
@@ -10854,6 +10857,533 @@ WantedBy=multi-user.target
 `[1:], what, dirs.StripRootDir(dirs.SnapMountDir))
 
 	c.Assert(mountFile, testutil.FileEquals, expectedContent)
+}
+
+func (s *snapmgrTestSuite) TestEnsureSnapMountsActiveMountsMissingSquashfs(c *C) {
+	// FORK CHANGE: verifies that at startup snapd brings up a missing snap
+	// squashfs using only the snap's SideInfo, i.e. without needing to read
+	// meta/snap.yaml (which lives inside the not yet mounted squashfs).
+	// Simulates a Yocto/RAUC boot after an OS image update where
+	// /etc/systemd/system was wiped. Crucially the mount is done directly (not
+	// via a blocking "systemctl start", which would deadlock against the
+	// snapd.service start timeout since the mount unit is ordered before
+	// snapd.service).
+
+	testSnapSideInfo := &snap.SideInfo{RealName: "test-snap", Revision: snap.R(42)}
+	testSnapState := &snapstate.SnapState{
+		Sequence: snapstatetest.NewSequenceFromSnapSideInfos([]*snap.SideInfo{testSnapSideInfo}),
+		Current:  snap.R(42),
+		Active:   true,
+		SnapType: "app",
+	}
+
+	s.state.Lock()
+	snapstate.Set(s.state, "test-snap", testSnapState)
+	s.state.Unlock()
+
+	unitName := systemd.EscapeUnitNamePath(dirs.StripRootDir(filepath.Join(dirs.SnapMountDir, "test-snap", "42.mount")))
+	mountFile := filepath.Join(dirs.SnapServicesDir, unitName)
+	if osutil.FileExists(mountFile) {
+		c.Assert(os.Remove(mountFile), IsNil)
+	}
+
+	// record direct mounts instead of actually mounting
+	type mountCall struct{ what, where string }
+	var mounts []mountCall
+	restoreMount := snapstate.MockMountSnapSquashfs(func(what, where string) error {
+		mounts = append(mounts, mountCall{what, where})
+		return nil
+	})
+	defer restoreMount()
+
+	// mountinfo is empty (see SetUpTest osutil.MockMountInfo("")), so the snap
+	// squashfs is considered not mounted and the healer kicks in.
+	var sysdCalls [][]string
+	restore := systemd.MockSystemctl(func(args ...string) ([]byte, error) {
+		sysdCalls = append(sysdCalls, args)
+		return []byte(""), nil
+	})
+	defer restore()
+
+	err := s.snapmgr.EnsureSnapMountsActive()
+	c.Assert(err, IsNil)
+
+	// the mount unit file was (re)created, byte-identical to what
+	// ensureMountsUpdated would write (so its later run is a no-op) ...
+	what := "/var/lib/snapd/snaps/test-snap_42.snap"
+	expectedContent := fmt.Sprintf(`
+[Unit]
+Description=Mount unit for test-snap, revision 42
+After=snapd.mounts-pre.target
+Before=snapd.mounts.target
+
+[Mount]
+What=%s
+Where=%s/test-snap/42
+Type=squashfs
+Options=nodev,ro,x-gdu.hide,x-gvfs-hide
+LazyUnmount=yes
+
+[Install]
+WantedBy=snapd.mounts.target
+WantedBy=multi-user.target
+`[1:], what, dirs.StripRootDir(dirs.SnapMountDir))
+	c.Assert(mountFile, testutil.FileEquals, expectedContent)
+
+	// ... the squashfs was mounted directly (using the real, un-stripped
+	// on-disk paths). Other snaps in the base suite (core, snapd) are also
+	// unmounted here and get mounted too, so just look for test-snap.
+	var mounted bool
+	for _, m := range mounts {
+		if m.where == filepath.Join(dirs.SnapMountDir, "test-snap", "42") {
+			mounted = true
+			c.Check(m.what, Equals, filepath.Join(dirs.SnapBlobDir, "test-snap_42.snap"))
+		}
+	}
+	c.Check(mounted, Equals, true, Commentf("expected test-snap squashfs to be mounted directly, got: %v", mounts))
+
+	// ... the unit was reloaded and enabled ...
+	c.Check(sysdCalls, testutil.DeepContains, []string{"daemon-reload"})
+	var enabled bool
+	for _, call := range sysdCalls {
+		if len(call) >= 2 && call[len(call)-2] == "enable" && call[len(call)-1] == unitName {
+			enabled = true
+		}
+	}
+	c.Check(enabled, Equals, true, Commentf("expected the mount unit to be enabled, got calls: %v", sysdCalls))
+
+	// ... but it was NEVER started or restarted from here: doing so with a
+	// blocking systemctl call during snapd.service startup is exactly the
+	// deadlock we are avoiding.
+	for _, call := range sysdCalls {
+		if len(call) >= 1 && (call[0] == "start" || call[0] == "restart") {
+			c.Errorf("mount healer must not start/restart units during startup, got: %v", call)
+		}
+	}
+}
+
+func (s *snapmgrTestSuite) TestEnsureSnapMountsActiveNoopWhenMounted(c *C) {
+	// FORK CHANGE: on a normal boot every snap squashfs is already mounted, so
+	// the healer must make no systemd calls and no mounts at all.
+	testSnapSideInfo := &snap.SideInfo{RealName: "test-snap", Revision: snap.R(42)}
+	testSnapState := &snapstate.SnapState{
+		Sequence: snapstatetest.NewSequenceFromSnapSideInfos([]*snap.SideInfo{testSnapSideInfo}),
+		Current:  snap.R(42),
+		Active:   true,
+		SnapType: "app",
+	}
+
+	s.state.Lock()
+	snapstate.Set(s.state, "test-snap", testSnapState)
+	all, err := snapstate.All(s.state)
+	c.Assert(err, IsNil)
+	s.state.Unlock()
+
+	// pretend every installed snap squashfs is already mounted
+	var mountInfo string
+	i := 0
+	for name, snapSt := range all {
+		si := snapSt.CurrentSideInfo()
+		if si == nil {
+			continue
+		}
+		mountDir := filepath.Join(dirs.SnapMountDir, name, si.Revision.String())
+		mountInfo += fmt.Sprintf("%d 25 7:%d / %s ro,nodev,relatime shared:1 - squashfs /dev/loop%d ro\n", 26+i, i, mountDir, i)
+		i++
+	}
+	restoreMountInfo := osutil.MockMountInfo(mountInfo)
+	defer restoreMountInfo()
+
+	restoreMount := snapstate.MockMountSnapSquashfs(func(what, where string) error {
+		c.Errorf("unexpected direct mount on a normal boot: %s -> %s", what, where)
+		return fmt.Errorf("unexpected mount")
+	})
+	defer restoreMount()
+
+	restore := systemd.MockSystemctl(func(args ...string) ([]byte, error) {
+		c.Errorf("unexpected systemctl call on a normal boot: %v", args)
+		return nil, fmt.Errorf("unexpected systemctl call")
+	})
+	defer restore()
+
+	err = s.snapmgr.EnsureSnapMountsActive()
+	c.Assert(err, IsNil)
+}
+
+func (s *snapmgrTestSuite) TestEnsureSnapMountsActiveSkipsKernel(c *C) {
+	// FORK CHANGE: kernel mount units need model context not reliably available
+	// this early in startup, so the healer must skip them (ensureMountsUpdated
+	// handles them later).
+	kernelSideInfo := &snap.SideInfo{RealName: "pc-kernel", Revision: snap.R(7)}
+	s.state.Lock()
+	snapstate.Set(s.state, "pc-kernel", &snapstate.SnapState{
+		Sequence: snapstatetest.NewSequenceFromSnapSideInfos([]*snap.SideInfo{kernelSideInfo}),
+		Current:  snap.R(7),
+		Active:   true,
+		SnapType: "kernel",
+	})
+	all, err := snapstate.All(s.state)
+	c.Assert(err, IsNil)
+	s.state.Unlock()
+
+	// pretend every snap except the kernel is already mounted, so the kernel is
+	// the only heal candidate - and it must be skipped.
+	var mountInfo string
+	i := 0
+	for name, snapSt := range all {
+		if name == "pc-kernel" {
+			continue
+		}
+		si := snapSt.CurrentSideInfo()
+		if si == nil {
+			continue
+		}
+		mountDir := filepath.Join(dirs.SnapMountDir, name, si.Revision.String())
+		mountInfo += fmt.Sprintf("%d 25 7:%d / %s ro,nodev,relatime shared:1 - squashfs /dev/loop%d ro\n", 26+i, i, mountDir, i)
+		i++
+	}
+	defer osutil.MockMountInfo(mountInfo)()
+
+	var mounts []string
+	defer snapstate.MockMountSnapSquashfs(func(what, where string) error {
+		mounts = append(mounts, where)
+		return nil
+	})()
+	defer systemd.MockSystemctl(func(args ...string) ([]byte, error) { return []byte(""), nil })()
+
+	c.Assert(s.snapmgr.EnsureSnapMountsActive(), IsNil)
+
+	kernelDir := filepath.Join(dirs.SnapMountDir, "pc-kernel", "7")
+	for _, where := range mounts {
+		c.Check(where, Not(Equals), kernelDir)
+	}
+	unitName := systemd.EscapeUnitNamePath(dirs.StripRootDir(filepath.Join(dirs.SnapMountDir, "pc-kernel", "7.mount")))
+	c.Check(osutil.FileExists(filepath.Join(dirs.SnapServicesDir, unitName)), Equals, false)
+}
+
+func (s *snapmgrTestSuite) TestEnsureSnapMountsMountedDoesNotWriteUnit(c *C) {
+	// FORK CHANGE: the Ensure-loop variant (ensureSnapMountsMounted) only makes
+	// the squashfs available; ensureMountsUpdated owns the unit files, so it must
+	// NOT write or enable the mount unit itself.
+	testSnapSideInfo := &snap.SideInfo{RealName: "test-snap", Revision: snap.R(42)}
+	s.state.Lock()
+	snapstate.Set(s.state, "test-snap", &snapstate.SnapState{
+		Sequence: snapstatetest.NewSequenceFromSnapSideInfos([]*snap.SideInfo{testSnapSideInfo}),
+		Current:  snap.R(42),
+		Active:   true,
+		SnapType: "app",
+	})
+	s.state.Unlock()
+
+	unitName := systemd.EscapeUnitNamePath(dirs.StripRootDir(filepath.Join(dirs.SnapMountDir, "test-snap", "42.mount")))
+	mountFile := filepath.Join(dirs.SnapServicesDir, unitName)
+	if osutil.FileExists(mountFile) {
+		c.Assert(os.Remove(mountFile), IsNil)
+	}
+
+	// empty mountinfo (SetUpTest) => everything is considered unmounted
+	var mounts []string
+	defer snapstate.MockMountSnapSquashfs(func(what, where string) error {
+		mounts = append(mounts, where)
+		return nil
+	})()
+	var sysdCalls [][]string
+	defer systemd.MockSystemctl(func(args ...string) ([]byte, error) {
+		sysdCalls = append(sysdCalls, args)
+		return []byte(""), nil
+	})()
+
+	c.Assert(s.snapmgr.EnsureSnapMountsMounted(), IsNil)
+
+	// the squashfs was mounted directly ...
+	c.Check(mounts, testutil.Contains, filepath.Join(dirs.SnapMountDir, "test-snap", "42"))
+	// ... but no mount unit was written and no systemctl (daemon-reload/enable)
+	// was issued - that is ensureMountsUpdated's job.
+	c.Check(osutil.FileExists(mountFile), Equals, false)
+	c.Check(sysdCalls, HasLen, 0)
+}
+
+func (s *snapmgrTestSuite) TestEnsureSnapMountsActiveHealsOncePerRun(c *C) {
+	// FORK CHANGE: a persistently failing mount must be attempted at most once
+	// per snapd run (mountHealAttempts), so running on every ensure tick does not
+	// re-attempt or re-log the same failing mount.
+	testSnapSideInfo := &snap.SideInfo{RealName: "test-snap", Revision: snap.R(42)}
+	s.state.Lock()
+	snapstate.Set(s.state, "test-snap", &snapstate.SnapState{
+		Sequence: snapstatetest.NewSequenceFromSnapSideInfos([]*snap.SideInfo{testSnapSideInfo}),
+		Current:  snap.R(42),
+		Active:   true,
+		SnapType: "app",
+	})
+	s.state.Unlock()
+
+	attempts := map[string]int{}
+	defer snapstate.MockMountSnapSquashfs(func(what, where string) error {
+		attempts[where]++
+		return fmt.Errorf("boom")
+	})()
+	defer systemd.MockSystemctl(func(args ...string) ([]byte, error) { return []byte(""), nil })()
+
+	testDir := filepath.Join(dirs.SnapMountDir, "test-snap", "42")
+
+	// first run attempts the (failing) mount and surfaces the error
+	c.Assert(s.snapmgr.EnsureSnapMountsActive(), NotNil)
+	c.Check(attempts[testDir], Equals, 1)
+
+	// a second run in the same process must not re-attempt the same revision
+	c.Assert(s.snapmgr.EnsureSnapMountsMounted(), IsNil)
+	c.Check(attempts[testDir], Equals, 1)
+}
+
+func (s *snapmgrTestSuite) TestAnySnapServiceUnitMissingChecksSocketAndTimer(c *C) {
+	// FORK CHANGE: an OS image wipe removes .socket/.timer activation units too,
+	// so a service counts as "missing" when any of its units is gone, not only
+	// the .service.
+	testYaml := `name: test-snap
+version: v1
+apps:
+  socksvc:
+    command: bin.sh
+    daemon: simple
+    plugs: [network-bind]
+    sockets:
+      sock:
+        listen-stream: $SNAP_DATA/sock
+  timersvc:
+    command: bin.sh
+    daemon: simple
+    timer: 10:00
+`
+	info := snaptest.MockInfo(c, testYaml, &snap.SideInfo{RealName: "test-snap", Revision: snap.R(1)})
+	svcs := info.Services()
+	c.Assert(os.MkdirAll(dirs.SnapServicesDir, 0755), IsNil)
+
+	// write only the .service files, leaving .socket/.timer missing
+	for _, app := range svcs {
+		c.Assert(os.WriteFile(app.ServiceFile(), []byte("[Unit]\n"), 0644), IsNil)
+	}
+	c.Check(snapstate.AnySnapServiceUnitMissing(svcs), Equals, true)
+
+	// once the activation units are present too, nothing is missing
+	for _, app := range svcs {
+		for _, sock := range app.Sockets {
+			c.Assert(os.WriteFile(sock.File(), []byte("[Unit]\n"), 0644), IsNil)
+		}
+		if app.Timer != nil {
+			c.Assert(os.WriteFile(app.Timer.File(), []byte("[Unit]\n"), 0644), IsNil)
+		}
+	}
+	c.Check(snapstate.AnySnapServiceUnitMissing(svcs), Equals, false)
+}
+
+func (s *snapmgrTestSuite) TestEnsureSnapServicesUpdatedRespectsDisabled(c *C) {
+	// FORK CHANGE: when regenerating wiped units, a service the user (or a hook)
+	// had disabled must not be started back up.
+	restore := snapstate.MockEnsuredSnapServicesUpdated(s.snapmgr, false)
+	defer restore()
+
+	testSnapSideInfo := &snap.SideInfo{RealName: "test-snap", Revision: snap.R(42)}
+	s.state.Lock()
+	snapstate.Set(s.state, "test-snap", &snapstate.SnapState{
+		Sequence:                   snapstatetest.NewSequenceFromSnapSideInfos([]*snap.SideInfo{testSnapSideInfo}),
+		Current:                    snap.R(42),
+		Active:                     true,
+		SnapType:                   "app",
+		LastActiveDisabledServices: []string{"svc"},
+	})
+	testYaml := `name: test-snap
+version: v1
+apps:
+  svc:
+    command: bin.sh
+    daemon: simple
+`
+	info := snaptest.MockSnapCurrent(c, testYaml, testSnapSideInfo)
+	s.state.Unlock()
+
+	restoreReadInfo := snapstate.MockSnapReadInfo(func(name string, si *snap.SideInfo) (*snap.Info, error) {
+		if name == "test-snap" {
+			return snaptest.MockInfo(c, testYaml, si), nil
+		}
+		return s.fakeBackend.ReadInfo(name, si)
+	})
+	defer restoreReadInfo()
+
+	svcFile := info.Services()[0].ServiceFile()
+	if osutil.FileExists(svcFile) {
+		c.Assert(os.Remove(svcFile), IsNil)
+	}
+
+	var sysdCalls [][]string
+	restoreSysd := systemd.MockSystemctl(func(args ...string) ([]byte, error) {
+		sysdCalls = append(sysdCalls, args)
+		return []byte(""), nil
+	})
+	defer restoreSysd()
+
+	c.Assert(s.snapmgr.EnsureSnapServicesUpdated(), IsNil)
+
+	// the unit is regenerated, but the disabled service is not started
+	svcName := filepath.Base(svcFile)
+	for _, call := range sysdCalls {
+		if len(call) >= 1 && call[0] == "start" {
+			c.Check(call, Not(testutil.Contains), svcName, Commentf("disabled service must not be started: %v", call))
+		}
+	}
+}
+
+func (s *snapmgrTestSuite) TestEnsureSnapServicesUpdatedStartsNonBlocking(c *C) {
+	// FORK CHANGE: when service unit files were wiped (Yocto/RAUC image
+	// update), ensureSnapServicesUpdated regenerates and starts them. The
+	// start MUST be non-blocking (systemctl start --no-block): a snap
+	// service's ExecStart is "snap run ...", which needs snapd to make
+	// progress, so a blocking start from within snapd's Ensure loop deadlocks
+	// snapd against its own services (it hangs hard on Type=oneshot units).
+	restore := snapstate.MockEnsuredSnapServicesUpdated(s.snapmgr, false)
+	defer restore()
+
+	testSnapSideInfo := &snap.SideInfo{RealName: "test-snap", Revision: snap.R(42)}
+	testSnapState := &snapstate.SnapState{
+		Sequence: snapstatetest.NewSequenceFromSnapSideInfos([]*snap.SideInfo{testSnapSideInfo}),
+		Current:  snap.R(42),
+		Active:   true,
+		SnapType: "app",
+	}
+	testYaml := `name: test-snap
+version: v1
+apps:
+  svc:
+    command: bin.sh
+    daemon: simple
+`
+
+	s.state.Lock()
+	snapstate.Set(s.state, "test-snap", testSnapState)
+	info := snaptest.MockSnapCurrent(c, testYaml, testSnapSideInfo)
+	s.state.Unlock()
+
+	// CurrentInfo goes through the mocked SnapReadInfo (s.fakeBackend), which
+	// would return a service-less info; make test-snap resolve to the real
+	// parsed yaml so it has a daemon.
+	restoreReadInfo := snapstate.MockSnapReadInfo(func(name string, si *snap.SideInfo) (*snap.Info, error) {
+		if name == "test-snap" {
+			return snaptest.MockInfo(c, testYaml, si), nil
+		}
+		return s.fakeBackend.ReadInfo(name, si)
+	})
+	defer restoreReadInfo()
+
+	// remove the service unit file so the healer considers it missing
+	svcFile := info.Services()[0].ServiceFile()
+	if osutil.FileExists(svcFile) {
+		c.Assert(os.Remove(svcFile), IsNil)
+	}
+
+	var sysdCalls [][]string
+	restoreSysd := systemd.MockSystemctl(func(args ...string) ([]byte, error) {
+		sysdCalls = append(sysdCalls, args)
+		return []byte(""), nil
+	})
+	defer restoreSysd()
+
+	err := s.snapmgr.EnsureSnapServicesUpdated()
+	c.Assert(err, IsNil)
+
+	svcName := filepath.Base(svcFile)
+	var startedNoBlock bool
+	for _, call := range sysdCalls {
+		// a bare, blocking "start <svc>" is exactly the deadlock bug
+		if len(call) >= 1 && call[0] == "start" && (len(call) < 2 || call[1] != "--no-block") {
+			c.Errorf("service start from the ensure loop must be non-blocking, got: %v", call)
+		}
+		if len(call) >= 3 && call[0] == "start" && call[1] == "--no-block" && call[len(call)-1] == svcName {
+			startedNoBlock = true
+		}
+	}
+	c.Check(startedNoBlock, Equals, true, Commentf("expected 'systemctl start --no-block %s', got: %v", svcName, sysdCalls))
+}
+
+func (s *snapmgrTestSuite) TestEnsureSnapServicesUpdatedContinuesPastBrokenSnap(c *C) {
+	// FORK CHANGE: a single broken snap (e.g. one whose squashfs has not been
+	// re-mounted yet, so CurrentInfo fails) must not stop
+	// ensureSnapServicesUpdated from regenerating service units for the other,
+	// healthy snaps. It logs the failure, keeps going, and still marks the
+	// one-shot heal done.
+	restore := snapstate.MockEnsuredSnapServicesUpdated(s.snapmgr, false)
+	defer restore()
+
+	brokenSideInfo := &snap.SideInfo{RealName: "broken-snap", Revision: snap.R(11)}
+	brokenState := &snapstate.SnapState{
+		Sequence: snapstatetest.NewSequenceFromSnapSideInfos([]*snap.SideInfo{brokenSideInfo}),
+		Current:  snap.R(11),
+		Active:   true,
+		SnapType: "app",
+	}
+
+	goodSideInfo := &snap.SideInfo{RealName: "good-snap", Revision: snap.R(42)}
+	goodState := &snapstate.SnapState{
+		Sequence: snapstatetest.NewSequenceFromSnapSideInfos([]*snap.SideInfo{goodSideInfo}),
+		Current:  snap.R(42),
+		Active:   true,
+		SnapType: "app",
+	}
+	goodYaml := `name: good-snap
+version: v1
+apps:
+  svc:
+    command: bin.sh
+    daemon: simple
+`
+
+	s.state.Lock()
+	snapstate.Set(s.state, "broken-snap", brokenState)
+	snapstate.Set(s.state, "good-snap", goodState)
+	info := snaptest.MockSnapCurrent(c, goodYaml, goodSideInfo)
+	s.state.Unlock()
+
+	// broken-snap's CurrentInfo fails (unmounted squashfs); good-snap resolves
+	// to its real parsed yaml so it has a daemon.
+	restoreReadInfo := snapstate.MockSnapReadInfo(func(name string, si *snap.SideInfo) (*snap.Info, error) {
+		switch name {
+		case "good-snap":
+			return snaptest.MockInfo(c, goodYaml, si), nil
+		case "broken-snap":
+			return nil, fmt.Errorf("cannot read snap %q: squashfs not mounted", name)
+		}
+		return s.fakeBackend.ReadInfo(name, si)
+	})
+	defer restoreReadInfo()
+
+	// remove good-snap's service unit so the healer considers it missing
+	svcFile := info.Services()[0].ServiceFile()
+	if osutil.FileExists(svcFile) {
+		c.Assert(os.Remove(svcFile), IsNil)
+	}
+
+	var sysdCalls [][]string
+	restoreSysd := systemd.MockSystemctl(func(args ...string) ([]byte, error) {
+		sysdCalls = append(sysdCalls, args)
+		return []byte(""), nil
+	})
+	defer restoreSysd()
+
+	err := s.snapmgr.EnsureSnapServicesUpdated()
+	// the broken snap surfaces as an error ...
+	c.Assert(err, ErrorMatches, `.*broken-snap.*`)
+
+	// ... but the healthy snap's services were still regenerated and started
+	svcName := filepath.Base(svcFile)
+	var startedGood bool
+	for _, call := range sysdCalls {
+		if len(call) >= 3 && call[0] == "start" && call[1] == "--no-block" && call[len(call)-1] == svcName {
+			startedGood = true
+		}
+	}
+	c.Check(startedGood, Equals, true, Commentf("healthy snap must still be healed despite a broken sibling, got: %v", sysdCalls))
+
+	// the one-shot heal is marked done even though a snap failed, so it does
+	// not re-scan every snap on every ensure tick
+	c.Check(s.snapmgr.EnsuredSnapServicesUpdated(), Equals, true)
 }
 
 func (s *snapmgrTestSuite) TestEnsureSnapStateRewriteDesktopFiles(c *C) {

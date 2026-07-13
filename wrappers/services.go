@@ -248,6 +248,14 @@ func filterUserServicesNotInDisabledMap(disabledSvcs *DisabledServices, original
 // StartServicesOptions carries additional parameters for StartService.
 type StartServicesOptions struct {
 	Enable bool
+	// NoBlock requests that the service units are started without waiting
+	// for the systemd start jobs to complete (systemctl start --no-block).
+	// This is required when starting services from within snapd's own
+	// startup/ensure path: a snap service's ExecStart is "snap run ...",
+	// which needs snapd to make progress, so a blocking start there would
+	// deadlock snapd against its own services (especially Type=oneshot ones,
+	// whose start job only completes when the program exits).
+	NoBlock bool
 	ScopeOptions
 }
 
@@ -363,7 +371,11 @@ func StartServices(apps []*snap.AppInfo, disabledSvcs *DisabledServices, opts *S
 			// https://github.com/systemd/systemd/issues/8102
 			// https://lists.freedesktop.org/archives/systemd-devel/2018-January/040152.html
 			timings.Run(nestedTm, "start-service", fmt.Sprintf("start service %q", srv), func(_ timings.Measurer) {
-				err = systemSysd.Start([]string{srv})
+				if opts.NoBlock {
+					err = systemSysd.StartNoBlock([]string{srv})
+				} else {
+					err = systemSysd.Start([]string{srv})
+				}
 			})
 			if err != nil {
 				return
